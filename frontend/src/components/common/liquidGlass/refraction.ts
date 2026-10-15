@@ -171,7 +171,8 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
     feImage.setAttribute('href', buildDisplacementMap(w, h, radius, edge, state.mode))
     applyScales()
     // var() in an inline style resolves against the element, so theme knobs stay live.
-    const chain = `blur(var(--glass-blur-refract, 2px)) url("#${id}") saturate(var(--glass-saturate, 170%)) brightness(var(--glass-brightness, 1.06))`
+    // Fallbacks match liquidGlass.css; the frost blur runs before the lens so it stays frosted.
+    const chain = `blur(var(--glass-blur-refract, 8px)) url("#${id}") saturate(var(--glass-saturate, 160%)) brightness(var(--glass-brightness, 1.04))`
     el.style.setProperty('backdrop-filter', chain)
     el.style.setProperty('-webkit-backdrop-filter', chain)
   }

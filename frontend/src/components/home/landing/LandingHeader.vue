@@ -1,24 +1,24 @@
 <template>
-  <header class="cosmos-header">
-    <div class="cosmos-header__bar">
-      <router-link to="/home" class="cosmos-brand">
-        <img :src="BRAND.mark" alt="" width="40" height="40" class="cosmos-brand__mark" />
-        <span class="cosmos-brand__text">
+  <header class="landing-header">
+    <div class="landing-header__bar">
+      <router-link to="/home" class="landing-brand">
+        <img :src="BRAND.mark" alt="" width="40" height="40" class="landing-brand__mark" />
+        <span class="landing-brand__text">
           <strong>{{ BRAND.name }}</strong>
           <small>{{ BRAND.tagline }}</small>
         </span>
       </router-link>
 
       <nav
-        v-liquid-glass="{ scale: 26, aberration: 3 }"
-        class="cosmos-nav liquid-glass"
-        :aria-label="t('cosmosHome.nav.label')"
+        v-liquid-glass="{ scale: 26, aberration: 2 }"
+        class="landing-nav liquid-glass"
+        :aria-label="t('landingHome.nav.label')"
       >
         <router-link
           v-for="item in items"
           :key="item.key"
           :to="item.to"
-          class="cosmos-nav__link"
+          class="landing-nav__link"
           :class="{ 'is-active': item.active }"
           :aria-current="item.active ? 'page' : undefined"
         >
@@ -26,13 +26,13 @@
         </router-link>
       </nav>
 
-      <div class="cosmos-header__actions">
-        <CosmosLocaleSwitch />
+      <div class="landing-header__actions">
+        <LandingLocaleSwitch />
         <router-link
           v-if="!isAuthenticated"
           v-liquid-glass="{ scale: 18 }"
           to="/login"
-          class="cosmos-login liquid-glass"
+          class="landing-login liquid-glass"
         >
           {{ t('home.login') }}
         </router-link>
@@ -45,7 +45,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
-import CosmosLocaleSwitch from './CosmosLocaleSwitch.vue'
+import LandingLocaleSwitch from './LandingLocaleSwitch.vue'
 import { BRAND } from './brand'
 
 const props = defineProps<{
@@ -58,8 +58,8 @@ const { t } = useI18n()
 
 /** The header only renders on the home page, so "home" is always the current item. */
 const items = computed(() => [
-  { key: 'home', to: '/home', label: t('cosmosHome.nav.home'), active: true },
-  { key: 'platform', to: props.platformPath, label: t('cosmosHome.nav.platform'), active: false },
+  { key: 'home', to: '/home', label: t('landingHome.nav.home'), active: true },
+  { key: 'platform', to: props.platformPath, label: t('landingHome.nav.platform'), active: false },
   ...(props.showModelPlazaEntry
     ? [{ key: 'modelPlaza', to: '/model-plaza', label: t('nav.modelPlaza'), active: false }]
     : []),
@@ -67,17 +67,17 @@ const items = computed(() => [
 </script>
 
 <style scoped>
-.cosmos-header {
+.landing-header {
   position: fixed;
   inset: 0 0 auto;
   z-index: 50;
   padding: 16px clamp(14px, 2.6vw, 40px) 0;
   pointer-events: none;
   /* backwards only: a filled opacity animation would keep a backdrop root and flatten the glass. */
-  animation: cosmos-header-in 0.9s var(--cosmos-ease) 0.15s backwards;
+  animation: landing-header-in 0.9s var(--landing-ease) 0.15s backwards;
 }
 
-.cosmos-header__bar {
+.landing-header__bar {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -86,7 +86,7 @@ const items = computed(() => [
   pointer-events: auto;
 }
 
-.cosmos-brand {
+.landing-brand {
   justify-self: start;
   display: inline-flex;
   align-items: center;
@@ -94,44 +94,42 @@ const items = computed(() => [
   min-width: 0;
 }
 
-.cosmos-brand__mark {
+.landing-brand__mark {
   width: 40px;
   height: 40px;
   border-radius: 11px;
   box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.08),
-    0 10px 30px -12px rgb(112 224 237 / 0.45);
+    0 0 0 1px rgb(var(--landing-ink-rgb) / 0.06),
+    0 8px 22px -10px rgb(var(--landing-ink-rgb) / 0.45);
 }
 
-.cosmos-brand__text {
+.landing-brand__text {
   display: flex;
   flex-direction: column;
   line-height: 1;
   white-space: nowrap;
 }
 
-.cosmos-brand__text strong {
+.landing-brand__text strong {
   font-size: 17px;
   font-weight: 750;
   letter-spacing: -0.01em;
-  color: var(--cosmos-ink);
+  color: var(--landing-ink);
 }
 
-.cosmos-brand__text small {
+.landing-brand__text small {
   margin-top: 6px;
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.26em;
-  color: var(--cosmos-ink-3);
+  color: var(--landing-ink-3);
 }
 
-/* Near-clear glass: almost no tint or frost, the refraction rim carries the shape. */
-.cosmos-nav {
-  --glass-tint-alpha: 0.025;
-  --glass-blur: 1.5px;
-  --glass-blur-refract: 0.5px;
-  --glass-rim: rgb(190 240 250 / 0.16);
-  --glass-sheen: rgb(255 255 255 / 0.1);
+/* Frosted white pill; the strands behind it show through softened and bent at the rim. */
+.landing-nav {
+  --glass-tint-alpha: 0.38;
+  --glass-blur: 14px;
+  --glass-blur-refract: 7px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -139,7 +137,7 @@ const items = computed(() => [
   border-radius: 999px;
 }
 
-.cosmos-nav__link {
+.landing-nav__link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -148,37 +146,40 @@ const items = computed(() => [
   font-size: 13.5px;
   font-weight: 600;
   white-space: nowrap;
-  color: var(--cosmos-ink-2);
+  color: var(--landing-ink-2);
   transition:
     color 0.25s,
     background 0.25s;
 }
 
-.cosmos-nav__link:hover,
-.cosmos-nav__link.is-active {
-  color: var(--cosmos-ink);
-  background: var(--cosmos-accent-soft);
+.landing-nav__link:hover {
+  color: var(--landing-ink);
+  background: rgb(var(--landing-ink-rgb) / 0.05);
 }
 
-.cosmos-nav__link.is-active::before {
+.landing-nav__link.is-active {
+  color: var(--landing-ink);
+  background: rgb(255 255 255 / 0.7);
+  box-shadow: 0 1px 3px rgb(var(--landing-ink-rgb) / 0.08);
+}
+
+.landing-nav__link.is-active::before {
   content: '';
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--cosmos-accent);
-  box-shadow: 0 0 10px var(--cosmos-accent);
+  background: var(--landing-accent);
 }
 
-.cosmos-header__actions {
+.landing-header__actions {
   justify-self: end;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.cosmos-login {
-  --glass-tint-alpha: 0.03;
-  --glass-blur: 2px;
+.landing-login {
+  --glass-tint-alpha: 0.4;
   display: inline-flex;
   align-items: center;
   height: 40px;
@@ -187,15 +188,15 @@ const items = computed(() => [
   font-size: 13.5px;
   font-weight: 650;
   white-space: nowrap;
-  color: var(--cosmos-ink);
-  transition: transform 0.3s var(--cosmos-ease);
+  color: var(--landing-ink);
+  transition: transform 0.3s var(--landing-ease);
 }
 
-.cosmos-login:hover {
+.landing-login:hover {
   transform: translateY(-1px);
 }
 
-@keyframes cosmos-header-in {
+@keyframes landing-header-in {
   from {
     opacity: 0;
     transform: translate3d(0, -12px, 0);
@@ -203,7 +204,7 @@ const items = computed(() => [
 }
 
 @media (max-width: 760px) {
-  .cosmos-header__bar {
+  .landing-header__bar {
     grid-template-columns: 1fr auto;
     grid-template-areas:
       'brand actions'
@@ -212,26 +213,26 @@ const items = computed(() => [
     height: auto;
   }
 
-  .cosmos-brand {
+  .landing-brand {
     grid-area: brand;
   }
 
-  .cosmos-header__actions {
+  .landing-header__actions {
     grid-area: actions;
   }
 
-  .cosmos-nav {
+  .landing-nav {
     grid-area: nav;
     justify-self: center;
   }
 
-  .cosmos-nav__link {
+  .landing-nav__link {
     padding: 9px 16px;
   }
 }
 
 @media (max-width: 420px) {
-  .cosmos-brand__text small {
+  .landing-brand__text small {
     display: none;
   }
 }

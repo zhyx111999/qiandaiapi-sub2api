@@ -1,0 +1,12 @@
+/*
+ * Headline serif: Noto Serif SC SemiBold (SIL OFL 1.1, see assets/fonts/NotoSerifSC-OFL.txt),
+ * subset to the headline characters by `pnpm build:display-font`. Renamed so a locally
+ * installed full Noto Serif SC is never shadowed by this subset.
+ */
+@font-face {
+  font-family: 'Laoli Display Serif';
+  src: url('@/assets/fonts/display-serif.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}

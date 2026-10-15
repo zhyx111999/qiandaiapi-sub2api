@@ -7,7 +7,7 @@
       :disabled="switching"
       :aria-expanded="isOpen"
       aria-haspopup="menu"
-      :title="t('cosmosHome.language')"
+      :title="t('landingHome.language')"
       @click="toggle"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -59,23 +59,22 @@ const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, t
 }
 
 .locale__trigger {
-  --glass-tint-alpha: 0.03;
-  --glass-blur: 2px;
+  --glass-tint-alpha: 0.4;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   height: 40px;
   padding: 0 12px;
   border-radius: 999px;
-  color: var(--cosmos-ink-2);
-  font: 650 12.5px/1 var(--cosmos-font);
+  color: var(--landing-ink-2);
+  font: 650 12.5px/1 var(--landing-font);
   letter-spacing: 0.08em;
   cursor: pointer;
   transition: color 0.25s;
 }
 
 .locale__trigger:hover {
-  color: var(--cosmos-ink);
+  color: var(--landing-ink);
 }
 
 .locale__trigger svg {
@@ -92,17 +91,17 @@ const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, t
   width: 12px;
   height: 12px;
   opacity: 0.7;
-  transition: transform 0.3s var(--cosmos-ease);
+  transition: transform 0.3s var(--landing-ease);
 }
 
 .locale__chevron.is-open {
   transform: rotate(180deg);
 }
 
+/* Denser frost than the controls: the menu holds text over a busy backdrop. */
 .locale__menu {
-  --glass-tint: 6 12 20;
-  --glass-tint-alpha: 0.72;
-  --glass-blur: 18px;
+  --glass-tint-alpha: 0.78;
+  --glass-blur: 20px;
   position: absolute;
   right: 0;
   top: calc(100% + 8px);
@@ -122,8 +121,8 @@ const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, t
   border: 0;
   border-radius: 12px;
   background: transparent;
-  color: var(--cosmos-ink-2);
-  font: 600 13px/1 var(--cosmos-font);
+  color: var(--landing-ink-2);
+  font: 600 13px/1 var(--landing-font);
   text-align: left;
   cursor: pointer;
   transition:
@@ -133,22 +132,22 @@ const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, t
 
 .locale__option:hover,
 .locale__option.is-active {
-  background: var(--cosmos-accent-soft);
-  color: var(--cosmos-ink);
+  background: var(--landing-accent-soft);
+  color: var(--landing-ink);
 }
 
 .locale__code {
   width: 22px;
-  font: 700 10.5px/1 var(--cosmos-mono);
+  font: 700 10.5px/1 var(--landing-mono);
   letter-spacing: 0.12em;
-  color: var(--cosmos-accent);
+  color: var(--landing-accent);
 }
 
 .locale-menu-enter-active,
 .locale-menu-leave-active {
   transition:
     opacity 0.18s ease,
-    transform 0.25s var(--cosmos-ease);
+    transform 0.25s var(--landing-ease);
 }
 
 .locale-menu-enter-from,

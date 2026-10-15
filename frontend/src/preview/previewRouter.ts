@@ -1,5 +1,5 @@
 import { createMemoryHistory, createRouter } from 'vue-router'
-import CosmosHome from '@/components/home/cosmos/CosmosHome.vue'
+import LandingHome from '@/components/home/landing/LandingHome.vue'
 
 /**
  * Router of the standalone home preview; vite.preview.config.ts also aliases `@/router` here.
@@ -8,7 +8,7 @@ import CosmosHome from '@/components/home/cosmos/CosmosHome.vue'
 export default createRouter({
   history: createMemoryHistory(),
   routes: [
-    { path: '/home', component: CosmosHome },
+    { path: '/home', component: LandingHome },
     { path: '/:pathMatch(.*)*', redirect: '/home' },
   ],
 })

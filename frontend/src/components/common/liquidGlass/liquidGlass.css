@@ -1,29 +1,32 @@
 /*
- * Liquid Glass material: frost + tint + rim + specular sheen.
+ * Liquid Glass material for light surfaces: frost + white tint + rim + specular sheen + soft warm shadow.
  * Recipe adapted from liquid-glass-tailwind (MIT, Copyright (c) 2026 Elwen Coussot).
  *
  * Knobs are read straight through var() with fallbacks and never declared on the
  * element itself, so they can be tuned per subtree or per element:
  *   --glass-tint (r g b)   --glass-tint-alpha   --glass-blur   --glass-blur-refract
- *   --glass-saturate       --glass-brightness   --glass-rim    --glass-sheen
+ *   --glass-saturate       --glass-brightness   --glass-rim    --glass-sheen   --glass-shadow
  * Refraction (Chromium only) is layered on by the v-liquid-glass directive.
  */
 .liquid-glass {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: rgb(var(--glass-tint, 255 255 255) / var(--glass-tint-alpha, 0.05));
+  background: rgb(var(--glass-tint, 255 255 255) / var(--glass-tint-alpha, 0.42));
   background-clip: padding-box;
-  border: 1px solid var(--glass-rim, rgb(255 255 255 / 0.14));
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.22),
-    inset 0 -1px 0 rgb(255 255 255 / 0.05),
-    inset 0 0 18px -6px rgb(255 255 255 / 0.26),
-    0 18px 40px -24px rgb(0 0 0 / 0.85);
-  -webkit-backdrop-filter: blur(var(--glass-blur, 6px)) saturate(var(--glass-saturate, 170%))
-    brightness(var(--glass-brightness, 1.06));
-  backdrop-filter: blur(var(--glass-blur, 6px)) saturate(var(--glass-saturate, 170%))
-    brightness(var(--glass-brightness, 1.06));
+  border: 1px solid var(--glass-rim, rgb(255 255 255 / 0.72));
+  box-shadow: var(
+    --glass-shadow,
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 0 18px -6px rgb(255 255 255 / 0.75),
+    0 0 0 0.5px rgb(31 29 26 / 0.07),
+    0 1px 2px rgb(60 48 30 / 0.06),
+    0 14px 34px -16px rgb(60 48 30 / 0.28)
+  );
+  -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 160%))
+    brightness(var(--glass-brightness, 1.04));
+  backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 160%))
+    brightness(var(--glass-brightness, 1.04));
 }
 
 /* Specular sheen, lit from the top-left like the refraction lens. */
@@ -35,13 +38,13 @@
   border-radius: inherit;
   pointer-events: none;
   background:
-    linear-gradient(135deg, var(--glass-sheen, rgb(255 255 255 / 0.16)), transparent 40%),
-    linear-gradient(315deg, rgb(255 255 255 / 0.06), transparent 32%);
+    linear-gradient(135deg, var(--glass-sheen, rgb(255 255 255 / 0.55)), transparent 42%),
+    linear-gradient(315deg, rgb(255 255 255 / 0.18), transparent 32%);
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .liquid-glass {
-    background: rgb(14 18 24 / 0.94);
+    background: rgb(250 248 244 / 0.96);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

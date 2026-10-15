@@ -1,6 +1,6 @@
 import mark from '@/assets/brand/laoli-mark.png'
 
-/** Brand identity of the cosmos home page. */
+/** Brand identity of the landing home page. */
 export const BRAND = {
   name: '老李API',
   wordmark: 'Laoliapi',

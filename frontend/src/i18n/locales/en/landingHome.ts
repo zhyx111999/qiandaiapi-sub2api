@@ -1,21 +1,19 @@
-/** Home page (deep space three-body) */
+/** Home page (many threads, one gateway) */
 export default {
-  cosmosHome: {
+  landingHome: {
     nav: {
       label: 'Primary',
       home: 'Home',
       platform: 'Platform'
     },
     language: 'Switch language',
-    stageLabel: 'Three-body motion: three stars chase each other along a figure-eight orbit. Click the sky to disturb them.',
-    hudLeft: 'THREE-BODY · 03',
-    hudRight: 'FIGURE-8 · PERIODIC',
+    stageLabel: 'Flow animation: fine threads standing for different models converge into one gateway and leave it as a calm, steady stream. Click anywhere to send a call.',
     headline: {
       lead: 'Quality ',
       highlight: 'speaks for itself'
     },
     description: 'One gateway to your AI universe. Unified model access, key and usage management — every call, steady in orbit.',
     explore: 'Explore Platform',
-    hint: 'Tap the sky · Disturb the bodies'
+    hint: 'Tap anywhere · Send a call'
   }
 }

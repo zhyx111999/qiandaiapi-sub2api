@@ -49,11 +49,10 @@ function mountHome(settings: Record<string, unknown> = {}) {
       stubs: {
         RouterLink: RouterLinkStub,
         LocaleSwitcher: { template: '<div data-testid="locale-switcher" />' },
-        CosmosLocaleSwitch: { template: '<div data-testid="locale-switcher" />' },
+        LandingLocaleSwitch: { template: '<div data-testid="locale-switcher" />' },
         Icon: { template: '<span data-testid="icon" />' },
-        // Canvas scenes have no jsdom implementation; their logic is covered by threeBody unit tests.
-        DeepSpaceBackdrop: true,
-        ThreeBodyStage: true,
+        // The canvas stage has no jsdom implementation; its logic is covered by the convergence unit tests.
+        ConvergenceStage: true,
       },
     },
   })
@@ -112,7 +111,7 @@ describe('HomeView compact mode', () => {
     const wrapper = mountHome(settings)
 
     expect(wrapper.find('[data-testid="compact-home"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="cosmos-home"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="landing-home"]').exists()).toBe(true)
   })
 
   it('links unauthenticated visitors to login', () => {
@@ -187,7 +186,7 @@ describe('HomeView compact mode', () => {
   })
 })
 
-describe('HomeView cosmos mode', () => {
+describe('HomeView landing mode', () => {
   beforeEach(() => {
     authStore.isAuthenticated = false
     authStore.isAdmin = false
@@ -203,8 +202,8 @@ describe('HomeView cosmos mode', () => {
   it('sends visitors to login and offers a header login link', () => {
     const wrapper = mountHome()
 
-    expect(linkWithClass(wrapper, 'cosmos-btn--primary')?.props('to')).toBe('/login')
-    expect(linkWithClass(wrapper, 'cosmos-login')?.props('to')).toBe('/login')
+    expect(linkWithClass(wrapper, 'landing-btn--primary')?.props('to')).toBe('/login')
+    expect(linkWithClass(wrapper, 'landing-login')?.props('to')).toBe('/login')
   })
 
   it('sends signed-in users to their dashboard and hides the header login link', () => {
@@ -213,7 +212,7 @@ describe('HomeView cosmos mode', () => {
 
     const wrapper = mountHome()
 
-    expect(linkWithClass(wrapper, 'cosmos-btn--primary')?.props('to')).toBe('/admin/dashboard')
-    expect(linkWithClass(wrapper, 'cosmos-login')).toBeUndefined()
+    expect(linkWithClass(wrapper, 'landing-btn--primary')?.props('to')).toBe('/admin/dashboard')
+    expect(linkWithClass(wrapper, 'landing-login')).toBeUndefined()
   })
 })
