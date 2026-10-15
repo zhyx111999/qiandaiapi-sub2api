@@ -1,7 +1,7 @@
 <template>
   <div class="relative" ref="dropdownRef">
     <button
-      @click="toggleDropdown"
+      @click="toggle"
       :disabled="switching"
       class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
       :title="currentLocale?.name"
@@ -25,7 +25,7 @@
           v-for="locale in availableLocales"
           :key="locale.code"
           :disabled="switching"
-          @click="selectLocale(locale.code)"
+          @click="select(locale.code)"
           class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
           :class="{
             'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400':
@@ -42,53 +42,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { ref } from 'vue'
 import Icon from '@/components/icons/Icon.vue'
-import { setLocale, availableLocales } from '@/i18n'
+import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 
-const { locale } = useI18n()
-
-const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
-const switching = ref(false)
-
-const currentLocaleCode = computed(() => locale.value)
-const currentLocale = computed(() => availableLocales.find((l) => l.code === locale.value))
-
-function toggleDropdown() {
-  isOpen.value = !isOpen.value
-}
-
-async function selectLocale(code: string) {
-  if (switching.value || code === currentLocaleCode.value) {
-    isOpen.value = false
-    return
-  }
-  switching.value = true
-  try {
-    await setLocale(code)
-    isOpen.value = false
-    // 分组名称等内容由后端按请求语言返回，整页刷新让已加载的数据换成新语言
-    window.location.reload()
-  } finally {
-    switching.value = false
-  }
-}
-
-function handleClickOutside(event: MouseEvent) {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
-    isOpen.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, toggle, select } =
+  useLocaleSwitch(dropdownRef)
 </script>
 
 <style scoped>

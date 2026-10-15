@@ -6,6 +6,7 @@ import tokenGuard from './tokenGuard'
 import pelicanTests from './pelicanTests'
 import tokenGuardV2 from './tokenGuardV2'
 import landing from './landing'
+import cosmosHome from './cosmosHome'
 import common from './common'
 import dashboard from './dashboard'
 import channelMonitorV2 from './channelMonitorV2'
@@ -30,6 +31,7 @@ export default {
   tokenGuardV2,
   requestTiming,
   ...landing,
+  ...cosmosHome,
   ...common,
   ...dashboard,
   ...channelMonitorV2,
