@@ -27,6 +27,42 @@ func qualityUnsupportedModelKey(model string) string {
 	return fmt.Sprintf("quality_unsupported_model_%x", sha256.Sum256([]byte(model)))
 }
 
+// A successful explicit sync allows a previously rejected model to be tested
+// again. Match the execution target, since observations use public names while
+// the live catalog uses upstream IDs. Missing models retain their protection.
+func (s *AccountTestService) resetSyncedQualityModelRejections(ctx context.Context, account *Account, models []string) error {
+	if account == nil || account.ID <= 0 || s.accountRepo == nil {
+		return nil
+	}
+	live := make(map[string]bool, len(models))
+	for _, model := range models {
+		live[model] = true
+	}
+	updates := make(map[string]any)
+	for key, value := range account.Extra {
+		model, ok := value.(string)
+		if !ok || key != qualityUnsupportedModelKey(model) {
+			continue
+		}
+		target := account.GetMappedModel(model)
+		if live[target] {
+			// UpdateExtra atomically merges JSON null, which both quality model
+			// checks already treat as an inactive observation after a reload.
+			updates[key] = nil
+		}
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
+		return err
+	}
+	for key := range updates {
+		account.Extra[key] = nil
+	}
+	return nil
+}
+
 // Discovery is shared with the account test picker. An unavailable catalog is
 // an error, never evidence that the account does not support a model.
 func (s *ScheduledTestService) accountQualityModels(ctx context.Context, id int64) ([]string, error) {
@@ -94,15 +130,21 @@ func qualityPlanModels(plan *ScheduledTestPlan) []string {
 	return []string{plan.ModelID}
 }
 
+func qualityCatalogSupportsModel(catalog []string, model string) bool {
+	for _, pattern := range catalog {
+		if pattern == model || strings.Contains(pattern, "*") && matchWildcard(pattern, model) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *ScheduledTestService) supportedQualityModels(ctx context.Context, plan *ScheduledTestPlan) ([]string, []string, error) {
 	requested := qualityPlanModels(plan)
 	if plan.PelicanConfig == nil || plan.PelicanConfig.Quality == nil || s.qualityModels == nil {
 		return requested, nil, nil
 	}
-	catalog, err := s.qualityModels(ctx, plan.AccountID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("无法读取账号 #%d 的模型列表：%w", plan.AccountID, err)
-	}
+	var catalog []string
 	var blocked map[string]any
 	if s.accountTests != nil {
 		account, err := s.accountTests.accountRepo.GetByID(ctx, plan.AccountID)
@@ -111,16 +153,31 @@ func (s *ScheduledTestService) supportedQualityModels(ctx context.Context, plan 
 		}
 		if account != nil {
 			blocked = account.Extra
+			// Native candy tests can exercise explicitly configured public model
+			// names even when an upstream /models catalog omits them. This applies
+			// to every account type; it does not claim upstream availability.
+			// State probes and BPS retain their route-specific discovery checks.
+			if isQualityAnswerQuestion(plan.PelicanConfig.QuestionKind) && plan.PelicanConfig.TestChannel != "bps" &&
+				!account.IsExcelBPSEnabled() && !account.IsOpenAIPassthroughEnabled() {
+				for model := range account.GetModelMapping() {
+					catalog = append(catalog, model)
+				}
+			}
+		}
+	}
+	for _, model := range requested {
+		if !qualityCatalogSupportsModel(catalog, model) {
+			discovered, err := s.qualityModels(ctx, plan.AccountID)
+			if err != nil {
+				return nil, nil, fmt.Errorf("无法读取账号 #%d 的模型列表：%w", plan.AccountID, err)
+			}
+			catalog = append(catalog, discovered...)
+			break
 		}
 	}
 	var supported, unsupported []string
 	for _, model := range requested {
-		found := containsString(catalog, model)
-		for _, pattern := range catalog {
-			if strings.Contains(pattern, "*") && matchWildcard(pattern, model) {
-				found = true
-			}
-		}
+		found := qualityCatalogSupportsModel(catalog, model)
 		if blocked[qualityUnsupportedModelKey(model)] != nil {
 			found = false
 		}

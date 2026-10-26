@@ -189,6 +189,8 @@ export interface SendVerifyCodeResponse {
 export interface CustomMenuItem {
   id: string
   label: string
+  label_zh?: string
+  label_en?: string
   icon_svg: string
   url: string
   page_slug?: string
@@ -300,6 +302,8 @@ export interface PublicSettings {
   usage_show_cache_rate?: boolean
   /** 是否向终端用户展示单条缓存率。缺失时按关闭处理。 */
   usage_show_cache_rate_to_users?: boolean
+  /** 是否向终端用户展示上游响应里声明的实际模型。缺失时按关闭处理。 */
+  usage_show_upstream_response_model_to_users?: boolean
 }
 
 export interface AuthResponse {
@@ -657,6 +661,8 @@ export interface AdminGroup extends Group {
   free_openai_fast: boolean
   // 仅允许流式请求（管理端请求策略，用户侧分组不返回）
   stream_only: boolean
+  codex_cli_only?: boolean
+  block_subagents?: boolean
   model_pricing: import('@/api/admin/channels').ChannelModelPricing[]
   // 分组利润控制（openai/anthropic/gemini/grok/antigravity 分组可启用；margin/buffer 为小数存储）。
   // 仅管理员可见：与 rate_multiplier 相乘即可反推上游成本上限，不得下放到 Group。
@@ -789,6 +795,7 @@ export interface ApiKey {
   reset_5h_at: string | null
   reset_1d_at: string | null
   reset_7d_at: string | null
+  group_ids?: number[]
 }
 
 export interface ApiKeyConcurrencySnapshot {
@@ -815,6 +822,7 @@ export interface CreateApiKeyRequest {
   rate_limit_5h?: number
   rate_limit_1d?: number
   rate_limit_7d?: number
+  group_ids?: number[]
 }
 
 export interface UpdateApiKeyRequest {
@@ -831,6 +839,7 @@ export interface UpdateApiKeyRequest {
   rate_limit_1d?: number
   rate_limit_7d?: number
   reset_rate_limit_usage?: boolean
+  group_ids?: number[]
 }
 
 export interface CreateGroupRequest {
@@ -848,6 +857,8 @@ export interface CreateGroupRequest {
   force_openai_fast?: boolean
   free_openai_fast?: boolean
   stream_only?: boolean
+  codex_cli_only?: boolean
+  block_subagents?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
   allow_image_generation?: boolean
   allow_batch_image_generation?: boolean
@@ -916,6 +927,8 @@ export interface UpdateGroupRequest {
   force_openai_fast?: boolean
   free_openai_fast?: boolean
   stream_only?: boolean
+  codex_cli_only?: boolean
+  block_subagents?: boolean
   model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
   allow_image_generation?: boolean
   allow_batch_image_generation?: boolean
@@ -1117,7 +1130,7 @@ export interface TempUnschedulableStatus {
 
 export interface UpstreamBillingData {
   object: 'sub2api.key_billing' | 'new_api.group_billing'
-  schema_version: 1
+  schema_version: 1 | 2
   billing_scope: 'token' | 'group'
   provider?: 'new_api'
   group?: string
@@ -1133,6 +1146,15 @@ export interface UpstreamBillingData {
   effective_rate_multiplier?: number
   timezone?: string
   observed_at: string
+  billing_mode?: 'multi_group'
+  min_rate_multiplier?: number
+  max_rate_multiplier?: number
+  groups?: Array<UpstreamBillingData & {
+    group_id: number
+    group_name: string
+    platform: string
+    status: 'active' | 'inactive'
+  }>
 }
 
 export type UpstreamBillingProbeStatus = 'ok' | 'unsupported' | 'failed'
@@ -1849,6 +1871,7 @@ export interface AdminDataImportResult {
 }
 
 export interface CodexSessionImportRequest {
+  initialize_openai_two_fa?: boolean
   /** Skip matching accounts without replacing their credentials or settings. */
   skip_existing?: boolean
   content?: string
@@ -1980,6 +2003,9 @@ export interface UsageLog {
 
   // 计费模式
   billing_mode?: string | null
+
+  // 上游响应声明的实际模型。仅在管理员打开对用户可见时由用户接口返回。
+  upstream_response_model?: string | null
 
   created_at: string
 
@@ -2663,9 +2689,11 @@ export interface QualityBPSPolicy {
   hold_on_usage: boolean
 }
 export interface QualityPolicy {
+  trigger_on_upstream_5xx?: boolean
+  admission?: import('@/utils/openaiTwoFAAdmission').OpenAITwoFAAdmissionConfig
   judge?: QualityJudgeConfig
   expected_answer: string
-  action: 'remove_groups' | 'remove_models' | 'disable_scheduling' | 'enable_bps' | 'observe_only'
+  action: 'openai_two_fa_admission' | 'isolate_models' | 'remove_groups' | 'remove_models' | 'disable_scheduling' | 'enable_bps' | 'observe_only'
   remove_group_ids: number[]
   remove_models?: string[]
   recovery_concurrency?: number
@@ -2673,12 +2701,33 @@ export interface QualityPolicy {
   bps?: QualityBPSPolicy
 }
 
+export interface QualityRestoreDiagnostic {
+  reason: string
+  disposition: 'manual_required' | 'external_membership_present'
+  scope: string
+  ownership_retained: boolean
+  groups?: { group_id: number; group_exists: boolean; membership_present: boolean }[]
+  models?: string[]
+  changed_fields?: string[]
+  account_status?: string
+  schedulable?: boolean
+  account_version?: string
+  owned_account_version?: string
+  expected_concurrency?: number
+  current_concurrency?: number
+}
+
 export interface PelicanTestConfig {
+  // Optional display name, persisted with the rule's editable configuration.
+  rule_name?: string
+  quality_restore_diagnostic?: QualityRestoreDiagnostic
   quality_model_outcomes?: Record<string, 'passed' | 'failed' | 'inconclusive' | 'skipped'>
   quality_model_actions?: Record<string, string>
   trigger_source?: string
   quality?: QualityPolicy
-  question_kind?: 'candy' | 'pelican' | 'state_probe'
+  question_kind?: 'candy' | 'pelican' | 'state_probe' | 'random_reasoning'
+  // Result-only identity of a runtime-generated question.
+  random_question?: { id: string; family: 'paths' | 'weighted_xor'; version: string }
   test_channel?: 'account' | 'bps'
   prompt: string
   reasoning_effort: string
@@ -2731,6 +2780,8 @@ export interface CreateScheduledTestPlanRequest {
 }
 
 export interface UpdateScheduledTestPlanRequest {
+  // Configuration reuse must not implicitly restore or discard target ownership.
+  preserve_quality_state?: boolean
   pelican_config?: PelicanTestConfig
   model_id?: string
   cron_expression?: string

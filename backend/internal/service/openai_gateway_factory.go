@@ -8,6 +8,7 @@ import (
 // The production composition root attaches optional services before starting
 // the harvest loop; no post-construction setter races with startup.
 type OpenAIGatewayDependencies struct {
+	TimezoneProber   ProxyExitInfoProber
 	RegionalMetering *RegionalMetering
 	Accounts         AccountRepository
 	Proxies          ProxyRepository
@@ -34,6 +35,8 @@ type OpenAIGatewayDependencies struct {
 	Quotas           UserPlatformQuotaRepository
 	RPMCache         RPMCache
 	Harvest          *CodexHarvestService
+
+	SafetyPromptStore *SafetyPromptStore
 }
 
 func ProvideOpenAIGatewayService(d OpenAIGatewayDependencies) *OpenAIGatewayService {
@@ -46,5 +49,9 @@ func ProvideOpenAIGatewayService(d OpenAIGatewayDependencies) *OpenAIGatewayServ
 		d.Channels, d.BalanceNotify, d.Settings, d.Quotas,
 		WithOpenAIRPMCache(d.RPMCache),
 		WithRegionalMetering(d.RegionalMetering),
-		func(s *OpenAIGatewayService) { s.codexHarvest = d.Harvest })
+		func(s *OpenAIGatewayService) {
+			s.codexHarvest = d.Harvest
+			s.requestTimezoneProber = d.TimezoneProber
+			s.safetyPromptStore = d.SafetyPromptStore
+		})
 }

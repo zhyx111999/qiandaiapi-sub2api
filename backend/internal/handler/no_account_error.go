@@ -105,9 +105,9 @@ func classifySelectionFailureError(err error, fallback noAccountErrorClassificat
 // Its dedicated database query considers only persistent eligibility
 // (active status + schedulable setting) and model_mapping, bypassing scheduler
 // snapshots and transient filters. That guarantees a 404 is only returned
-// when no configured candidate supports the model, including candidates with
-// a still-valid explicit upstream model capability rejection. Ordinary capacity
-// cooldowns never remove model support.
+// when no configured candidate supports the model. Expiring upstream model
+// rejection observations still block scheduling but never remove configured
+// support: returning 404 for them would renew negative caches on another relay.
 //
 // routingModel is the model name that account selection actually compared
 // against (i.e. after group-level dispatch mapping). displayModel is the
@@ -152,10 +152,14 @@ func classifyNoAccountError(
 		return fallback
 	}
 	if result.HasAccountsInPool && !result.HasModelSupport {
+		message := fmt.Sprintf("Model %q is not supported by any configured account in this group", displayModel)
+		if result.HasRetiredSubscriptionModel {
+			message = fmt.Sprintf("Model %q targets GPT-5.5, which retired from Codex with ChatGPT sign-in on October 14, 2026. Select an available replacement such as GPT-6.1 Sol or GPT-6 Luna, or configure an API-key upstream that supports GPT-5.5.", displayModel)
+		}
 		return noAccountErrorClassification{
 			Status:        http.StatusNotFound,
 			ErrType:       "model_not_found",
-			Message:       fmt.Sprintf("Model %q is not supported by any configured account in this group", displayModel),
+			Message:       message,
 			ModelNotFound: true,
 			Code:          "model_not_found",
 			Diagnosis:     result,

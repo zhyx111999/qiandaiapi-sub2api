@@ -31,6 +31,29 @@ func TestLoadDefaultModelsListReadMaxBytes(t *testing.T) {
 	require.Equal(t, DefaultModelsListReadMaxBytes, cfg.Gateway.ModelsListReadMaxBytes)
 }
 
+func TestLoadDefaultMinOutputTokens(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, 128, cfg.Gateway.MinOutputTokens)
+}
+
+func TestLoadMinOutputTokensFromEnv(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_MIN_OUTPUT_TOKENS", "16")
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, 16, cfg.Gateway.MinOutputTokens)
+}
+
+func TestValidateMinOutputTokensMinimum(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	cfg.Gateway.MinOutputTokens = 15
+	require.EqualError(t, cfg.Validate(), "gateway.min_output_tokens must be at least 16")
+}
+
 func TestLoadTimezonePrecedence(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -106,6 +129,7 @@ func TestLoadHTTPIngressSafetyDefaults(t *testing.T) {
 	require.Equal(t, 64*1024, cfg.Server.MaxHeaderBytes)
 	require.Empty(t, cfg.Server.TrustedProxies)
 	require.False(t, cfg.Server.TrustedProxiesConfigured)
+	require.Equal(t, []string{"127.0.0.1/32", "::1/128"}, cfg.Server.EffectiveTrustedProxies())
 	require.True(t, cfg.TrustForwardedIPForAPIKeyACL())
 	require.Equal(t, int64(32*1024*1024), cfg.Gateway.TextMaxBodySize)
 	require.True(t, cfg.APIKeyAuth.InvalidAbuse.Enabled)
@@ -241,6 +265,7 @@ func TestLoadExplicitEmptyTrustedProxiesEnablesConfiguredMode(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, cfg.Server.TrustedProxies)
 	require.True(t, cfg.Server.TrustedProxiesConfigured)
+	require.Empty(t, cfg.Server.EffectiveTrustedProxies())
 }
 
 func TestLoadExplicitTrustedProxiesEnablesConfiguredMode(t *testing.T) {
@@ -261,6 +286,7 @@ func TestLoadTrustedProxiesFromEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"127.0.0.1/32", "::1/128"}, cfg.Server.TrustedProxies)
 	require.True(t, cfg.Server.TrustedProxiesConfigured)
+	require.Equal(t, cfg.Server.TrustedProxies, cfg.Server.EffectiveTrustedProxies())
 }
 
 func TestLoadExplicitEmptyTrustedProxiesFromEnvironment(t *testing.T) {
@@ -271,6 +297,7 @@ func TestLoadExplicitEmptyTrustedProxiesFromEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, cfg.Server.TrustedProxies)
 	require.True(t, cfg.Server.TrustedProxiesConfigured)
+	require.Empty(t, cfg.Server.EffectiveTrustedProxies())
 }
 
 func TestLoadTrustedProxiesPresenceFromYAML(t *testing.T) {
@@ -301,6 +328,35 @@ func TestLoadTrustedProxiesPresenceFromYAML(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, test.want, cfg.Server.TrustedProxies)
 			require.Equal(t, test.configured, cfg.Server.TrustedProxiesConfigured)
+		})
+	}
+}
+
+func TestLoadTrustedProxiesEnvironmentOverridesPersistentYAML(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		setEnv bool
+		value  string
+		want   []string
+	}{
+		{"unset preserves YAML", false, "", []string{"172.18.0.1/32"}},
+		{"explicit empty disables YAML trust", true, "", []string{}},
+		{"list replaces YAML trust", true, "127.0.0.1/32, ::1/128", []string{"127.0.0.1/32", "::1/128"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			resetViperWithJWTSecret(t)
+			configFile := filepath.Join(t.TempDir(), "config.yaml")
+			require.NoError(t, os.WriteFile(configFile, []byte("server:\n  trusted_proxies:\n    - 172.18.0.1/32\n"), 0o600))
+			t.Setenv("CONFIG_FILE", configFile)
+			// Register cleanup before unsetting so an inherited value is restored.
+			t.Setenv("SERVER_TRUSTED_PROXIES", tt.value)
+			if !tt.setEnv {
+				require.NoError(t, os.Unsetenv("SERVER_TRUSTED_PROXIES"))
+			}
+			cfg, err := Load()
+			require.NoError(t, err)
+			require.True(t, cfg.Server.TrustedProxiesConfigured)
+			require.Equal(t, tt.want, cfg.Server.EffectiveTrustedProxies())
 		})
 	}
 }

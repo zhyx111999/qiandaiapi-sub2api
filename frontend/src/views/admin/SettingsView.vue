@@ -1553,6 +1553,25 @@
                 </p>
               </div>
 
+              <!-- Email Alias Registration -->
+              <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700">
+                <div>
+                  <label for="registration-email-alias-block" class="font-medium text-gray-900 dark:text-white">{{
+                    t("admin.settings.registration.emailAliasBlock")
+                  }}</label>
+                  <p id="registration-email-alias-block-hint" class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.registration.emailAliasBlockHint") }}
+                  </p>
+                </div>
+                <Toggle
+                  id="registration-email-alias-block"
+                  v-model="form.registration_email_alias_block_enabled"
+                  :aria-label="t('admin.settings.registration.emailAliasBlock')"
+                  aria-describedby="registration-email-alias-block-hint"
+                  data-testid="registration-email-alias-block-toggle"
+                />
+              </div>
+
               <!-- Email Domain Quota -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -1635,6 +1654,44 @@
                 <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                   {{ t("admin.settings.registration.frontendUrlHint") }}
                 </p>
+              </div>
+
+              <!-- Registration IP quota is independent of login protection. -->
+              <div
+                class="flex items-start justify-between gap-4 border-t border-gray-100 pt-4 dark:border-dark-700"
+              >
+                <div>
+                  <label id="registration-ip-limit-label" class="font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.security.registrationIPLimit") }}
+                  </label>
+                  <p id="registration-ip-limit-hint" class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.security.registrationIPLimitHint") }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="form.registration_ip_limit_enabled"
+                  aria-labelledby="registration-ip-limit-label"
+                  aria-describedby="registration-ip-limit-hint"
+                  data-testid="registration-ip-limit-toggle"
+                />
+              </div>
+
+              <!-- Login rate limits -->
+              <div
+                class="flex items-start justify-between gap-4 border-t border-gray-100 pt-4 dark:border-dark-700"
+              >
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.security.loginRateLimit") }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.security.loginRateLimitHint") }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="form.login_rate_limit_enabled"
+                  data-testid="login-rate-limit-toggle"
+                />
               </div>
 
               <!-- TOTP 2FA -->
@@ -4520,7 +4577,7 @@
               </h2>
             </div>
             <div class="p-6 space-y-4">
-                <RequestTimezoneSettings v-model="form.openai_request_timezone_enabled" />
+                <RequestTimezoneSettings v-model="form.openai_request_timezone_enabled" v-model:auto="form.openai_request_timezone_auto" />
                 <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600" data-testid="codex-management-links">
                   <p class="text-sm text-gray-500 dark:text-gray-400">{{ localText('自动打票、模型与票据策略在「打票全流程」管理；采票出口、订阅与节点在「IP 管理」管理。', 'Manage automatic harvesting, models and ticket policies in Harvest Flow; manage exits, subscriptions and nodes in IP Management.') }}</p>
                   <div class="mt-3 flex flex-wrap gap-2">
@@ -6475,6 +6532,25 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.upstream_response_model_to_users.label') }}
+                </label>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.upstream_response_model_to_users.description') }}
+                </p>
+              </div>
+              <label class="toggle">
+                <input
+                  v-model="form.usage_show_upstream_response_model_to_users"
+                  data-testid="usage-show-upstream-response-model-to-users"
+                  type="checkbox"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
         </div>
         </div>
@@ -6946,20 +7022,52 @@
                 </div>
 
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <!-- Label -->
+                  <!-- Localized labels -->
                   <div>
                     <label
                       class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
                     >
-                      {{ t("admin.settings.customMenu.name") }}
+                      {{ t("admin.settings.customMenu.nameZh") }}
+                    </label>
+                    <input
+                      v-model="item.label_zh"
+                      type="text"
+                      class="input text-sm"
+                      maxlength="50"
+                      :placeholder="t('admin.settings.customMenu.nameZhPlaceholder')"
+                      data-testid="custom-menu-label-zh"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
+                    >
+                      {{ t("admin.settings.customMenu.nameEn") }}
+                    </label>
+                    <input
+                      v-model="item.label_en"
+                      type="text"
+                      class="input text-sm"
+                      maxlength="50"
+                      :placeholder="t('admin.settings.customMenu.nameEnPlaceholder')"
+                      data-testid="custom-menu-label-en"
+                    />
+                  </div>
+
+                  <!-- Legacy label fallback -->
+                  <div>
+                    <label
+                      class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400"
+                    >
+                      {{ t("admin.settings.customMenu.fallbackName") }}
                     </label>
                     <input
                       v-model="item.label"
                       type="text"
                       class="input text-sm"
-                      :placeholder="
-                        t('admin.settings.customMenu.namePlaceholder')
-                      "
+                      maxlength="50"
+                      :placeholder="t('admin.settings.customMenu.fallbackNamePlaceholder')"
+                      data-testid="custom-menu-label-fallback"
                     />
                   </div>
 
@@ -7031,6 +7139,7 @@
               <button
                 type="button"
                 class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm text-gray-500 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:text-primary-400"
+                data-testid="custom-menu-add"
                 @click="addMenuItem"
               >
                 <svg
@@ -10162,8 +10271,11 @@ const form = reactive<SettingsForm>({
   prism_browser_api_key_configured: false,
   prism_browser_api_key: "",
   registration_enabled: true,
+  login_rate_limit_enabled: true,
+  registration_ip_limit_enabled: true,
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
+  registration_email_alias_block_enabled: true,
   registration_email_domain_quota_enabled: false,
   promo_code_enabled: true,
   invitation_code_enabled: false,
@@ -10239,6 +10351,8 @@ const form = reactive<SettingsForm>({
   custom_menu_items: [] as Array<{
     id: string;
     label: string;
+    label_zh?: string;
+    label_en?: string;
     icon_svg: string;
     url: string;
     visibility: "user" | "admin";
@@ -10419,7 +10533,8 @@ const form = reactive<SettingsForm>({
   // 只读展示：自动同步任务写入的官方最新稳定版，不参与提交（提交载荷按字段显式构造）
   openai_codex_client_version_synced: "",
   openai_codex_version_auto_sync_enabled: true,
-  openai_request_timezone_enabled: false,
+  openai_request_timezone_enabled: true,
+  openai_request_timezone_auto: true,
   claude_code_client_version: "",
   // 只读展示：自动同步任务写入的官方最新稳定版，不参与提交（提交载荷按字段显式构造）
   claude_code_client_version_synced: "",
@@ -10466,6 +10581,7 @@ const form = reactive<SettingsForm>({
   usage_show_long_context_badge: true,
   usage_show_cache_rate: true,
   usage_show_cache_rate_to_users: false,
+  usage_show_upstream_response_model_to_users: false,
   request_capture_enabled: false,
   request_capture_quota_mib: 1024,
   request_capture_retention_days: 7,
@@ -11260,6 +11376,8 @@ function addMenuItem() {
   form.custom_menu_items.push({
     id: "",
     label: "",
+    label_zh: "",
+    label_en: "",
     icon_svg: "",
     url: "",
     visibility: "user",
@@ -11943,11 +12061,14 @@ async function saveSettings() {
       prism_browser_base_url: form.prism_browser_base_url,
       ...(form.prism_browser_api_key ? { prism_browser_api_key: form.prism_browser_api_key } : {}),
       registration_enabled: form.registration_enabled,
+      login_rate_limit_enabled: form.login_rate_limit_enabled,
+      registration_ip_limit_enabled: form.registration_ip_limit_enabled,
       email_verify_enabled: form.email_verify_enabled,
       registration_email_suffix_whitelist:
         registrationEmailSuffixWhitelistTags.value.map((suffix) =>
           suffix.startsWith("*.") ? suffix : `@${suffix}`,
         ),
+      registration_email_alias_block_enabled: form.registration_email_alias_block_enabled,
       registration_email_domain_quota_enabled:
         form.registration_email_domain_quota_enabled,
       promo_code_enabled: form.promo_code_enabled,
@@ -11991,7 +12112,10 @@ async function saveSettings() {
       hide_ccs_import_button: form.hide_ccs_import_button,
       table_default_page_size: form.table_default_page_size,
       table_page_size_options: form.table_page_size_options,
-      custom_menu_items: form.custom_menu_items,
+      custom_menu_items: form.custom_menu_items.map((item) => ({
+        ...item,
+        label: item.label.trim() || item.label_zh?.trim() || item.label_en?.trim() || "",
+      })),
       custom_endpoints: form.custom_endpoints,
       frontend_url: form.frontend_url,
       smtp_host: form.smtp_host,
@@ -12150,6 +12274,7 @@ async function saveSettings() {
       openai_codex_version_auto_sync_enabled:
         form.openai_codex_version_auto_sync_enabled,
       openai_request_timezone_enabled: form.openai_request_timezone_enabled,
+      openai_request_timezone_auto: form.openai_request_timezone_auto,
       claude_code_client_version: form.claude_code_client_version?.trim() || "",
       claude_code_version_auto_sync_enabled:
         form.claude_code_version_auto_sync_enabled,
@@ -12284,6 +12409,7 @@ async function saveSettings() {
       usage_show_long_context_badge: form.usage_show_long_context_badge,
       usage_show_cache_rate: form.usage_show_cache_rate,
       usage_show_cache_rate_to_users: form.usage_show_cache_rate_to_users,
+      usage_show_upstream_response_model_to_users: form.usage_show_upstream_response_model_to_users,
       request_capture_enabled: form.request_capture_enabled,
       request_capture_quota_mib: form.request_capture_quota_mib,
       request_capture_retention_days: form.request_capture_retention_days,

@@ -80,7 +80,9 @@ type OpenAIAccountScheduleRequest struct {
 	PreserveStickyBinding   bool
 	// DisableStickyEscape keeps task-owner lookups on their account even when
 	// generic sticky health or concurrency heuristics would prefer another.
-	DisableStickyEscape     bool
+	DisableStickyEscape bool
+	// EncryptedReasoning suppresses quality-only escapes, not hard/capacity gates.
+	EncryptedReasoning      bool
 	RequirePrivacySet       bool
 	PreviousResponseID      string
 	PreviousResponseCanMove bool
@@ -191,6 +193,7 @@ func (m *openAIAccountSchedulerMetrics) recordSwitch() {
 }
 
 type openAIAccountRuntimeStats struct {
+	attempts     priorityAttemptStats
 	accounts     sync.Map
 	accountCount atomic.Int64
 	// Set once at construction; tests can supply a deterministic clock before use.
@@ -630,7 +633,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		slog.Info("sticky_escape_triggered", "account_id", accountID, "reason", "priority_capacity_imbalance")
 		return nil, true, nil
 	}
-	if reason, errorRate, ttft, shouldEscape := s.shouldEscapeStickyAccount(accountID, escapeCfg); shouldEscape && !req.DisableStickyEscape {
+	if reason, errorRate, ttft, shouldEscape := s.shouldEscapeStickyAccount(accountID, escapeCfg); shouldEscape && !req.DisableStickyEscape && !req.EncryptedReasoning {
 		slog.Info("sticky_escape_triggered",
 			"account_id", accountID,
 			"reason", reason,
@@ -727,22 +730,25 @@ func (s *defaultOpenAIAccountScheduler) shouldEscapeStickyAccountAt(accountID in
 }
 
 type openAIAccountCandidateScore struct {
-	priorityOAuthSpare    int
-	priorityAPIStandby    bool
-	priorityLatencyFactor float64
-	priorityUnhealthy     bool
-	priorityExploration   bool
-	account               *Account
-	loadInfo              *AccountLoadInfo
-	loadKnown             bool
-	score                 float64
-	priority              int
-	errorRate             float64
-	ttft                  float64
-	hasTTFT               bool
-	rpmCurrent            int
-	rpmLimit              int
-	rpmEnabled            bool
+	priorityOAuthSpare                 int
+	priorityAPIStandby                 bool
+	priorityLatencyFactor              float64
+	priorityUnhealthy                  bool
+	priorityLatencyRecovery            bool
+	priorityRecoveryExplorationPercent int
+	priorityExploration                bool
+	account                            *Account
+	loadInfo                           *AccountLoadInfo
+	loadKnown                          bool
+	score                              float64
+	priority                           int
+	errorRate                          float64
+	priorityErrors                     PriorityErrorEvidence
+	ttft                               float64
+	hasTTFT                            bool
+	rpmCurrent                         int
+	rpmLimit                           int
+	rpmEnabled                         bool
 }
 
 type openAIAccountCandidateHeap []openAIAccountCandidateScore
@@ -2048,8 +2054,11 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	}) {
 		return false, "shadow_parent_unhealthy"
 	}
-	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
+	if req.RequestedModel != "" && !supportsOpenAIRequestModel(account, req.RequestedModel, req.RequireCompact) {
 		return false, "model_not_supported"
+	}
+	if req.RequestedModel != "" && !pelicanGroupTestModelAllowed(ctx, account, req.RequestedModel) {
+		return false, "model_not_selected_for_pelican"
 	}
 	if req.RequestedModel != "" && !account.IsModelAllowedInGroup(req.GroupID, req.RequestedModel) {
 		return false, "model_not_allowed_in_group"
@@ -2059,7 +2068,7 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 		s.service.isUpstreamModelRestrictedByChannel(ctx, *req.GroupID, account, req.RequestedModel, req.RequireCompact) {
 		return false, "channel_upstream_restricted"
 	}
-	if !accountSupportsOpenAICapabilitiesForRequest(account, req.RequestedModel, req.RequiredCapability, req.RequiredImageCapability) {
+	if !accountSupportsOpenAICapabilitiesForRequest(ctx, account, req.RequestedModel, req.RequiredCapability, req.RequiredImageCapability) {
 		return false, "capability_mismatch"
 	}
 	// 分组利润控制：不合格账号在候选过滤与抢槽后终检阶段即被排除，
@@ -2320,6 +2329,11 @@ func (s *OpenAIGatewayService) getOpenAIAccountScheduler(ctx context.Context, pr
 	if !s.isOpenAIAdvancedSchedulerEnabled(ctx) && !priority {
 		return nil
 	}
+	s.initOpenAIAccountScheduler()
+	return s.openaiScheduler
+}
+
+func (s *OpenAIGatewayService) initOpenAIAccountScheduler() {
 	s.openaiSchedulerOnce.Do(func() {
 		if s.openaiAccountStats == nil {
 			s.openaiAccountStats = newOpenAIAccountRuntimeStats()
@@ -2328,7 +2342,6 @@ func (s *OpenAIGatewayService) getOpenAIAccountScheduler(ctx context.Context, pr
 			s.openaiScheduler = newDefaultOpenAIAccountScheduler(s, s.openaiAccountStats)
 		}
 	})
-	return s.openaiScheduler
 }
 
 func resetOpenAIAdvancedSchedulerSettingCacheForTest() {
@@ -2382,6 +2395,7 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(
 	excludedIDs map[int64]struct{},
 	requiredCapability OpenAIImagesCapability,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	ctx = WithOpenAIImagesEndpoint(WithOpenAIImageGenerationIntent(ctx))
 	selection, decision, err := s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, "", requiredCapability, false, PlatformOpenAI, false, false)
 	if err == nil && selection != nil && selection.Account != nil {
 		return selection, decision, nil
@@ -2650,7 +2664,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 				if selection == nil || selection.Account == nil {
 					return selection, decision, nil
 				}
-				if accountSupportsOpenAICapabilitiesForRequest(selection.Account, requestedModel, requiredCapability, requiredImageCapability) {
+				if accountSupportsOpenAICapabilitiesForRequest(ctx, selection.Account, requestedModel, requiredCapability, requiredImageCapability) {
 					applyLegacySelectionDecision(&decision, selection)
 					return selection, decision, nil
 				}
@@ -2677,7 +2691,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 				return selection, decision, nil
 			}
 			if s.isOpenAIAccountTransportCompatible(selection.Account, requiredTransport, requestedModel) &&
-				accountSupportsOpenAICapabilitiesForRequest(selection.Account, requestedModel, requiredCapability, requiredImageCapability) {
+				accountSupportsOpenAICapabilitiesForRequest(ctx, selection.Account, requestedModel, requiredCapability, requiredImageCapability) {
 				applyLegacySelectionDecision(&decision, selection)
 				return selection, decision, nil
 			}
@@ -2719,6 +2733,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		Platform:                platform,
 		SessionHash:             sessionHash,
 		StickyAccountID:         stickyAccountID,
+		EncryptedReasoning:      platform == PlatformOpenAI && ctx.Value(openAIEncryptedReasoningAffinityKey{}) == true,
 		GuardianParentAccountID: guardianParentAccountID,
 		StickyPreviousAccountID: stickyPreviousAccountID,
 		StickyWeighted:          stickyWeighted,
@@ -2745,7 +2760,10 @@ func accountSupportsOpenAICapabilities(account *Account, requiredCapability Open
 		account.SupportsOpenAIImageCapability(requiredImageCapability)
 }
 
-func accountSupportsOpenAICapabilitiesForRequest(account *Account, requestedModel string, requiredCapability OpenAIEndpointCapability, requiredImageCapability OpenAIImagesCapability) bool {
+func accountSupportsOpenAICapabilitiesForRequest(ctx context.Context, account *Account, requestedModel string, requiredCapability OpenAIEndpointCapability, requiredImageCapability OpenAIImagesCapability) bool {
+	if openAIImageRequestRejection(ctx, account, requestedModel) != "" {
+		return false
+	}
 	if account != nil && requiredImageCapability == "" && account.IsExcelBPSEnabledForModel(requestedModel) {
 		switch requiredCapability {
 		case OpenAIEndpointCapabilityChatCompletions, OpenAIEndpointCapabilityResponses, OpenAIEndpointCapabilityResponsesCompact:

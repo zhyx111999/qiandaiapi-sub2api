@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildQualityRulePatch, qualityBPSError, qualityBPSForm, qualityBPSPayload, type QualityRuleDraft } from '../qualityRulePatch'
+import { buildQualityRulePatch, copyQualityRuleConfig, qualityBPSError, qualityBPSForm, qualityBPSPayload, type QualityRuleDraft } from '../qualityRulePatch'
 import type { QualityBPSPolicy, ScheduledTestPlan } from '@/types'
 
 const draft = (): QualityRuleDraft => ({
@@ -28,7 +28,64 @@ const probePlan = () => {
   return rule
 }
 
+describe('quality rule copy inputs', () => {
+  it('accepts null group and BPS model arrays returned by normalized observation and BPS rules', () => {
+    const source = plan().pelican_config!
+    source.quality!.action = 'enable_bps'
+    Object.assign(source.quality!, { remove_group_ids: null, bps: { ...bps(), all_models: true, models: null } })
+    const copy = copyQualityRuleConfig(source)
+    expect(copy.quality.remove_group_ids).toEqual([])
+    expect(copy.quality.bps!.models).toEqual([])
+  })
+
+  it('copies editable answer and cooldown settings with independent nested values', () => {
+    const source = plan().pelican_config!
+    source.model_ids = ['first', 'second']
+    source.quality!.action = 'remove_models'
+    source.quality!.remove_models = ['first']
+    source.quality!.recovery_concurrency = 9
+    const original = JSON.stringify(source)
+    const copy = copyQualityRuleConfig(source)
+    expect(copy).toMatchObject({ prompt: source.prompt, reasoning_effort: 'low', parallel_count: 2, model_ids: ['first', 'second'],
+      quality: { action: 'remove_models', remove_models: ['first'], recovery_concurrency: 9, judge: source.quality!.judge } })
+    copy.model_ids!.push('third')
+    copy.quality.remove_group_ids.push(100)
+    copy.quality.remove_models!.push('second')
+    copy.quality.judge!.prompt = 'Changed'
+    expect(JSON.stringify(source)).toBe(original)
+  })
+
+  it('drops generated questions, runtime state and unknown nested fields while preserving reusable random-test inputs', () => {
+    const source = plan().pelican_config!
+    source.question_kind = 'random_reasoning'
+    source.random_question = { id: 'previous-question', family: 'paths', version: 'v1' }
+    Object.assign(source, { trigger_source: 'upstream_5xx', model_id: 'result-model', quality_round_id: 'round',
+      quality_model_actions: { first: 'cooled' }, quality_model_outcomes: { first: 'failed' },
+      quality_restore_diagnostic: { ownership_retained: true }, credentials: 'synthetic-secret' })
+    Object.assign(source.quality!, { admission: { enabled: true }, owner_plan_id: 1, failure_count: 3 })
+    Object.assign(source.quality!.judge!, { credentials: 'synthetic-secret' })
+    const copy = copyQualityRuleConfig(source)
+    expect(copy.prompt).toBe('')
+    expect(copy.quality.expected_answer).toBe('')
+    expect(copy.quality.judge).toEqual({ group_id: 99, model_id: 'own-judge', prompt: 'Own grading instructions' })
+    expect(Object.keys(copy).sort()).toEqual(['model_ids', 'parallel_count', 'prompt', 'quality', 'question_kind', 'reasoning_effort', 'rule_name', 'test_channel'])
+    for (const key of ['admission', 'owner_plan_id', 'failure_count']) expect(copy.quality).not.toHaveProperty(key)
+  })
+})
+
 describe('quality rule partial updates', () => {
+  it('bulk switches to generated questions without requiring fixed inputs or changing the judge', () => {
+    const input = draft()
+    input.pelican_config.question_kind = 'random_reasoning'
+    input.pelican_config.prompt = ''
+    input.pelican_config.quality.expected_answer = ''
+    input.pelican_config.quality.action = 'isolate_models'
+    const updated = buildQualityRulePatch(plan(), input, ['test', 'action'])
+    expect(updated.pelican_config).toMatchObject({ question_kind: 'random_reasoning', prompt: '', parallel_count: 3,
+      quality: { expected_answer: '', action: 'isolate_models', judge: input.pelican_config.quality.judge } })
+    expect(updated.pelican_config).not.toHaveProperty('random_question')
+  })
+
   it('sends only selected top-level fields, including an explicit false value', () => {
     expect(buildQualityRulePatch(plan(), draft(), ['model', 'schedule', 'enabled'])).toEqual({
       model_id: 'new-model', cron_expression: '0 * * * *', enabled: false,
@@ -176,5 +233,31 @@ describe('BPS recovery interval in quality rules', () => {
   })
   it.each([0, -1, 1.5, 10081, NaN, Infinity])('rejects invalid interval %s', (minutes) => {
     expect(qualityBPSError({ ...bps(), recovery_interval_minutes: minutes })).toBe('admin.accounts.openai.excelBPS403RecoveryIntervalInvalid')
+  })
+})
+
+describe('composed model isolation', () => {
+  it('uses tested models and selected groups without legacy cooldown or concurrency fields', () => {
+    const input = draft()
+    input.pelican_config.quality.action = 'isolate_models'
+    input.pelican_config.quality.remove_models = ['stale-target']
+    input.pelican_config.quality.recovery_concurrency = 2
+    input.pelican_config.model_ids = ['sol', 'astra']
+    const patch = buildQualityRulePatch(plan(), input, ['action', 'model'])
+    expect(patch.pelican_config).toMatchObject({ model_ids: ['new-model', 'sol', 'astra'], quality: {
+      action: 'isolate_models', remove_group_ids: [21], expected_answer: '7', auto_restore: false,
+    } })
+    expect(patch.pelican_config!.quality).not.toHaveProperty('remove_models')
+    expect(patch.pelican_config!.quality).not.toHaveProperty('recovery_concurrency')
+    expect(patch.pelican_config!.quality).not.toHaveProperty('bps')
+  })
+
+  it('requires explicit groups and per-model answer tests for bulk changes', () => {
+    const input = draft()
+    input.pelican_config.quality.action = 'isolate_models'
+    input.pelican_config.quality.remove_group_ids = []
+    expect(() => buildQualityRulePatch(plan(), input, ['action'])).toThrow('qualityOps.selectGroups')
+    input.pelican_config.quality.remove_group_ids = [21]
+    expect(() => buildQualityRulePatch(probePlan(), input, ['action'])).toThrow('qualityOps.isolationRequiresCandy')
   })
 })

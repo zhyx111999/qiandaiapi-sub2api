@@ -1,9 +1,15 @@
+import ipAudit from './ipAudit'
+import traffic from './traffic'
+import connections from './connections'
+import securityRecords from './securityRecords'
+import siwc from './siwc'
 import priorityScheduling from './priorityScheduling'
 import qualityOps from './qualityOps'
 import controlledExperiments from './controlledExperiments'
 import accountOps from './accountOps'
 import tokenGuard from './tokenGuard'
 import pelicanTests from './pelicanTests'
+import modelTrace from './modelTrace'
 import tokenGuardV2 from './tokenGuardV2'
 import landing from './landing'
 import landingHome from './landingHome'
@@ -21,6 +27,11 @@ import requestTiming from './requestTiming'
 import autoConfig from './autoConfig'
 
 export default {
+  traffic,
+  ipAudit,
+  connections,
+  securityRecords,
+  siwc,
   autoConfig,
   priorityScheduling,
   qualityOps,
@@ -28,6 +39,7 @@ export default {
   accountOps,
   tokenGuard,
   pelicanTests,
+  modelTrace,
   tokenGuardV2,
   requestTiming,
   ...landing,
