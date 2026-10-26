@@ -13,7 +13,6 @@ export default {
       highlight: '说明一切'
     },
     description: '一个入口，连接你的 AI 宇宙。统一模型接入、密钥与用量管理——让每一次调用，都稳稳在轨。',
-    explore: '探索平台',
     hint: '轻触画面 · 发起一次调用'
   }
 }

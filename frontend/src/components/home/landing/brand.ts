@@ -1,9 +1,9 @@
-import mark from '@/assets/brand/laoli-mark.png'
+import mark from '@/assets/brand/yezi-leaf.svg'
 
 /** Brand identity of the landing home page. */
 export const BRAND = {
-  name: '老李API',
-  wordmark: 'Laoliapi',
+  name: 'Yezi',
+  wordmark: 'Yezi',
   tagline: 'AI API GATEWAY',
   kicker: 'QUALITY · SPEAKS FOR ITSELF',
   mark,

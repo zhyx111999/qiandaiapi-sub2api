@@ -51,7 +51,6 @@ import { BRAND } from './brand'
 const props = defineProps<{
   isAuthenticated: boolean
   platformPath: string
-  showModelPlazaEntry: boolean
 }>()
 
 const { t } = useI18n()
@@ -60,9 +59,6 @@ const { t } = useI18n()
 const items = computed(() => [
   { key: 'home', to: '/home', label: t('landingHome.nav.home'), active: true },
   { key: 'platform', to: props.platformPath, label: t('landingHome.nav.platform'), active: false },
-  ...(props.showModelPlazaEntry
-    ? [{ key: 'modelPlaza', to: '/model-plaza', label: t('nav.modelPlaza'), active: false }]
-    : []),
 ])
 </script>
 

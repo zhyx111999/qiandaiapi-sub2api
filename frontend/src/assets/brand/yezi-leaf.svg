@@ -1,0 +1,10 @@
+<!-- Leaf paths from Tabler Icons (MIT), Copyright (c) 2020-2026 Paweł Kuna.
+     Source: https://github.com/tabler/tabler-icons/blob/a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d/icons/outline/leaf.svg
+     Adaptation: ivory tile, botanical stroke, 40px brand canvas. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <rect x="0.5" y="0.5" width="39" height="39" rx="11.5" fill="#fdfbf7" fill-opacity=".8" stroke="#fff"/>
+  <g transform="translate(8 7)" fill="none" stroke="#3b9271" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 21c.5 -4.5 2.5 -8 7 -10"/>
+    <path d="M9 18c6.218 0 10.5 -3.288 11 -12v-2h-4.014c-9 0 -11.986 4 -12 9c0 1 0 3 2 5h3l.014 0"/>
+  </g>
+</svg>

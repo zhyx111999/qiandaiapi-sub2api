@@ -37,6 +37,9 @@ let uid = 0
 
 function isRefractionSupported(): boolean {
   if (typeof document === 'undefined' || typeof ResizeObserver === 'undefined') return false
+  // Parsing url() alone does not prove that SVG backdrop filters are rendered.
+  // Non-Blink browsers keep the regular frosted material instead.
+  if (!/(?:Chrome|Chromium|Edg)\/\d/.test(navigator.userAgent)) return false
   const probe = document.createElement('div')
   probe.style.cssText = 'backdrop-filter: url(#probe)'
   return probe.style.backdropFilter === 'url(#probe)' || probe.style.backdropFilter === 'url("#probe")'
@@ -132,46 +135,62 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
   }
 
   const id = `liquid-glass-refraction-${uid++}`
-  const filter = svg('filter', { id, 'color-interpolation-filters': 'sRGB' })
-  const feImage = svg('feImage', { preserveAspectRatio: 'none', result: 'map' })
-  filter.append(feImage, svg('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: '1.5', result: 'soft' }))
-
-  const displacements = (['R', 'G', 'B'] as const).map((channel) => {
-    const disp = svg('feDisplacementMap', { in: 'soft', in2: 'map', xChannelSelector: 'R', yChannelSelector: 'G' })
-    filter.append(disp, svg('feColorMatrix', { values: CHANNEL_MATRIX[channel], result: `chan${channel}` }))
-    return disp
+  const defs = getDefs()
+  const filter = svg('filter', {
+    id,
+    filterUnits: 'userSpaceOnUse',
+    primitiveUnits: 'userSpaceOnUse',
+    'color-interpolation-filters': 'sRGB',
   })
-  filter.append(
-    svg('feBlend', { in: 'chanR', in2: 'chanG', mode: 'screen', result: 'chanRG' }),
-    svg('feBlend', { in: 'chanRG', in2: 'chanB', mode: 'screen' }),
-  )
-  getDefs().appendChild(filter)
+  const feImage = svg('feImage', { preserveAspectRatio: 'none', result: 'map' })
+  const previous = {
+    standard: el.style.getPropertyValue('backdrop-filter'),
+    webkit: el.style.getPropertyValue('-webkit-backdrop-filter'),
+  }
+  defs.appendChild(filter)
 
   let lastW = 0
   let lastH = 0
 
-  function applyScales() {
-    const [r, g, b] = displacements
-    r.setAttribute('scale', String(state.scale + state.aberration))
-    g.setAttribute('scale', String(state.scale))
-    b.setAttribute('scale', String(state.scale - state.aberration))
+  function buildPasses() {
+    filter.replaceChildren(feImage)
+    const displacement = (scale: number) => svg('feDisplacementMap', {
+      in: 'SourceGraphic', in2: 'map', xChannelSelector: 'R', yChannelSelector: 'G', scale: String(scale),
+    })
+    if (state.aberration === 0) {
+      filter.append(displacement(state.scale))
+      return
+    }
+    // Only prominent controls pay for three-channel chromatic refraction.
+    const channels = ['R', 'G', 'B'] as const
+    channels.forEach((channel, index) => {
+      filter.append(
+        displacement(state.scale + (1 - index) * state.aberration),
+        svg('feColorMatrix', { values: CHANNEL_MATRIX[channel], result: `chan${channel}` }),
+      )
+    })
+    filter.append(
+      svg('feBlend', { in: 'chanR', in2: 'chanG', mode: 'screen', result: 'chanRG' }),
+      svg('feBlend', { in: 'chanRG', in2: 'chanB', mode: 'screen' }),
+    )
   }
 
   function rebuild(w: number, h: number) {
     lastW = w
     lastH = h
     const radius = Math.min(parseFloat(getComputedStyle(el).borderTopLeftRadius) || 16, w / 2, h / 2)
-    const edge = Math.min(42, w / 6, h / 6)
+    const map = buildDisplacementMap(w, h, radius, Math.min(42, w / 6, h / 6), state.mode)
+    if (!map) return
+    // Filter region AND primitive coordinates must use the same pixel-sized box.
+    // Bounding-box filter units with pixel values cause cropped/tiled backdrop artifacts.
     for (const node of [filter, feImage]) {
       node.setAttribute('x', '0')
       node.setAttribute('y', '0')
       node.setAttribute('width', String(w))
       node.setAttribute('height', String(h))
     }
-    feImage.setAttribute('href', buildDisplacementMap(w, h, radius, edge, state.mode))
-    applyScales()
-    // var() in an inline style resolves against the element, so theme knobs stay live.
-    // Fallbacks match liquidGlass.css; the frost blur runs before the lens so it stays frosted.
+    feImage.setAttribute('href', map)
+    // Frost stays in the CSS chain. An extra SVG Gaussian blur changes the sampling bounds.
     const chain = `blur(var(--glass-blur-refract, 8px)) url("#${id}") saturate(var(--glass-saturate, 160%)) brightness(var(--glass-brightness, 1.04))`
     el.style.setProperty('backdrop-filter', chain)
     el.style.setProperty('-webkit-backdrop-filter', chain)
@@ -183,6 +202,7 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
     if (w > 0 && h > 0 && (w !== lastW || h !== lastH)) rebuild(w, h)
   }
 
+  buildPasses()
   const observer = new ResizeObserver(measure)
   observer.observe(el)
   measure()
@@ -190,13 +210,15 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
   return {
     update(next) {
       Object.assign(state, next)
+      buildPasses()
       if (lastW > 0 && lastH > 0) rebuild(lastW, lastH)
     },
     destroy() {
       observer.disconnect()
       filter.remove()
-      el.style.removeProperty('backdrop-filter')
-      el.style.removeProperty('-webkit-backdrop-filter')
+      if (!defs.childElementCount) defs.remove()
+      el.style.setProperty('backdrop-filter', previous.standard)
+      el.style.setProperty('-webkit-backdrop-filter', previous.webkit)
     },
   }
 }

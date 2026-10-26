@@ -61,7 +61,7 @@
             :placeholder="t('pagination.jumpPlaceholder')"
             @keyup.enter="submitJump"
           />
-          <button type="button" class="btn btn-ghost btn-sm" @click="submitJump">
+          <button type="button" data-test="pagination-jump" class="btn btn-ghost btn-sm" @click="submitJump">
             {{ t('pagination.jumpAction') }}
           </button>
         </div>

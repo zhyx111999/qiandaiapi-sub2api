@@ -1,5 +1,5 @@
 <template>
-  <div class="relative flex min-h-screen items-center justify-center px-4 py-24">
+  <div ref="shellRef" class="relative flex min-h-screen items-center justify-center px-4 py-24">
     <AppBackdrop />
 
     <RouterLink to="/home" class="btn btn-secondary absolute left-5 top-5 z-10 gap-2">
@@ -34,14 +34,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { sanitizeUrl } from '@/utils/url'
 import Icon from '@/components/icons/Icon.vue'
 import AppBackdrop from './AppBackdrop.vue'
+import { useGlassSurfaces } from '@/components/common/liquidGlass/useGlassSurfaces'
 
 const { t } = useI18n()
+const shellRef = ref<HTMLElement | null>(null)
+useGlassSurfaces(shellRef)
 const appStore = useAppStore()
 const siteName = computed(() => appStore.siteName || 'Sub2API')
 const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))

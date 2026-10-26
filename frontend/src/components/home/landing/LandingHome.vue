@@ -5,10 +5,9 @@
     <LandingHeader
       :is-authenticated="isAuthenticated"
       :platform-path="platformPath"
-      :show-model-plaza-entry="showModelPlazaEntry"
     />
     <main>
-      <LandingHero :console-path="consolePath" :explore-path="platformPath" />
+      <LandingHero :console-path="consolePath" />
     </main>
   </div>
 </template>
@@ -25,9 +24,9 @@ import LandingHero from './LandingHero.vue'
 import PaperBackdrop from './PaperBackdrop.vue'
 
 const { t } = useI18n()
-const { isAuthenticated, consolePath, showModelPlazaEntry } = useHomeSite()
+const { isAuthenticated, consolePath } = useHomeSite()
 
-/** There is no dedicated platform page yet; "平台" and "探索平台" lead into the console. */
+/** "平台" enters the existing console; the hero's model plaza CTA uses the original public route. */
 const platformPath = consolePath
 </script>
 

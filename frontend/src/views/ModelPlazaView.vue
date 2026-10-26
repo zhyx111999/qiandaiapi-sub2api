@@ -5,7 +5,7 @@
   </AppLayout>
 
   <!-- 独立形态:自带导航条(logo/站名 + 登录/回后台) -->
-  <div v-else class="relative min-h-screen">
+  <div v-else ref="publicRef" class="relative min-h-screen">
     <AppBackdrop />
     <PlazaNavBar />
     <main class="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -24,8 +24,11 @@ import ModelPlazaContent from '@/components/modelPlaza/ModelPlazaContent.vue'
 import { getModelPlaza, type ModelPlazaResponse } from '@/api/modelPlaza'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { useGlassSurfaces } from '@/components/common/liquidGlass/useGlassSurfaces'
 
 const route = useRoute()
+const publicRef = ref<HTMLElement | null>(null)
+useGlassSurfaces(publicRef)
 const appStore = useAppStore()
 const authStore = useAuthStore()
 

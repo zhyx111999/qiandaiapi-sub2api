@@ -1,3 +1,4 @@
+@import './components/common/liquidGlass/liquidGlass.css';
 @import './styles/ivory-tokens.css';
 
 @tailwind base;

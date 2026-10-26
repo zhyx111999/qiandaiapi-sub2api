@@ -13,7 +13,6 @@ export default {
       highlight: 'speaks for itself'
     },
     description: 'One gateway to your AI universe. Unified model access, key and usage management — every call, steady in orbit.',
-    explore: 'Explore Platform',
     hint: 'Tap anywhere · Send a call'
   }
 }

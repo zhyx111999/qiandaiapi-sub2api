@@ -6,13 +6,17 @@
     --ivory-ink: 31 29 26;
     --ivory-accent: 59 146 113;
     --ivory-frost: 253 251 247;
-    --surface-fill: rgb(255 255 255 / 0.56);
+    --glass-tint: 255 255 255;
+    --glass-tint-alpha: 0.38;
+    --glass-blur: 16px;
+    --glass-blur-refract: 8px;
+    --surface-fill: rgb(255 255 255 / 0.38);
     --surface-raised: rgb(253 251 247 / 0.88);
     --surface-input: rgb(255 255 255 / 0.6);
     --surface-hover: rgb(255 255 255 / 0.84);
     --surface-rim: rgb(255 255 255 / 0.82);
     --surface-line: rgb(71 64 53 / 0.11);
-    --surface-shadow: inset 0 1px 0 rgb(255 255 255 / 0.95), 0 0 0 1px rgb(71 64 53 / 0.035), 0 12px 32px -22px rgb(71 64 53 / 0.3);
+    --surface-shadow: inset 0 1px 0 rgb(255 255 255 / 0.95), inset 0 0 20px -7px rgb(255 255 255 / 0.72), 0 0 0 0.5px rgb(71 64 53 / 0.065), 0 14px 34px -18px rgb(71 64 53 / 0.24);
     --surface-shadow-hover: inset 0 1px 0 rgb(255 255 255 / 1), 0 0 0 1px rgb(59 146 113 / 0.12), 0 16px 36px -20px rgb(71 64 53 / 0.3);
     --surface-filter: blur(18px) saturate(135%);
     --surface-primary: rgb(31 29 26 / 0.9);
@@ -27,6 +31,8 @@
     --ivory-ink: 235 236 229;
     --ivory-accent: 101 184 150;
     --ivory-frost: 33 39 36;
+    --glass-tint: 33 39 36;
+    --glass-sheen: rgb(255 255 255 / 0.08);
     --surface-fill: rgb(33 39 36 / 0.64);
     --surface-raised: rgb(35 40 37 / 0.94);
     --surface-input: rgb(27 32 29 / 0.74);
@@ -61,23 +67,18 @@
 
   /* Surface only: never clips overlays/dropdowns or changes positioning. */
   .surface-glass {
-    border: 1px solid var(--surface-rim);
-    background: var(--surface-fill);
-    box-shadow: var(--surface-shadow);
-    -webkit-backdrop-filter: var(--surface-filter);
-    backdrop-filter: var(--surface-filter);
+    @apply glass-material;
   }
 
   .surface-raised {
-    background: var(--surface-raised);
+    --glass-tint-alpha: 0.86;
+    background-color: var(--surface-raised);
   }
 
   .control-glass {
-    border: 1px solid var(--surface-rim);
-    background: var(--surface-input);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.24), 0 2px 5px rgb(31 29 26 / 0.035);
-    -webkit-backdrop-filter: blur(8px) saturate(135%);
-    backdrop-filter: blur(8px) saturate(135%);
+    @apply glass-material;
+    --glass-blur: 8px;
+    --glass-tint-alpha: 0.26;
   }
 
   .control-glass:hover:not(:disabled) {

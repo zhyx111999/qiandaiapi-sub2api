@@ -26,10 +26,11 @@
           </router-link>
           <router-link
             v-liquid-glass="{ scale: 24 }"
-            :to="explorePath"
+            to="/model-plaza"
+            data-testid="home-model-plaza"
             class="landing-btn landing-btn--ghost liquid-glass"
           >
-            {{ t('landingHome.explore') }}
+            {{ t('nav.modelPlaza') }}
           </router-link>
         </div>
       </div>
@@ -46,7 +47,6 @@ import { BRAND } from './brand'
 
 defineProps<{
   consolePath: string
-  explorePath: string
 }>()
 
 const { t } = useI18n()

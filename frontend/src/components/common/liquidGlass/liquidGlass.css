@@ -1,62 +1,46 @@
-/*
- * Liquid Glass material for light surfaces: frost + white tint + rim + specular sheen + soft warm shadow.
- * Recipe adapted from liquid-glass-tailwind (MIT, Copyright (c) 2026 Elwen Coussot).
- *
- * Knobs are read straight through var() with fallbacks and never declared on the
- * element itself, so they can be tuned per subtree or per element:
- *   --glass-tint (r g b)   --glass-tint-alpha   --glass-blur   --glass-blur-refract
- *   --glass-saturate       --glass-brightness   --glass-rim    --glass-sheen   --glass-shadow
- * Refraction (Chromium only) is layered on by the v-liquid-glass directive.
- */
-.liquid-glass {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: rgb(var(--glass-tint, 255 255 255) / var(--glass-tint-alpha, 0.42));
-  background-clip: padding-box;
-  border: 1px solid var(--glass-rim, rgb(255 255 255 / 0.72));
-  box-shadow: var(
-    --glass-shadow,
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    inset 0 0 18px -6px rgb(255 255 255 / 0.75),
-    0 0 0 0.5px rgb(31 29 26 / 0.07),
-    0 1px 2px rgb(60 48 30 / 0.06),
-    0 14px 34px -16px rgb(60 48 30 / 0.28)
-  );
-  -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 160%))
-    brightness(var(--glass-brightness, 1.04));
-  backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 160%))
-    brightness(var(--glass-brightness, 1.04));
-}
-
-/* Specular sheen, lit from the top-left like the refraction lens. */
-.liquid-glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    linear-gradient(135deg, var(--glass-sheen, rgb(255 255 255 / 0.55)), transparent 42%),
-    linear-gradient(315deg, rgb(255 255 255 / 0.18), transparent 32%);
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .liquid-glass {
-    background: rgb(250 248 244 / 0.96);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+/* Shared homepage/console liquid-glass material.
+ * Adapted from liquid-glass-tailwind, MIT © 2026 Elwen Coussot (see LICENSE).
+ * Material does not change positioning or clip menus. Refraction is a separate
+ * enhancement, reused by the directive and the console surface observer. */
+@layer components {
+  .glass-material {
+    background-color: rgb(var(--glass-tint, 255 255 255) / var(--glass-tint-alpha, 0.38));
+    background-image:
+      linear-gradient(135deg, var(--glass-sheen, rgb(255 255 255 / 0.38)), transparent 42%),
+      linear-gradient(315deg, rgb(255 255 255 / 0.12), transparent 32%);
+    background-clip: padding-box;
+    border: 1px solid var(--glass-rim, var(--surface-rim, rgb(255 255 255 / 0.72)));
+    box-shadow: var(--glass-shadow, var(--surface-shadow,
+      inset 0 1px 0 rgb(255 255 255 / 0.9),
+      inset 0 0 18px -6px rgb(255 255 255 / 0.75),
+      0 0 0 0.5px rgb(31 29 26 / 0.07),
+      0 14px 34px -16px rgb(60 48 30 / 0.28)));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 160%)) brightness(var(--glass-brightness, 1.04));
+    backdrop-filter: blur(var(--glass-blur, 16px)) saturate(var(--glass-saturate, 160%)) brightness(var(--glass-brightness, 1.04));
   }
-}
 
-/* Safari and Firefox never match reduced-transparency; high contrast is the safety net. */
-@media (prefers-contrast: more) {
   .liquid-glass {
-    background: Canvas;
-    color: CanvasText;
-    border-color: CanvasText;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    @apply glass-material;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass-material {
+      background: rgb(var(--ivory-frost, 250 248 244) / 0.98);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    .glass-material {
+      background: Canvas;
+      color: CanvasText;
+      border-color: CanvasText;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
   }
 }

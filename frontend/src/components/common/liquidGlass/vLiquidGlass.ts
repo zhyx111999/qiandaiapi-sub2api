@@ -1,6 +1,5 @@
 import type { Directive } from 'vue'
 import { attachRefraction, type RefractionController, type RefractionOptions } from './refraction'
-import './liquidGlass.css'
 
 const controllers = new WeakMap<HTMLElement, RefractionController>()
 
@@ -25,5 +24,5 @@ export const vLiquidGlass: Directive<HTMLElement, Binding> = {
   beforeUnmount(el) {
     controllers.get(el)?.destroy()
     controllers.delete(el)
-  },
+  }
 }

@@ -61,7 +61,10 @@ describe('home → original Sub2API model plaza', () => {
   it('navigates to the actual model plaza component and requests its API, rather than returning to the offline demo', async () => {
     const app = await openHome()
     wrapper = app.wrapper
-    await wrapper.get('.landing-nav__link[href="/model-plaza"]').trigger('click')
+    expect(wrapper.findAll('a[href="/model-plaza"]')).toHaveLength(1)
+    expect(wrapper.find('.landing-nav a[href="/model-plaza"]').exists()).toBe(false)
+    expect(wrapper.get('.landing-brand__text strong').text()).toBe('Yezi')
+    await wrapper.get('[data-testid="home-model-plaza"]').trigger('click')
     await flushPromises()
     expect(app.router.currentRoute.value.path).toBe('/model-plaza')
     expect(wrapper.findComponent(ModelPlazaView).exists()).toBe(true)
