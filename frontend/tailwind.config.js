@@ -5,6 +5,8 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Ivory card surface: every original bg-white panel, table, dialog and input follows the cover.
+        white: '#fbf8f2',
         // Botanical green, shared by the existing controls and the ivory landing page.
         primary: {
           50: '#f1f8f3',
@@ -21,7 +23,7 @@ export default {
         },
         // Warm neutrals retheme existing gray utilities without replacing business components.
         gray: {
-          50: '#f8f5ee',
+          50: '#f6f2ea',
           100: '#f0ede5',
           200: '#e3dfd4',
           300: '#cbc5b8',
@@ -94,7 +96,7 @@ export default {
         'gradient-glass':
           'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
         'mesh-gradient':
-          'radial-gradient(at 85% 45%, rgba(59, 146, 113, 0.07) 0px, transparent 55%), radial-gradient(at 0% 0%, rgba(255, 255, 255, 0.55) 0px, transparent 60%)'
+          'radial-gradient(at 86% 80%, rgba(59, 146, 113, 0.07) 0px, transparent 60%), radial-gradient(130% 95% at 50% 42%, transparent 58%, rgba(31, 29, 26, 0.05) 100%)'
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

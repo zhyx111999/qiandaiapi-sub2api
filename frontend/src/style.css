@@ -546,6 +546,7 @@
     bottom: 0.75rem;
     left: 0.75rem;
     /* Clear centre, frosted enough for text; the strands behind show through. */
+    --glass-tint: 253 251 247;
     --glass-tint-alpha: 0.22;
     --glass-blur: 12px;
     --glass-blur-refract: 9px;
