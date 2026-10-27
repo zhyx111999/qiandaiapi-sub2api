@@ -12,6 +12,7 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const DEFS_ID = 'liquid-glass-defs'
+const RESIZE_SETTLE_MS = 120
 const CHANNEL_MATRIX = {
   R: '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0',
   G: '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0',
@@ -151,6 +152,7 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
 
   let lastW = 0
   let lastH = 0
+  let pendingRebuild = 0
 
   function buildPasses() {
     filter.replaceChildren(feImage)
@@ -199,7 +201,18 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
   function measure() {
     const w = Math.round(el.offsetWidth)
     const h = Math.round(el.offsetHeight)
-    if (w > 0 && h > 0 && (w !== lastW || h !== lastH)) rebuild(w, h)
+    if (w <= 0 || h <= 0 || (w === lastW && h === lastH)) return
+    if (!lastW) {
+      rebuild(w, h)
+      return
+    }
+    // Width transitions (e.g. a collapsing sidebar) resize every frame; rebuild once it settles.
+    window.clearTimeout(pendingRebuild)
+    pendingRebuild = window.setTimeout(() => {
+      const settledW = Math.round(el.offsetWidth)
+      const settledH = Math.round(el.offsetHeight)
+      if (settledW > 0 && settledH > 0) rebuild(settledW, settledH)
+    }, RESIZE_SETTLE_MS)
   }
 
   buildPasses()
@@ -215,6 +228,7 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
     },
     destroy() {
       observer.disconnect()
+      window.clearTimeout(pendingRebuild)
       filter.remove()
       if (!defs.childElementCount) defs.remove()
       el.style.setProperty('backdrop-filter', previous.standard)

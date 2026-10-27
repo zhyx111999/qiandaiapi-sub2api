@@ -1,10 +1,10 @@
 <template>
   <aside
-    v-liquid-glass="{ scale: 12, aberration: 0 }"
+    v-liquid-glass="{ scale: 36, aberration: 0, mode: 'symmetric' }"
     class="sidebar"
     :class="[
       sidebarCollapsed ? 'w-[72px]' : 'w-64',
-      { '-translate-x-[calc(100%+24px)] lg:translate-x-0': !mobileOpen }
+      { '-translate-x-[calc(100%+1.5rem)] lg:translate-x-0': !mobileOpen }
     ]"
   >
     <!-- Logo/Brand -->
@@ -170,7 +170,7 @@
     </nav>
 
     <!-- Bottom Section -->
-    <div class="mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
+    <div class="mt-auto border-t border-white/60 p-3 dark:border-white/10">
       <!-- Theme Toggle -->
       <button
         @click="toggleTheme"
@@ -1039,6 +1039,8 @@ function handleGroupClick(item: NavItem) {
   }
   groupExpandOverrides.value.set(item.path, true)
 }
+
+// Theme class is applied once in main.ts (ivory by default, saved dark choice respected).
 
 // Fetch admin settings (for feature-gated nav items like Ops).
 watch(

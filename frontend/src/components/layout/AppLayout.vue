@@ -1,6 +1,8 @@
 <template>
-  <div ref="shellRef" class="relative min-h-screen">
-    <AppBackdrop />
+  <div class="min-h-screen bg-gray-50 dark:bg-dark-950">
+    <!-- Background Decoration -->
+    <div class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
+    <ConsoleBackdrop />
 
     <!-- Sidebar -->
     <AppSidebar />
@@ -8,7 +10,7 @@
     <!-- Main Content Area -->
     <div
       class="relative min-h-screen transition-all duration-300"
-      :class="[sidebarCollapsed ? 'lg:ml-[88px]' : 'lg:ml-[272px]']"
+      :class="[sidebarCollapsed ? 'lg:ml-[96px]' : 'lg:ml-[280px]']"
     >
       <!-- Header -->
       <AppHeader />
@@ -23,42 +25,29 @@
 
 <script setup lang="ts">
 import '@/styles/onboarding.css'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
-import { useAdminComplianceStore } from '@/stores/adminCompliance'
-import { useGlassSurfaces } from '@/components/common/liquidGlass/useGlassSurfaces'
-import AppBackdrop from './AppBackdrop.vue'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+import ConsoleBackdrop from './ConsoleBackdrop.vue'
 
 const appStore = useAppStore()
-const shellRef = ref<HTMLElement | null>(null)
-useGlassSurfaces(shellRef)
 const authStore = useAuthStore()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
 
-const { replayTour, startTour, hasSeen } = useOnboardingTour({
+const { replayTour } = useOnboardingTour({
   storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',
-  autoStart: false
+  autoStart: true
 })
 
 const onboardingStore = useOnboardingStore()
-const complianceStore = useAdminComplianceStore()
-const mounted = ref(false)
-// The tour must not cover the original operator acknowledgement dialog.
-const canAutoStartTour = computed(() => mounted.value && isAdmin.value && !authStore.isSimpleMode &&
-  complianceStore.initialized && !complianceStore.shouldShow)
-watch(canAutoStartTour, (ready) => {
-  if (ready && !hasSeen() && !onboardingStore.isDriverActive()) void startTour()
-})
 
 onMounted(() => {
   onboardingStore.setReplayCallback(replayTour)
-  mounted.value = true
 })
 
 defineExpose({ replayTour })

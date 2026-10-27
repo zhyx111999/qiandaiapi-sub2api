@@ -1,5 +1,5 @@
 <template>
-  <header v-liquid-glass="{ scale: 12, aberration: 0 }" class="glass sticky top-3 z-30 mx-3 mt-3 rounded-2xl md:mx-6 lg:mx-8">
+  <header class="glass sticky top-0 z-30 border-b border-gray-200/50 dark:border-dark-700/50">
     <div class="flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
       <!-- Left: Mobile Menu Toggle + Page Title -->
       <div class="flex min-w-0 items-center gap-2 sm:gap-4">
@@ -32,7 +32,7 @@
           :href="docUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="control-glass hidden items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white sm:flex"
+          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
         >
           <Icon name="book" size="sm" />
           <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
@@ -44,7 +44,7 @@
           :to="{ path: '/model-plaza', query: { embedded: '1' } }"
           :title="t('nav.modelPlaza')"
           :aria-label="t('nav.modelPlaza')"
-          class="control-glass flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white"
+          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
         >
           <Icon name="grid" size="sm" />
           <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
@@ -84,7 +84,7 @@
             {{ balanceFrozenLabel }}
           </span>
           <div
-            class="surface-glass surface-raised pointer-events-none absolute right-0 top-full mt-2 hidden w-56 rounded-xl p-3 text-xs group-hover:block"
+            class="pointer-events-none absolute right-0 top-full mt-2 hidden w-56 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg group-hover:block dark:border-dark-700 dark:bg-dark-800"
           >
             <div class="flex items-center justify-between">
               <span class="text-gray-500 dark:text-dark-400">{{ balanceAvailableText }}</span>
@@ -107,7 +107,7 @@
         <div v-if="user" class="relative" ref="dropdownRef">
           <button
             @click="toggleDropdown"
-            class="control-glass flex items-center gap-2 rounded-xl p-1.5 transition-colors"
+            class="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-dark-800"
             :aria-label="t('common.userMenu')"
           >
             <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-sm font-medium text-white shadow-sm">
@@ -266,7 +266,6 @@ import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRouteMetaKeys } from '@/router/title'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { getCustomMenuLabel } from '@/utils/customMenu'
-import { vLiquidGlass } from '@/components/common/liquidGlass'
 
 const router = useRouter()
 const route = useRoute()

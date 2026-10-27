@@ -1,5 +1,5 @@
 <template>
-  <div class="card space-y-4 p-5">
+  <div class="space-y-3">
     <!-- 一级:平台 -->
     <div class="flex items-start gap-2">
       <span class="w-10 shrink-0 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-dark-500">

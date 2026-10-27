@@ -21,7 +21,7 @@ export default {
         },
         // Warm neutrals retheme existing gray utilities without replacing business components.
         gray: {
-          50: '#faf8f3',
+          50: '#f8f5ee',
           100: '#f0ede5',
           200: '#e3dfd4',
           300: '#cbc5b8',

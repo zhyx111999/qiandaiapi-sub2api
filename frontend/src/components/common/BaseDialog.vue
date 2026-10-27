@@ -14,7 +14,7 @@
         @click.self="handleClose"
       >
         <!-- Modal panel -->
-        <div ref="dialogRef" v-liquid-glass="{ scale: 16, aberration: 0, mode: 'symmetric' }" :class="['modal-content', widthClasses, contentClass, { 'drawer-content': placement === 'right', 'modal-fullscreen': fullscreen }]" @click.stop>
+        <div ref="dialogRef" :class="['modal-content', widthClasses, contentClass, { 'drawer-content': placement === 'right', 'modal-fullscreen': fullscreen }]" @click.stop>
           <!-- Header -->
           <div class="modal-header">
             <h3 :id="dialogId" class="modal-title">
@@ -53,7 +53,6 @@ const openDialogs = new Set<string>()
 <script setup lang="ts">
 import { computed, watch, onMounted, onUnmounted, ref, nextTick } from 'vue'
 import Icon from '@/components/icons/Icon.vue'
-import { vLiquidGlass } from '@/components/common/liquidGlass'
 
 // 生成唯一ID以避免多个对话框时ID冲突
 const dialogId = `modal-title-${++dialogIdCounter}`

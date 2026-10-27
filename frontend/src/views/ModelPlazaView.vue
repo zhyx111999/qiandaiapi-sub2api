@@ -5,10 +5,9 @@
   </AppLayout>
 
   <!-- 独立形态:自带导航条(logo/站名 + 登录/回后台) -->
-  <div v-else ref="publicRef" class="relative min-h-screen">
-    <AppBackdrop />
+  <div v-else class="min-h-screen bg-gray-50 dark:bg-dark-950">
     <PlazaNavBar />
-    <main class="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <ModelPlazaContent :response="data" :loading="loading" :error="loadFailed" />
     </main>
   </div>
@@ -18,17 +17,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import AppBackdrop from '@/components/layout/AppBackdrop.vue'
 import PlazaNavBar from '@/components/modelPlaza/PlazaNavBar.vue'
 import ModelPlazaContent from '@/components/modelPlaza/ModelPlazaContent.vue'
 import { getModelPlaza, type ModelPlazaResponse } from '@/api/modelPlaza'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
-import { useGlassSurfaces } from '@/components/common/liquidGlass/useGlassSurfaces'
 
 const route = useRoute()
-const publicRef = ref<HTMLElement | null>(null)
-useGlassSurfaces(publicRef)
 const appStore = useAppStore()
 const authStore = useAuthStore()
 

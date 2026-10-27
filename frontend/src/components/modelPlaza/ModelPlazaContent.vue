@@ -9,7 +9,7 @@
     <!-- 全局价格说明(管理员配置,Markdown) -->
     <div
       v-if="descriptionHtml"
-      class="card plaza-description px-5 py-4 text-sm"
+      class="plaza-description rounded-2xl border border-gray-100 bg-white px-5 py-4 text-sm shadow-card dark:border-dark-700/50 dark:bg-dark-800/50"
       v-html="descriptionHtml"
     ></div>
 
@@ -54,7 +54,7 @@
       </div>
       <div
         v-else
-        class="card px-5 py-14 text-center text-sm text-gray-500 dark:text-dark-400"
+        class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center text-sm text-gray-500 dark:border-dark-600 dark:text-dark-400"
       >
         {{ searchActive ? t('modelPlaza.noSearchResult') : t('modelPlaza.empty') }}
       </div>
