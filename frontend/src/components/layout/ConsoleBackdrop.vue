@@ -64,9 +64,9 @@ function draw() {
   ctx.lineJoin = 'round'
   strands.forEach((strand, index) => {
     const isAccent = index % ACCENT_EVERY === ACCENT_EVERY >> 1
-    const alpha = isAccent ? 0.42 : 0.1 + strand.weight * 0.24
+    const alpha = isAccent ? 0.5 : 0.14 + strand.weight * 0.3
     ctx.strokeStyle = `rgb(${isAccent ? accent : ink} / ${alpha})`
-    ctx.lineWidth = 0.6 + strand.weight * 0.8
+    ctx.lineWidth = 0.7 + strand.weight * 0.9
     ctx.beginPath()
     for (let x = 0; x <= reach; x += STEP) {
       const y = strandY(strand, x, layout, 0)

@@ -193,7 +193,17 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
     }
     feImage.setAttribute('href', map)
     // Frost stays in the CSS chain. An extra SVG Gaussian blur changes the sampling bounds.
-    const chain = `blur(var(--glass-blur-refract, 8px)) url("#${id}") saturate(var(--glass-saturate, 160%)) brightness(var(--glass-brightness, 1.04))`
+    applyChain(true)
+  }
+
+  /**
+   * With the lens, or the same frost without it. A filter whose pixel region no longer
+   * matches the element is dropped by Chromium (the glass flashes fully clear), so while
+   * the size is changing the lens is suspended and the frost and tint stay identical.
+   */
+  function applyChain(withLens: boolean) {
+    const lens = withLens ? ` url("#${id}")` : ''
+    const chain = `blur(var(--glass-blur-refract, 8px))${lens} saturate(var(--glass-saturate, 160%)) brightness(var(--glass-brightness, 1.04))`
     el.style.setProperty('backdrop-filter', chain)
     el.style.setProperty('-webkit-backdrop-filter', chain)
   }
@@ -207,6 +217,7 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
       return
     }
     // Width transitions (e.g. a collapsing sidebar) resize every frame; rebuild once it settles.
+    applyChain(false)
     window.clearTimeout(pendingRebuild)
     pendingRebuild = window.setTimeout(() => {
       const settledW = Math.round(el.offsetWidth)
