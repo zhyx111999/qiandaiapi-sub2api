@@ -24,6 +24,9 @@ services:
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: "8080"
       SERVER_MODE: release
+      # The web container (and the host proxy via the Docker gateway) sit in front:
+      # trust private Docker hops so signup quotas / login bans use the real client IP.
+      SERVER_TRUSTED_PROXIES: "127.0.0.1,::1,172.16.0.0/12"
       RUN_MODE: standard
       DATABASE_HOST: postgres
       DATABASE_PORT: "5432"
