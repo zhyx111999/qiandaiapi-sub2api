@@ -12,17 +12,17 @@ export function timingHealth(value: number | null | undefined, scale: TimingScal
 }
 export const TIMING_TEXT: Record<TimingHealth, string> = {
   good: 'text-emerald-700 dark:text-emerald-400', warn: 'text-amber-700 dark:text-amber-400',
-  slow: 'text-orange-700 dark:text-orange-400', critical: 'text-red-700 dark:text-red-400', neutral: 'text-slate-600 dark:text-slate-400'
+  slow: 'text-orange-700 dark:text-orange-400', critical: 'text-red-700 dark:text-red-400', neutral: 'text-gray-600 dark:text-slate-400'
 }
 export const TIMING_SURFACE: Record<TimingHealth, string> = {
   good: 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30',
   warn: 'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30',
   slow: 'border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/30',
   critical: 'border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/30',
-  neutral: 'border-slate-200 bg-slate-50/60 dark:border-dark-600 dark:bg-dark-800'
+  neutral: 'border-gray-200 bg-gray-50/60 dark:border-dark-600 dark:bg-dark-800'
 }
 export const TIMING_BAR: Record<TimingHealth, string> = {
-  good: 'bg-emerald-500', warn: 'bg-amber-500', slow: 'bg-orange-500', critical: 'bg-red-500', neutral: 'bg-slate-400 dark:bg-slate-500'
+  good: 'bg-emerald-500', warn: 'bg-amber-500', slow: 'bg-orange-500', critical: 'bg-red-500', neutral: 'bg-gray-400 dark:bg-slate-500'
 }
 export function stageScale(name: string): TimingScale {
   // Parent intervals include generation and must not inherit short local-stage thresholds.

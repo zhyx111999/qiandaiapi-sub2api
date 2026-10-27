@@ -1174,7 +1174,7 @@ onBeforeUnmount(() => { alive = false; accountSelectionRequest++; detailRequest+
 .workspace-summary { @apply grid grid-cols-2 rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900 lg:grid-cols-4; }
 .summary-cell { @apply relative flex items-center gap-3 px-5 py-4; }
 .summary-cell + .summary-cell { @apply lg:border-l lg:border-gray-100 lg:dark:border-dark-700; }
-.summary-icon { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-dark-800 dark:text-gray-400; }
+.summary-icon { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 dark:bg-dark-800 dark:text-gray-400; }
 .summary-icon.is-teal { @apply bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40; }
 .summary-icon.is-amber { @apply bg-amber-50 text-amber-600 dark:bg-amber-950/40; }
 .summary-cell div > span { @apply block text-xs text-gray-500 dark:text-gray-400; }
@@ -1213,7 +1213,7 @@ onBeforeUnmount(() => { alive = false; accountSelectionRequest++; detailRequest+
 .rule-card.checked { @apply border-primary-400 bg-primary-50/60 dark:border-primary-600 dark:bg-primary-950/40; }
 .rule-card-top { @apply flex items-start gap-2; }
 .rule-select { @apply flex min-w-0 flex-1 items-start gap-2.5 text-left; }
-.account-avatar { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-600 dark:bg-dark-700 dark:text-gray-300; }
+.account-avatar { @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-600 dark:bg-dark-700 dark:text-gray-300; }
 .rule-select strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; @apply text-[13px] font-semibold leading-5; }
 .rule-meta { @apply mt-1 flex gap-1.5 text-[11px] tabular-nums text-gray-400; }
 .state-toggle { @apply inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium; }
@@ -1249,7 +1249,7 @@ onBeforeUnmount(() => { alive = false; accountSelectionRequest++; detailRequest+
 .operations-table thead { @apply sticky top-0 z-10 bg-white text-gray-400 dark:bg-dark-900; box-shadow: 0 1px 0 rgb(148 163 184 / .15); }
 .operations-table th { @apply whitespace-nowrap px-4 py-3 font-medium; }
 .operations-table td { @apply border-b border-gray-100 px-4 py-4 align-middle dark:border-dark-800; }
-.operations-table tbody tr:hover, .selected-row { @apply bg-slate-50/80 dark:bg-dark-800/70; }
+.operations-table tbody tr:hover, .selected-row { @apply bg-gray-50/80 dark:bg-dark-800/70; }
 .time-cell { @apply whitespace-nowrap tabular-nums; }
 .time-cell strong { @apply block text-xs font-medium; }
 .time-cell > span, .account-cell > span { @apply mt-1 block text-[10px] text-gray-400; }
@@ -1263,7 +1263,7 @@ onBeforeUnmount(() => { alive = false; accountSelectionRequest++; detailRequest+
 .outcome-badge { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium; }
 .tone-success { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300; }
 .tone-warning { @apply bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300; }
-.tone-muted { @apply bg-slate-100 text-slate-600 dark:bg-dark-700 dark:text-gray-300; }
+.tone-muted { @apply bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300; }
 .tone-neutral { @apply bg-gray-100 text-gray-500 dark:bg-dark-800; }
 .tone-danger { @apply bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300; }
 .detail-button { @apply inline-flex min-h-8 items-center gap-1 whitespace-nowrap rounded-md px-1 text-xs text-gray-400 hover:text-primary-600; }
