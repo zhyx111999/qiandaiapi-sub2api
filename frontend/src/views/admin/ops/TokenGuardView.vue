@@ -393,7 +393,7 @@ onBeforeUnmount(() => { alive = false; if (timer) clearInterval(timer) })
 .enable-row strong, .kind-option strong { @apply block text-sm font-medium; }
 .enable-row small, .kind-option small { @apply mt-1 block text-xs leading-relaxed text-gray-400; }
 .enable-row input { appearance:none; position:relative; width:40px; height:24px; border-radius:999px; cursor:pointer; flex-shrink:0; @apply bg-gray-200 transition-colors dark:bg-dark-600; }
-.enable-row input::before { content:''; position:absolute; width:18px; height:18px; border-radius:50%; top:3px; left:3px; background:white; transition:transform .15s; box-shadow:0 1px 3px #0002; }
+.enable-row input::before { content:''; position:absolute; width:18px; height:18px; border-radius:50%; top:3px; left:3px; background:theme('colors.white'); transition:transform .15s; box-shadow:0 1px 3px #0002; }
 .enable-row input:checked { @apply bg-primary-600; }
 .enable-row input:checked::before { transform:translateX(16px); }
 .field-label { @apply mb-2 mt-5 block text-xs font-medium text-gray-600 dark:text-gray-300; }

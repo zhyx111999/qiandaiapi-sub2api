@@ -312,12 +312,12 @@ onUnmounted(() => {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 0.5rem;
-  border: 1px solid rgb(209 213 219);
-  background-color: rgb(249 250 251);
+  border: 1px solid theme('colors.gray.300');
+  background-color: theme('colors.gray.50');
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   font-weight: 500;
-  color: rgb(55 65 81);
+  color: theme('colors.gray.700');
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease,
@@ -325,8 +325,8 @@ onUnmounted(() => {
 }
 
 .aliyun-captcha-button:hover:not(:disabled) {
-  border-color: rgb(156 163 175);
-  background-color: rgb(243 244 246);
+  border-color: theme('colors.gray.400');
+  background-color: theme('colors.gray.100');
 }
 
 .aliyun-captcha-button--verified {
@@ -337,15 +337,15 @@ onUnmounted(() => {
 
 :root.dark .aliyun-captcha-button,
 .dark .aliyun-captcha-button {
-  border-color: rgb(55 65 81);
-  background-color: rgb(31 41 55);
-  color: rgb(209 213 219);
+  border-color: theme('colors.gray.700');
+  background-color: theme('colors.gray.800');
+  color: theme('colors.gray.300');
 }
 
 :root.dark .aliyun-captcha-button:hover:not(:disabled),
 .dark .aliyun-captcha-button:hover:not(:disabled) {
-  border-color: rgb(75 85 99);
-  background-color: rgb(55 65 81);
+  border-color: theme('colors.gray.600');
+  background-color: theme('colors.gray.700');
 }
 
 :root.dark .aliyun-captcha-button--verified,
