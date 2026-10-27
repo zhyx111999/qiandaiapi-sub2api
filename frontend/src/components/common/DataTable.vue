@@ -1081,54 +1081,33 @@ tbody tr:hover .sticky-col {
   background-color: theme('colors.dark.800');
 }
 
-/* 阴影只在可滚动时显示 */
-/* 单列固定右侧阴影 */
-.is-scrollable .sticky-col-left::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 10px;
-  transform: translateX(100%);
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.08), transparent);
-  pointer-events: none;
-}
-
-/* 双列固定：只在第二列显示阴影 */
-.is-scrollable .sticky-col-left-second::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 10px;
-  transform: translateX(100%);
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.08), transparent);
-  pointer-events: none;
-}
-
-/* 操作列左侧阴影 */
+/* 固定列分隔线：仅在可横向滚动时显示，画在固定列边缘内侧，颜色与行分隔线一致 */
+/* 左侧为名称列右边（单列固定或勾选列之后的第二列），右侧为操作列左边 */
+.is-scrollable .sticky-col-left::after,
+.is-scrollable .sticky-col-left-second::after,
 .is-scrollable .sticky-col-right::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
   bottom: 0;
-  width: 10px;
-  transform: translateX(-100%);
-  background: linear-gradient(to left, rgba(0, 0, 0, 0.08), transparent);
+  width: 1px;
+  background-color: theme('colors.gray.200');
   pointer-events: none;
 }
 
-/* 暗色模式阴影 */
-.dark .is-scrollable .sticky-col-left::after,
-.dark .is-scrollable .sticky-col-left-second::after {
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.2), transparent);
+.is-scrollable .sticky-col-left::after,
+.is-scrollable .sticky-col-left-second::after {
+  right: 0;
 }
 
+.is-scrollable .sticky-col-right::before {
+  left: 0;
+}
+
+.dark .is-scrollable .sticky-col-left::after,
+.dark .is-scrollable .sticky-col-left-second::after,
 .dark .is-scrollable .sticky-col-right::before {
-  background: linear-gradient(to left, rgba(0, 0, 0, 0.2), transparent);
+  background-color: theme('colors.dark.700');
 }
 </style>
 
