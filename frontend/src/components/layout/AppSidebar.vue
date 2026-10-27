@@ -1,10 +1,10 @@
 <template>
   <aside
-    v-liquid-glass="{ scale: 36, aberration: 0, mode: 'symmetric' }"
+    v-liquid-glass="{ scale: 36, aberration: 0, mode: 'right' }"
     class="sidebar"
     :class="[
       sidebarCollapsed ? 'w-[72px]' : 'w-64',
-      { '-translate-x-[calc(100%+1.5rem)] lg:translate-x-0': !mobileOpen }
+      { '-translate-x-full lg:translate-x-0': !mobileOpen }
     ]"
   >
     <!-- Logo/Brand -->
