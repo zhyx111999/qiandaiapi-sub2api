@@ -16,7 +16,7 @@ services:
         condition: service_healthy
 
   sub2api:
-    image: ghcr.io/ranxi2001/sub2api:2.17.5
+    image: ghcr.io/ranxi2001/sub2api:2.17.6
     ports:
       - "127.0.0.1:${IVORY_BACKEND_PORT:-18217}:8080"
     environment:
