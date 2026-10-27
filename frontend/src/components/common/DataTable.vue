@@ -244,7 +244,7 @@
             class="hover:bg-gray-50 dark:hover:bg-dark-800"
             :class="{
               'cursor-pointer': clickableRows,
-              'bg-primary-50/40 dark:bg-primary-900/10': selectable && isRowSelected(item.row, item.index)
+              'is-selected bg-primary-50/40 dark:bg-primary-900/10': selectable && isRowSelected(item.row, item.index)
             }"
             @click="clickableRows && emit('rowClick', item.row)"
           >
@@ -1079,6 +1079,15 @@ tbody tr:hover .sticky-col {
 
 .dark tbody tr:hover .sticky-col {
   background-color: theme('colors.dark.800');
+}
+
+/* 选中行：固定列在不透明底色上叠加与整行相同的选中色；悬停时整行为悬停色，固定列同样不叠加 */
+tbody tr.is-selected:not(:hover) .sticky-col {
+  background-image: linear-gradient(theme('colors.primary.50 / 40%'), theme('colors.primary.50 / 40%'));
+}
+
+.dark tbody tr.is-selected:not(:hover) .sticky-col {
+  background-image: linear-gradient(theme('colors.primary.900 / 10%'), theme('colors.primary.900 / 10%'));
 }
 
 /* 固定列分隔线：仅在可横向滚动时显示，画在固定列边缘内侧，颜色与行分隔线一致 */
