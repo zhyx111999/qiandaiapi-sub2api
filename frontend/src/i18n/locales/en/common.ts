@@ -184,7 +184,7 @@ export default {
     affiliateInviteRecords: 'Invite Records',
     affiliateRebateRecords: 'Rebate Records',
     affiliateTransferRecords: 'Transfer Records',
-    profile: 'Profile',
+    profile: 'Profile & Check-in',
     users: 'Users',
     groups: 'Groups',
     channels: 'Channels',

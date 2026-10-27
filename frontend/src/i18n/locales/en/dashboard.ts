@@ -916,7 +916,7 @@ export default {
 
   // Profile
   profile: {
-    title: 'Profile Settings',
+    title: 'Profile & Check-in',
     description: 'Manage your account information and settings',
     accountBalance: 'Account Balance',
     concurrencyLimit: 'Concurrency Limit',

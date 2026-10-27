@@ -920,7 +920,7 @@ export default {
 
   // Profile
   profile: {
-    title: '个人设置',
+    title: '个人资料与签到',
     description: '管理您的账户信息和设置',
     accountBalance: '账户余额',
     concurrencyLimit: '并发限制',

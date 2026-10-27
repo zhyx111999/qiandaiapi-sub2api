@@ -14,6 +14,7 @@ import modelTrace from './modelTrace'
 import tokenGuardV2 from './tokenGuardV2'
 import landing from './landing'
 import landingHome from './landingHome'
+import checkin from './checkin'
 import common from './common'
 import dashboard from './dashboard'
 import channelMonitorV2 from './channelMonitorV2'
@@ -46,6 +47,7 @@ export default {
   requestTiming,
   ...landing,
   ...landingHome,
+  ...checkin,
   ...common,
   ...dashboard,
   ...channelMonitorV2,
