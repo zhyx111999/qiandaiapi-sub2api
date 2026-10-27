@@ -65,9 +65,9 @@ const RANK_PALETTES = {
   },
   2: {
     // silver
-    light: '#E5E7EB',
-    mid: '#9CA3AF',
-    dark: '#4B5563',
+    light: '#E3DFD4',
+    mid: '#A49E91',
+    dark: '#605B52',
   },
   3: {
     // bronze

@@ -205,11 +205,11 @@ function smoothTrend(values: Array<number | null>): Array<number | null> {
 }
 
 const chartOptions = computed(() => {
-  const text = isDark.value ? '#9ca3af' : '#6b7280'
-  const grid = isDark.value ? '#374151' : '#f3f4f6'
-  const tooltipBg = isDark.value ? '#1f2937' : '#ffffff'
-  const tooltipTitle = isDark.value ? '#f3f4f6' : '#111827'
-  const tooltipBody = isDark.value ? '#d1d5db' : '#4b5563'
+  const text = isDark.value ? '#a49e91' : '#7b756a'
+  const grid = isDark.value ? '#49443d' : '#f0ede5'
+  const tooltipBg = isDark.value ? '#35312c' : '#ffffff'
+  const tooltipTitle = isDark.value ? '#f0ede5' : '#1f1d1a'
+  const tooltipBody = isDark.value ? '#cbc5b8' : '#605b52'
   return {
     responsive: true,
     maintainAspectRatio: false,

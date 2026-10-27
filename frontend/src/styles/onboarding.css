@@ -31,20 +31,20 @@
   position: fixed !important;
   z-index: 100000000 !important;
   background-color: #fbf8f2 !important;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid #e3dfd4 !important;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
   border-radius: 12px !important;
   padding: 0 !important;
   max-width: min(440px, 90vw) !important; /* Responsive on small screens */
-  color: #1f2937 !important;
-  font-family: ui-sans-serif, system-ui, sans-serif !important;
+  color: #35312c !important;
+  font-family: inherit !important;
   overflow: hidden !important;
 }
 
 .dark .driver-popover.theme-tour-popover {
   background-color: #1e293b !important;
   border-color: #334155 !important;
-  color: #f3f4f6 !important;
+  color: #f0ede5 !important;
 }
 
 /* 3. Header Area */
@@ -60,7 +60,7 @@
 .driver-popover-title-text {
   font-size: 18px !important;
   font-weight: 700 !important;
-  color: #111827 !important;
+  color: #1f1d1a !important;
   line-height: 1.3 !important;
   padding-right: 100px !important; /* Ensure title doesn't overlap Skip/Close */
 }
@@ -74,7 +74,7 @@
   width: 28px !important;
   height: 28px !important;
   padding: 0 !important;
-  color: #9ca3af !important;
+  color: #a49e91 !important;
   background-color: transparent !important;
   border: none !important;
   z-index: 20 !important;
@@ -83,7 +83,7 @@
   align-items: center !important;
   justify-content: center !important;
 }
-.theme-tour-popover .driver-popover-close-btn:hover { background-color: #f3f4f6 !important; color: #4b5563 !important; }
+.theme-tour-popover .driver-popover-close-btn:hover { background-color: #f0ede5 !important; color: #605b52 !important; }
 .dark .theme-tour-popover .driver-popover-close-btn:hover { background-color: #334155 !important; }
 
 /* 4. Body Content */
@@ -91,7 +91,7 @@
   display: block !important;
   font-size: 14px !important;
   font-weight: 400 !important;
-  color: #4b5563 !important;
+  color: #605b52 !important;
   padding: 0 24px 24px 24px !important;
   margin: 0 !important;
   line-height: 1.6 !important;
@@ -106,7 +106,7 @@
   justify-content: space-between !important; /* Push Left and Right apart */
   padding: 16px 24px !important;
   background-color: #f6f2ea !important;
-  border-top: 1px solid #f3f4f6 !important;
+  border-top: 1px solid #f0ede5 !important;
   margin: 0 !important;
 }
 .dark .theme-tour-popover .driver-popover-footer {
@@ -131,12 +131,12 @@
 /* Progress */
 .theme-tour-popover .driver-popover-progress-text {
   font-size: 13px !important;
-  color: #6b7280 !important;
+  color: #7b756a !important;
   margin: 0 !important;
   font-weight: 500 !important;
   white-space: nowrap !important;
 }
-.dark .theme-tour-popover .driver-popover-progress-text { color: #9ca3af !important; }
+.dark .theme-tour-popover .driver-popover-progress-text { color: #a49e91 !important; }
 
 /* Shortcuts (Divider + Keys) */
 .footer-shortcuts {
@@ -144,7 +144,7 @@
   align-items: center !important;
   gap: 12px !important;
   padding-left: 16px !important;
-  border-left: 1px solid #e5e7eb !important;
+  border-left: 1px solid #e3dfd4 !important;
   height: 20px !important;
 }
 .dark .footer-shortcuts { border-left-color: #334155 !important; }
@@ -154,7 +154,7 @@
   align-items: center !important;
   gap: 4px !important;
   font-size: 12px !important;
-  color: #6b7280 !important;
+  color: #7b756a !important;
   white-space: nowrap !important;
 }
 .dark .shortcut-item { color: #94a3b8 !important; }
@@ -162,12 +162,12 @@
 .shortcut-item kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace !important;
   background-color: #fbf8f2 !important;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid #e3dfd4 !important;
   border-radius: 4px !important;
   padding: 1px 6px !important;
   font-size: 11px !important;
   font-weight: 600 !important;
-  color: #4b5563 !important;
+  color: #605b52 !important;
   box-shadow: 0 1px 0 rgba(0,0,0,0.05) !important;
   min-width: 20px !important;
   text-align: center !important;
@@ -205,15 +205,15 @@
 
 .theme-tour-popover .driver-popover-prev-btn {
   background-color: #fbf8f2 !important;
-  color: #6b7280 !important;
-  border: 1px solid #e5e7eb !important;
+  color: #7b756a !important;
+  border: 1px solid #e3dfd4 !important;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
-.theme-tour-popover .driver-popover-prev-btn:hover { background-color: #f6f2ea !important; color: #374151 !important; }
+.theme-tour-popover .driver-popover-prev-btn:hover { background-color: #f6f2ea !important; color: #49443d !important; }
 .dark .theme-tour-popover .driver-popover-prev-btn { 
   background-color: #1e293b !important; 
   border-color: #475569 !important; 
-  color: #9ca3af !important; 
+  color: #a49e91 !important; 
 }
 
 /* Arrows */

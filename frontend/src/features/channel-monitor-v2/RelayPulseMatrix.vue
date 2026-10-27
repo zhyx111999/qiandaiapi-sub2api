@@ -525,7 +525,7 @@ function formatBucketRange(value: string) {
 .health-healthy  { background: #22c55e; }
 .health-warning  { background: #f59e0b; }
 .health-critical { background: #ef4444; }
-.health-unknown  { background: #9ca3af; }
+.health-unknown  { background: #a49e91; }
 
 .score-legend {
   background: linear-gradient(

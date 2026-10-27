@@ -997,7 +997,7 @@ onBeforeUnmount(() => {
 .health-healthy  { background: #22c55e; }
 .health-warning  { background: #f59e0b; }
 .health-critical { background: #ef4444; }
-.health-unknown  { background: #9ca3af; }
+.health-unknown  { background: #a49e91; }
 .matrix-select {
   min-width: 10rem;
 }
