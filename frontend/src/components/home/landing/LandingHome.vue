@@ -15,8 +15,9 @@
 <script setup lang="ts">
 import '@fontsource-variable/manrope'
 import './displayFont.css'
+import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useHomeSite } from '../useHomeSite'
+import { useLandingSite } from './useLandingSite'
 import { BRAND } from './brand'
 import ConvergenceStage from './convergence/ConvergenceStage.vue'
 import LandingHeader from './LandingHeader.vue'
@@ -24,7 +25,9 @@ import LandingHero from './LandingHero.vue'
 import PaperBackdrop from './PaperBackdrop.vue'
 
 const { t } = useI18n()
-const { isAuthenticated, consolePath } = useHomeSite()
+const { isAuthenticated, consolePath, refreshSiteState } = useLandingSite()
+
+onMounted(refreshSiteState)
 
 /** "平台" enters the existing console; the hero's model plaza CTA uses the original public route. */
 const platformPath = consolePath

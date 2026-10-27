@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import HomeView from '../HomeView.vue'
-import ModelPlazaView from '../ModelPlazaView.vue'
+import LandingHome from '../LandingHome.vue'
+import ModelPlazaView from '@/views/ModelPlazaView.vue'
 
 const { appStore, authStore, getModelPlaza } = vi.hoisted(() => ({
   appStore: {
@@ -36,9 +36,11 @@ async function openHome() {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/home', component: HomeView },
+      { path: '/home', component: LandingHome },
       { path: '/model-plaza', component: ModelPlazaView },
       { path: '/login', component: { template: '<div>Login form route</div>' } },
+      { path: '/dashboard', component: { template: '<div>User dashboard</div>' } },
+      { path: '/admin/dashboard', component: { template: '<div>Admin dashboard</div>' } },
     ],
   })
   await router.push('/home')
@@ -46,6 +48,7 @@ async function openHome() {
   const wrapper = mount({ template: '<RouterView />' }, {
     global: {
       plugins: [router],
+      // The canvas stage has no jsdom implementation; its logic is covered by the convergence unit tests.
       stubs: { ConvergenceStage: true, LandingLocaleSwitch: true, LocaleSwitcher: true, Icon: true },
     },
   })
@@ -53,11 +56,39 @@ async function openHome() {
   return { wrapper, router }
 }
 
-describe('home → original Sub2API model plaza', () => {
-  let wrapper: Awaited<ReturnType<typeof openHome>>['wrapper'] | undefined
-  beforeEach(() => vi.clearAllMocks())
-  afterEach(() => wrapper?.unmount())
+let wrapper: Awaited<ReturnType<typeof openHome>>['wrapper'] | undefined
 
+beforeEach(() => {
+  vi.clearAllMocks()
+  authStore.isAuthenticated = false
+  authStore.isAdmin = false
+})
+afterEach(() => wrapper?.unmount())
+
+describe('home console entry', () => {
+  it('refreshes auth on mount, sends visitors to login and offers a header login link', async () => {
+    wrapper = (await openHome()).wrapper
+    expect(authStore.checkAuth).toHaveBeenCalledOnce()
+    expect(wrapper.get('.landing-btn--primary').attributes('href')).toBe('/login')
+    expect(wrapper.get('.landing-login').attributes('href')).toBe('/login')
+  })
+
+  it('sends signed-in users to their dashboard and hides the header login link', async () => {
+    authStore.isAuthenticated = true
+    wrapper = (await openHome()).wrapper
+    expect(wrapper.get('.landing-btn--primary').attributes('href')).toBe('/dashboard')
+    expect(wrapper.find('.landing-login').exists()).toBe(false)
+  })
+
+  it('sends administrators to the admin dashboard', async () => {
+    authStore.isAuthenticated = true
+    authStore.isAdmin = true
+    wrapper = (await openHome()).wrapper
+    expect(wrapper.get('.landing-btn--primary').attributes('href')).toBe('/admin/dashboard')
+  })
+})
+
+describe('home → original Sub2API model plaza', () => {
   it('navigates to the actual model plaza component and requests its API, rather than returning to the offline demo', async () => {
     const app = await openHome()
     wrapper = app.wrapper

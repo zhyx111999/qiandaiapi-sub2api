@@ -404,8 +404,6 @@ const baseSettingsResponse = {
   api_base_url: "",
   contact_info: "",
   doc_url: "",
-  home_content: "",
-  compact_home_enabled: false,
   excel_bps_enabled: true,
   excel_bps_image_mode: 'native',
   excel_bps_image_relay_enabled: true,
@@ -1221,22 +1219,6 @@ describe("admin SettingsView payment visible method controls", () => {
       }),
     ]);
     wrapper.unmount();
-  });
-
-  it("submits the compact home page toggle", async () => {
-    const wrapper = mountView();
-    await flushPromises();
-
-    const toggle = wrapper.get('[data-testid="compact-home-toggle"]');
-    expect((toggle.element as HTMLInputElement).checked).toBe(false);
-
-    await toggle.setValue(true);
-    await wrapper.find("form").trigger("submit.prevent");
-    await flushPromises();
-
-    expect(updateSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ compact_home_enabled: true }),
-    );
   });
 
   it("renders panel rate limit card and saves settings", async () => {
