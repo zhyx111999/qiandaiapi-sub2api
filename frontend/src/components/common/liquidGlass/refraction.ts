@@ -19,7 +19,7 @@ const CHANNEL_MATRIX = {
   B: '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0',
 } as const
 
-export type RefractionMode = 'diagonal' | 'symmetric'
+export type RefractionMode = 'diagonal' | 'symmetric' | 'right'
 
 export interface RefractionOptions {
   /** Base displacement in px. */
@@ -77,6 +77,8 @@ function roundedRectSdf(x: number, y: number, w: number, h: number, r: number): 
 /**
  * 'diagonal': constant down-right direction, the SDF only shapes the band —
  * glass lit from the top-left. 'symmetric': outward normals on every edge.
+ * 'right': only the right edge bends, for panels docked to the window on the
+ * other three sides (a lens there would just sample past the viewport).
  */
 function buildDisplacementMap(w: number, h: number, r: number, edge: number, mode: RefractionMode): string {
   const canvas = document.createElement('canvas')
@@ -88,13 +90,15 @@ function buildDisplacementMap(w: number, h: number, r: number, edge: number, mod
   const data = img.data
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const inside = -roundedRectSdf(x + 0.5, y + 0.5, w, h, r)
+      const inside = mode === 'right' ? w - x - 0.5 : -roundedRectSdf(x + 0.5, y + 0.5, w, h, r)
       let nx = 0
       let ny = 0
       if (inside < edge) {
         const t = Math.min(1, Math.max(0, 1 - inside / edge))
         const mag = t * t
-        if (mode === 'symmetric') {
+        if (mode === 'right') {
+          nx = mag
+        } else if (mode === 'symmetric') {
           const gx = roundedRectSdf(x + 1.5, y + 0.5, w, h, r) - roundedRectSdf(x - 0.5, y + 0.5, w, h, r)
           const gy = roundedRectSdf(x + 0.5, y + 1.5, w, h, r) - roundedRectSdf(x + 0.5, y - 0.5, w, h, r)
           const len = Math.hypot(gx, gy) || 1

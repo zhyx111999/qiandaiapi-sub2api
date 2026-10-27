@@ -538,13 +538,12 @@
     @apply border-l-primary-500;
   }
 
-  /* ============ 侧边栏：悬浮液态玻璃，与首页玻璃同一材质 ============ */
+  /* ============ 侧边栏：贴边一体式液态玻璃（实验分支 exp/docked-sidebar） ============ */
   .sidebar {
     @apply glass-material;
-    @apply fixed z-40 flex w-64 flex-col rounded-3xl;
-    top: 0.75rem;
-    bottom: 0.75rem;
-    left: 0.75rem;
+    @apply fixed inset-y-0 left-0 z-40 flex w-64 flex-col;
+    /* Docked to the window on top/left/bottom; only the right edge is a glass rim. */
+    border-width: 0 1px 0 0;
     /* Genuinely see-through: light frost, so the strands behind stay readable as lines. */
     --glass-tint: 253 251 247;
     --glass-tint-alpha: 0.2;
@@ -553,10 +552,10 @@
     --glass-saturate: 170%;
     --glass-sheen: rgb(255 255 255 / 0.3);
     --glass-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.95),
-      inset 0 0 24px -8px rgb(255 255 255 / 0.85),
-      0 0 0 0.5px rgb(71 64 53 / 0.08),
-      0 24px 48px -24px rgb(71 64 53 / 0.35);
+      inset -1px 0 0 rgb(255 255 255 / 0.9),
+      inset -20px 0 28px -26px rgb(255 255 255 / 0.9),
+      1px 0 0 rgb(71 64 53 / 0.06),
+      14px 0 36px -28px rgb(71 64 53 / 0.3);
     transition:
       width 300ms ease,
       transform 300ms ease;
@@ -568,14 +567,15 @@
     --glass-rim: rgb(255 255 255 / 0.1);
     --glass-sheen: rgb(255 255 255 / 0.06);
     --glass-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.08),
-      0 24px 48px -24px rgb(0 0 0 / 0.7);
+      inset -1px 0 0 rgb(255 255 255 / 0.08),
+      14px 0 36px -28px rgb(0 0 0 / 0.7);
   }
 
   .sidebar-header {
     @apply h-16 px-6;
     @apply flex items-center gap-3;
-    @apply border-b border-white/60 dark:border-white/10;
+    /* Same divider as the top bar, so the two read as one continuous panel. */
+    @apply border-b border-gray-200/50 dark:border-dark-700/50;
     transition:
       padding 0.2s ease,
       gap 0.2s ease;
