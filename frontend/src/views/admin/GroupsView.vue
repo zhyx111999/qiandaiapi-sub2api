@@ -352,7 +352,7 @@
                   t("admin.groups.usageToday")
                 }}</span>
                 <span class="ml-1 font-medium text-gray-700 dark:text-gray-300"
-                  >${{
+                  >🍃{{
                     formatCost(usageMap.get(row.id)?.today_cost ?? 0)
                   }}</span
                 >
@@ -362,7 +362,7 @@
                   t("admin.groups.usageYesterday")
                 }}</span>
                 <span class="ml-1 font-medium text-gray-700 dark:text-gray-300"
-                  >${{
+                  >🍃{{
                     formatCost(usageMap.get(row.id)?.yesterday_cost ?? 0)
                   }}</span
                 >
@@ -372,7 +372,7 @@
                   t("admin.groups.usageTotal")
                 }}</span>
                 <span class="ml-1 font-medium text-gray-700 dark:text-gray-300"
-                  >${{
+                  >🍃{{
                     formatCost(usageMap.get(row.id)?.total_cost ?? 0)
                   }}</span
                 >
@@ -994,7 +994,7 @@
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="input-label">1K ($)</label>
+              <label class="input-label">1K (🍃)</label>
               <input
                 v-model.number="createForm.image_price_1k"
                 type="number"
@@ -1005,7 +1005,7 @@
               />
             </div>
             <div>
-              <label class="input-label">2K ($)</label>
+              <label class="input-label">2K (🍃)</label>
               <input
                 v-model.number="createForm.image_price_2k"
                 type="number"
@@ -1016,7 +1016,7 @@
               />
             </div>
             <div>
-              <label class="input-label">4K ($)</label>
+              <label class="input-label">4K (🍃)</label>
               <input
                 v-model.number="createForm.image_price_4k"
                 type="number"
@@ -1143,7 +1143,7 @@
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="input-label">480p ($/s)</label>
+              <label class="input-label">480p (🍃/s)</label>
               <input
                 v-model.number="createForm.video_price_480p"
                 type="number"
@@ -1154,7 +1154,7 @@
               />
             </div>
             <div>
-              <label class="input-label">720p ($/s)</label>
+              <label class="input-label">720p (🍃/s)</label>
               <input
                 v-model.number="createForm.video_price_720p"
                 type="number"
@@ -1165,7 +1165,7 @@
               />
             </div>
             <div>
-              <label class="input-label">1080p ($/s)</label>
+              <label class="input-label">1080p (🍃/s)</label>
               <input
                 v-model.number="createForm.video_price_1080p"
                 type="number"
@@ -1201,7 +1201,7 @@
                   class="block"
                 >
                   <span class="mb-1 block text-xs text-gray-500 dark:text-gray-400">
-                    {{ resolution.label }} ($/s)
+                    {{ resolution.label }} (🍃/s)
                   </span>
                   <input
                     v-model.number="createForm.video_model_prices[family.key][resolution.key]"
@@ -2672,7 +2672,7 @@
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="input-label">1K ($)</label>
+              <label class="input-label">1K (🍃)</label>
               <input
                 v-model.number="editForm.image_price_1k"
                 type="number"
@@ -2683,7 +2683,7 @@
               />
             </div>
             <div>
-              <label class="input-label">2K ($)</label>
+              <label class="input-label">2K (🍃)</label>
               <input
                 v-model.number="editForm.image_price_2k"
                 type="number"
@@ -2694,7 +2694,7 @@
               />
             </div>
             <div>
-              <label class="input-label">4K ($)</label>
+              <label class="input-label">4K (🍃)</label>
               <input
                 v-model.number="editForm.image_price_4k"
                 type="number"
@@ -2821,7 +2821,7 @@
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="input-label">480p ($/s)</label>
+              <label class="input-label">480p (🍃/s)</label>
               <input
                 v-model.number="editForm.video_price_480p"
                 type="number"
@@ -2832,7 +2832,7 @@
               />
             </div>
             <div>
-              <label class="input-label">720p ($/s)</label>
+              <label class="input-label">720p (🍃/s)</label>
               <input
                 v-model.number="editForm.video_price_720p"
                 type="number"
@@ -2843,7 +2843,7 @@
               />
             </div>
             <div>
-              <label class="input-label">1080p ($/s)</label>
+              <label class="input-label">1080p (🍃/s)</label>
               <input
                 v-model.number="editForm.video_price_1080p"
                 type="number"
@@ -2879,7 +2879,7 @@
                   class="block"
                 >
                   <span class="mb-1 block text-xs text-gray-500 dark:text-gray-400">
-                    {{ resolution.label }} ($/s)
+                    {{ resolution.label }} (🍃/s)
                   </span>
                   <input
                     v-model.number="editForm.video_model_prices[family.key][resolution.key]"
@@ -5567,7 +5567,7 @@ const formatImagePricePreview = (value: number | string | null | undefined) => {
   if (!Number.isFinite(price) || price < 0) {
     return t("admin.groups.imagePricing.notConfigured");
   }
-  return `$${price.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
+  return `🍃${price.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
 };
 
 const formatVideoPricePreview = (value: number | string | null | undefined) => {
@@ -5578,7 +5578,7 @@ const formatVideoPricePreview = (value: number | string | null | undefined) => {
   if (!Number.isFinite(price) || price < 0) {
     return t("admin.groups.videoPricing.notConfigured");
   }
-  return `$${price.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
+  return `🍃${price.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
 };
 
 const buildImageFinalPricePreview = (form: ImagePricingFormState) => {
@@ -5776,7 +5776,7 @@ const formatCost = (cost: number): string => {
 };
 
 const formatUsd = (cost: number | null | undefined): string =>
-  `$${formatCost(cost ?? 0)}`;
+  `🍃${formatCost(cost ?? 0)}`;
 
 const getQuotaUsageClass = (
   used: number,

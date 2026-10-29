@@ -136,7 +136,7 @@ describe('UpstreamBillingRateCell', () => {
       } } }), now: Date.now()
     } })
     expect(wrapper.get('[data-testid="upstream-billing-rate"]').text()).toContain('0.60x')
-    expect(wrapper.get('[data-testid="upstream-balance-value"]').text()).toBe('$12.34')
+    expect(wrapper.get('[data-testid="upstream-balance-value"]').text()).toBe('🍃12.34')
     const regularAccount = JSON.parse(JSON.stringify(wrapper.props('account')))
     delete regularAccount.extra.upstream_billing_provider
     delete regularAccount.extra.upstream_billing_probe.data.provider
@@ -159,7 +159,7 @@ describe('UpstreamBillingRateCell', () => {
     delete account.extra.upstream_billing_probe.data
     await wrapper.setProps({ account })
     expect(wrapper.get('[data-testid="upstream-billing-configure"]').text()).toBe('admin.accounts.upstreamBilling.unsupported')
-    expect(wrapper.get('[data-testid="upstream-balance-value"]').text()).toBe('$12.34')
+    expect(wrapper.get('[data-testid="upstream-balance-value"]').text()).toBe('🍃12.34')
     regular.unmount()
     wrapper.unmount()
   })

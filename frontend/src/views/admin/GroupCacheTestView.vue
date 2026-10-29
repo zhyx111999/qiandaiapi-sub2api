@@ -116,7 +116,7 @@ const knownCost = computed(() => matchedBills.value ? selected.value!.rounds.red
 const hasPendingBills = computed(() => selected.value?.rounds.some(r => !r.bill) ?? false)
 const number = (n: number | null | undefined) => n == null ? '—' : n.toLocaleString()
 const percent = (n: number | null) => n == null ? '—' : (n * 100).toFixed(1) + '%'
-const money = (n: number | null | undefined) => n == null ? '—' : '$' + n.toFixed(6)
+const money = (n: number | null | undefined) => n == null ? '—' : '🍃' + n.toFixed(6)
 const ms = (n: number | null | undefined) => n == null ? '—' : (n / 1000).toFixed(2) + ' s'
 const date = (value: string) => new Date(value).toLocaleString()
 function runConfiguration(run: CacheTestRun) {

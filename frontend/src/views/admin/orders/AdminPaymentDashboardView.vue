@@ -42,7 +42,7 @@
                   <span class="text-sm text-gray-700 dark:text-gray-300">{{ t('payment.methods.' + method.type, method.type) }}</span>
                 </div>
                 <div class="space-y-1 text-right">
-                  <span v-for="[currency, amount] in sortedAmounts(method.amount)" :key="currency" class="block text-sm font-medium text-gray-900 dark:text-white">{{ formatMoney(currency, amount) }}</span>
+                  <span v-for="[currency, amount] in sortedAmounts(method.amount)" :key="currency" class="block text-sm font-medium text-gray-900 dark:text-white">{{ formatPaymentAmount(amount, currency) }}</span>
                   <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">({{ method.count }})</span>
                 </div>
               </div>
@@ -59,7 +59,7 @@
                     <span :class="['flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold', rankClass(idx)]">{{ idx + 1 }}</span>
                     <span class="text-sm text-gray-700 dark:text-gray-300">{{ user.email }}</span>
                   </div>
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ formatMoney(currency, user.amount) }}</span>
+                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ formatPaymentAmount(user.amount, currency) }}</span>
                 </div>
               </div>
             </div>
@@ -77,6 +77,7 @@ import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import type { CurrencyAmounts, DashboardStats, TopUserPaymentStats } from '@/types/payment'
+import { formatPaymentAmount } from '@/components/payment/currency'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -117,10 +118,6 @@ function sortedTopUsers(usersByCurrency: Record<string, TopUserPaymentStats[]>):
 
 function hasTopUsers(usersByCurrency: Record<string, TopUserPaymentStats[]>): boolean {
   return Object.values(usersByCurrency).some(users => users.length > 0)
-}
-
-function formatMoney(currency: string, amount: number): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
 }
 
 async function loadDashboard() {

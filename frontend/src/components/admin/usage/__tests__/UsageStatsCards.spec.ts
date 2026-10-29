@@ -50,9 +50,9 @@ describe('UsageStatsCards', () => {
       global: { stubs: { Icon: true } },
     })
     const costCard = wrapper.findAll('.card')[2]
-    expect(costCard.get('.text-xl').text()).toBe('$3.0000')
-    expect(costCard.text()).toContain('Standard $12.0000')
-    expect(costCard.text()).toContain('Cost $5.0000')
+    expect(costCard.get('.text-xl').text()).toBe('🍃3.0000')
+    expect(costCard.text()).toContain('Standard 🍃12.0000')
+    expect(costCard.text()).toContain('Cost 🍃5.0000')
     wrapper.unmount()
   })
 

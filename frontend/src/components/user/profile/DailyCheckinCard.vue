@@ -60,14 +60,14 @@
           <div>
             <label class="input-label" for="daily-checkin-min">{{ t('checkin.admin.min') }}</label>
             <div class="flex items-center gap-2">
-              <span class="text-gray-500">$</span>
+              <span class="text-gray-500">🍃</span>
               <input id="daily-checkin-min" v-model.number="form.reward_min" type="number" min="0.01" step="0.01" class="input flex-1" />
             </div>
           </div>
           <div>
             <label class="input-label" for="daily-checkin-max">{{ t('checkin.admin.max') }}</label>
             <div class="flex items-center gap-2">
-              <span class="text-gray-500">$</span>
+              <span class="text-gray-500">🍃</span>
               <input id="daily-checkin-max" v-model.number="form.reward_max" type="number" min="0.01" step="0.01" class="input flex-1" />
             </div>
           </div>

@@ -89,7 +89,7 @@
                 <div><dt class="text-gray-500">{{ t('controlledExperiments.protocol') }}</dt><dd>{{ summary.protocol_failures }}</dd></div>
                 <div><dt class="text-gray-500">{{ t('controlledExperiments.unknown') }}</dt><dd>{{ summary.unknown_calls }}</dd></div>
                 <div><dt class="text-gray-500">{{ t('controlledExperiments.passed') }}</dt><dd>{{ summary.passed_tasks }} / {{ summary.graded_tasks }}</dd></div>
-                <div><dt class="text-gray-500">{{ t('controlledExperiments.cost') }}</dt><dd>${{ summary.cost_usd.toFixed(6) }} <span v-if="summary.cost_incomplete" class="text-xs text-amber-600">{{ t('controlledExperiments.incompleteCost') }}</span></dd></div>
+                <div><dt class="text-gray-500">{{ t('controlledExperiments.cost') }}</dt><dd>🍃{{ summary.cost_usd.toFixed(6) }} <span v-if="summary.cost_incomplete" class="text-xs text-amber-600">{{ t('controlledExperiments.incompleteCost') }}</span></dd></div>
               </dl>
               <p class="mt-4 text-xs text-gray-500">{{ t('controlledExperiments.coverage', { done: summary.graded_tasks, total: (report.run.spec.tasks?.length || 0) * report.run.spec.repetitions }) }}</p>
             </article>

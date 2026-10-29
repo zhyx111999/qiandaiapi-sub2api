@@ -370,12 +370,12 @@ const showBalance = computed(() => {
   if (!status) return false
   return status !== 'unsupported' || snapshot.value?.status === 'ok'
 })
-// Same "$12.34" style as the other cost cells in the account table.
+// Same "🍃12.34" style as the other cost cells in the account table.
 const formatBalanceAmount = (value: number, unit?: string) => {
   const amount = Math.abs(value).toFixed(2)
   const sign = value < 0 && amount !== '0.00' ? '-' : ''
   const currency = unit || 'USD'
-  return currency.toUpperCase() === 'USD' ? `${sign}$${amount}` : `${sign}${amount} ${currency}`
+  return currency.toUpperCase() === 'USD' ? `${sign}🍃${amount}` : `${sign}${amount} ${currency}`
 }
 const describeBalance = (value?: UpstreamBalanceData) => {
   if (!value) return null

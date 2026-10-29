@@ -129,7 +129,7 @@ describe('ModelDistributionChart', () => {
       raw: 1.4,
       dataset: { data: [1.4, 0.2] },
     })
-    expect(label).toBe('model-b: $1.40 (87.5%)')
+    expect(label).toBe('model-b: 🍃1.40 (87.5%)')
   })
 
   it('can hide account cost for user usage stats without account_cost', () => {
@@ -184,7 +184,7 @@ describe('ModelDistributionChart', () => {
     ])
     expect(chartData.datasets[0].data).toEqual([12, 8, 0, 10])
     expect(chartData.datasets[0].backgroundColor[0]).toBe('#3b82f6')
-    expect(chartData.datasets[0].backgroundColor[3]).toBe('#94a3b8')
+    expect(chartData.datasets[0].backgroundColor[3]).toBe('#a49e91')
     expect(chartData.datasets[0].backgroundColor[3]).not.toBe(chartData.datasets[0].backgroundColor[0])
 
     const rows = wrapper.findAll('tbody tr')
@@ -196,6 +196,6 @@ describe('ModelDistributionChart', () => {
     expect(rows[3].text()).toContain('Others')
     expect(rows[3].text()).toContain('4')
     expect(rows[3].text()).toContain('400')
-    expect(rows[3].text()).toContain('$10.00')
+    expect(rows[3].text()).toContain('🍃10.00')
   })
 })

@@ -1,7 +1,7 @@
 export const DEFAULT_PAYMENT_CURRENCY = 'CNY'
 
 const PAYMENT_CURRENCY_SYMBOLS: Record<string, string> = {
-  USD: '$',
+  USD: '🍃',
   CNY: '¥',
   RMB: '¥',
   EUR: '€',
@@ -45,15 +45,24 @@ function paymentCurrencyFractionDigits(currency: string): number {
 export function formatPaymentAmount(amount: number, currency?: string | null, locale?: string): string {
   const normalized = normalizePaymentCurrency(currency)
   const fractionDigits = paymentCurrencyFractionDigits(normalized)
+  const value = Number.isFinite(amount) ? amount : 0
   try {
+    // USD is the site credit unit and is shown with the leaf sign from the symbol table
+    if (normalized === 'USD') {
+      const digits = new Intl.NumberFormat(locale || undefined, {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+      }).format(Math.abs(value))
+      return `${value < 0 ? '-' : ''}${currencySymbol(normalized)}${digits}`
+    }
     return new Intl.NumberFormat(locale || undefined, {
       style: 'currency',
       currency: normalized,
       currencyDisplay: 'narrowSymbol',
       minimumFractionDigits: fractionDigits,
       maximumFractionDigits: fractionDigits,
-    }).format(Number.isFinite(amount) ? amount : 0)
+    }).format(value)
   } catch {
-    return `${normalized} ${(Number.isFinite(amount) ? amount : 0).toFixed(fractionDigits)}`
+    return `${normalized} ${value.toFixed(fractionDigits)}`
   }
 }
