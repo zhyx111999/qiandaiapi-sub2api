@@ -2,7 +2,6 @@
   <div
     v-show="visible"
     ref="lensRef"
-    v-liquid-glass="LENS_GLASS"
     class="sidebar-lens"
     aria-hidden="true"
   ></div>
@@ -10,14 +9,15 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { vLiquidGlass } from '@/components/common/liquidGlass'
-import { LENS_GLASS } from '../consoleGlass'
+import { FRAME_ORDER, addFrameTask } from '../consoleFrame'
+import { glassScene } from '../glassScene'
 import { PRESS_DEPTH, createMotion, lensScale, rememberMotion, resumeMotion, stepMotion, type LensMotion } from './lensMotion'
 
 /**
- * Liquid-glass capsule over the active sidebar item. It is a sibling of the sidebar (not a
- * child), so its backdrop holds the sidebar, the field behind it and the label it refracts.
- * The sidebar markup is untouched: the lens finds `.sidebar-link-active` inside `nav` and
+ * Liquid-glass capsule over the active sidebar item: light, shadow and a faint tint here; the
+ * magnification of what lies under it is drawn by the field canvas (it reads the box published to
+ * `glassScene`), so the capsule never samples the sidebar glass a second time. It is a sibling of
+ * the sidebar (not a child), so it floats above the sidebar's own surface. The sidebar markup is untouched: the lens finds `.sidebar-link-active` inside `nav` and
  * follows it through scrolling, collapsing, group expansion and route changes.
  *
  * Motion runs in the nav's content coordinates, so scrolling never disturbs a flight and a
@@ -26,14 +26,16 @@ import { PRESS_DEPTH, createMotion, lensScale, rememberMotion, resumeMotion, ste
 const props = defineProps<{ nav: HTMLElement | null }>()
 
 const SHADOW_ROOM = 24 // px kept outside unclipped edges so the drop shadow survives
+const RADIUS = 12 // .sidebar-lens border-radius
 
 const lensRef = ref<HTMLElement | null>(null)
 const visible = ref(false)
 let motion: LensMotion | null = null
-let raf = 0
 let lastTime = 0
 let pressed = false
 let detach: (() => void) | null = null
+/** Set while the phone drawer slides: re-places the capsule every frame (no observer sees transforms). */
+let followSlide: (() => void) | null = null
 /** Viewport position of the nav's content origin, and the nav's visible band. */
 let frame = { left: 0, top: 0, bandTop: -Infinity, bandBottom: Infinity }
 let lensHeight = 0
@@ -70,23 +72,36 @@ function render() {
     clipTop > 0 || clipBottom > 0
       ? `inset(${clipTop > 0 ? clipTop : -SHADOW_ROOM}px ${-SHADOW_ROOM}px ${clipBottom > 0 ? clipBottom : -SHADOW_ROOM}px ${-SHADOW_ROOM}px)`
       : ''
+  // The field draws the magnified view under the capsule's current (scaled) box.
+  const w = el.offsetWidth * sx
+  const h = lensHeight * sy
+  glassScene.lens = {
+    x: x + (el.offsetWidth - w) / 2,
+    y: y + (lensHeight - h) / 2,
+    w,
+    h,
+    r: RADIUS * Math.min(sx, sy),
+    bandTop: frame.bandTop,
+    bandBottom: frame.bandBottom,
+  }
+  glassScene.invalidate()
 }
 
-function tick(now: number) {
-  raf = 0
-  if (!motion) return
+/** Runs on the shared console frame loop, before the field draws. */
+const task = addFrameTask(FRAME_ORDER.lens, (now) => {
   const dt = lastTime ? Math.min(1 / 30, (now - lastTime) / 1000) : 1 / 60
   lastTime = now
-  const moving = stepMotion(motion, dt)
+  followSlide?.()
+  const moving = motion ? stepMotion(motion, dt) : false
   render()
-  rememberMotion(motion, performance.now())
-  if (moving) raf = requestAnimationFrame(tick)
-}
+  if (motion) rememberMotion(motion, performance.now())
+  const more = moving || !!followSlide
+  if (!more) lastTime = 0
+  return more
+})
 
 function animate() {
-  if (raf) return
-  lastTime = 0
-  raf = requestAnimationFrame(tick)
+  task.wake()
 }
 
 /** Aims the lens at `link` inside `nav`; `jump` skips the travel (collapsing, resizing). */
@@ -94,6 +109,8 @@ function aim(nav: HTMLElement, link: HTMLElement | null, jump: boolean) {
   const el = lensRef.value
   if (!link || !el) {
     visible.value = false
+    glassScene.lens = null
+    glassScene.invalidate()
     return
   }
   measure(nav)
@@ -158,19 +175,15 @@ function attach(nav: HTMLElement | null) {
   const onResize = () => place(true)
   // The phone drawer slides with a transform, which no observer reports: track it per frame.
   const aside = nav.closest<HTMLElement>('.sidebar')
-  let slide = 0
-  const followSlide = () => {
-    place(true)
-    slide = requestAnimationFrame(followSlide)
-  }
   const isSlide = (event: TransitionEvent) => event.target === aside && event.propertyName === 'transform'
   const onSlideStart = (event: TransitionEvent) => {
-    if (isSlide(event) && !slide) slide = requestAnimationFrame(followSlide)
+    if (!isSlide(event)) return
+    followSlide = () => place(true)
+    animate()
   }
   const onSlideEnd = (event: TransitionEvent) => {
     if (!isSlide(event)) return
-    cancelAnimationFrame(slide)
-    slide = 0
+    followSlide = null
     place(true)
   }
 
@@ -213,7 +226,7 @@ function attach(nav: HTMLElement | null) {
     aside?.removeEventListener('transitionrun', onSlideStart)
     aside?.removeEventListener('transitionend', onSlideEnd)
     aside?.removeEventListener('transitioncancel', onSlideEnd)
-    cancelAnimationFrame(slide)
+    followSlide = null
   }
 }
 
@@ -231,6 +244,7 @@ onBeforeUnmount(() => {
   detach?.()
   detach = null
   if (motion) rememberMotion(motion, performance.now())
-  if (raf) cancelAnimationFrame(raf)
+  task.remove()
+  glassScene.lens = null
 })
 </script>

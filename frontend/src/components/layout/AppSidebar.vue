@@ -1,6 +1,5 @@
 <template>
   <aside
-    v-liquid-glass="SIDEBAR_GLASS"
     class="sidebar"
     :class="[
       sidebarCollapsed ? 'w-[72px]' : 'w-64',
@@ -224,9 +223,7 @@ import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { getCustomMenuLabel } from '@/utils/customMenu'
-import { vLiquidGlass } from '@/components/common/liquidGlass'
 import SidebarSelectionLens from './sidebarLens/SidebarSelectionLens.vue'
-import { SIDEBAR_GLASS } from './consoleGlass'
 
 interface NavItem {
   path: string

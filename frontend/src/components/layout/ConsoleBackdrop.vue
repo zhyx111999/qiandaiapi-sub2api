@@ -10,36 +10,35 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores'
-import { createStrands, strandY, type StrandLayout } from '@/components/home/landing/convergence/strands'
+import { createStrands } from '@/components/home/landing/convergence/strands'
 import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
 import { DESKTOP_MIN_WIDTH } from './consoleGlass'
+import { FRAME_ORDER, addFrameTask } from './consoleFrame'
+import { followPointerLight } from './consoleLight'
+import { FieldPainter } from './fieldPainter'
+import { glassScene } from './glassScene'
+import type { GlassRect } from './glassOptics'
 
 /**
- * The living field behind the floating glass sidebar: the landing page's strands waving
- * slowly, pulses travelling along them and three drifting glows. Clear glass over still paper
- * reads as a plain panel; motion behind it is what makes the sidebar read as liquid glass.
- * Runs on requestAnimationFrame capped at 60 fps (FLOW.maxFps), pauses with the hidden tab
- * like any rAF loop, and with prefers-reduced-motion draws one still frame.
+ * The living field behind the floating glass sidebar, and the glass optics drawn into it.
+ * Clear glass over still paper reads as a plain panel; motion behind it is what makes the
+ * sidebar read as liquid glass. The sidebar's edge lensing and the capsule's magnification are
+ * painted here (FieldPainter), so neither carries a live backdrop filter that the browser would
+ * have to recompute every frame the field moves.
  *
- * Desktop: the field lies beside the sidebar and fades out before the workspace, so cards and
- * tables stay on clean paper. Phone: the sidebar is a drawer, so the field spans the screen
- * above the drawer's veil only while the drawer is open, and stops once it has faded out.
+ * Runs on the shared console frame loop, capped at 60 fps (FLOW.maxFps); a capsule move redraws
+ * at once. Pauses with the hidden tab like any rAF loop; with prefers-reduced-motion it draws
+ * still frames only.
+ *
+ * Desktop: the field lies beside the sidebar and fades out before the workspace. Phone: the
+ * sidebar is a drawer, so the field spans the screen above the drawer's veil only while the
+ * drawer is open, and stops once it has faded out.
  */
+const STRAND_COUNT = 30
 const FIELD_WIDTH = 640 // px of field from the left edge on desktop
 const FADE_FROM = { desktop: 0.45, drawer: 0.7 } // fraction of the width where the fade-out starts
 const DRAWER_FADE_MS = 300 // matches the canvas opacity transition below
-const STEP = 6
-const ACCENT_EVERY = 9
-const DENSITY = 1.6
-const COLORS = {
-  light: { ink: '31 29 26', accent: '59 146 113' },
-  dark: { ink: '235 236 229', accent: '101 184 150' },
-} as const
-const GLOWS = [
-  { x: 0.2, y: 0.26, r: 260, rgb: '59 146 113', a: 0.22, sx: 0.13, sy: 0.11, ax: 40, ay: 70, phase: 0 },
-  { x: 0.34, y: 0.72, r: 300, rgb: '214 170 96', a: 0.14, sx: 0.09, sy: 0.15, ax: 50, ay: 60, phase: 2.1 },
-  { x: 0.06, y: 0.96, r: 230, rgb: '101 179 148', a: 0.18, sx: 0.17, sy: 0.07, ax: 30, ay: 40, phase: 4.2 },
-] as const
+const SIDEBAR_RADIUS = 24 // .sidebar border-radius
 
 /** Deterministic layout so the field does not change between pages. */
 function seeded(seed: number) {
@@ -50,20 +49,25 @@ function seeded(seed: number) {
   }
 }
 
+const media = (query: string) => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches
+const reducedMotion = media('(prefers-reduced-motion: reduce)')
+const reducedTransparency = media('(prefers-reduced-transparency: reduce)') // the sidebar is solid then
+
 const appStore = useAppStore()
 const drawerOpen = computed(() => appStore.mobileOpen)
 const phone = ref(typeof window !== 'undefined' && window.innerWidth < DESKTOP_MIN_WIDTH)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-const strands = createStrands(30, seeded(20261027))
-const reducedMotion =
-  typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+const painter = new FieldPainter(createStrands(STRAND_COUNT, seeded(20261027)))
 let ctx: CanvasRenderingContext2D | null = null
+let sidebarEl: HTMLElement | null = null
 let reach = 0
 let height = 0
-let raf = 0
 let lastTime = 0
+let lensMoved = false
 let drawerFade = 0 // timer while the closed drawer's field fades out
 let themeObserver: MutationObserver | null = null
+let sidebarObserver: ResizeObserver | null = null
+let stopLight: (() => void) | null = null
 
 /** Desktop: beside the sidebar. Phone: the full width while the drawer is open or fading out. */
 function fieldWidth(): number {
@@ -86,131 +90,55 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 }
 
+/** The sidebar as the field sees it this frame, or null when it is off the field (closed drawer). */
+function glassRect(): GlassRect | null {
+  if (!sidebarEl || reducedTransparency) return null
+  const r = sidebarEl.getBoundingClientRect()
+  if (r.right <= 0 || r.left >= reach) return null
+  return { x: r.left, y: r.top, w: r.width, h: r.height, r: SIDEBAR_RADIUS }
+}
+
 function draw() {
-  const c = ctx
-  if (!c || !reach || !height) return
-  const w = reach
-  const h = height
-  const dark = document.documentElement.classList.contains('dark')
-  const { ink, accent } = dark ? COLORS.dark : COLORS.light
-  c.clearRect(0, 0, w, h)
-
-  for (const glow of GLOWS) {
-    const x = glow.x * w + Math.sin(consoleFlow.glowTime * glow.sx + glow.phase) * glow.ax
-    const y = glow.y * h + Math.cos(consoleFlow.glowTime * glow.sy + glow.phase) * glow.ay
-    const gradient = c.createRadialGradient(x, y, 0, x, y, glow.r)
-    gradient.addColorStop(0, `rgb(${glow.rgb} / ${dark ? glow.a * 0.75 : glow.a})`)
-    gradient.addColorStop(1, `rgb(${glow.rgb} / 0)`)
-    c.fillStyle = gradient
-    c.fillRect(x - glow.r, y - glow.r, glow.r * 2, glow.r * 2)
-  }
-
-  const layout: StrandLayout = {
-    width: w,
-    height: h,
-    fanTop: -h * 0.04,
-    fanBottom: h * 1.04,
-    gateY: h * 0.56,
-    entryX: w * 0.7,
-    exitX: w * 0.7,
-    waist: h * 0.14,
-  }
-  const xs: number[] = []
-  for (let x = 0; x <= w; x += STEP) xs.push(x)
-  const paths = strands.map((strand) => xs.map((x) => strandY(strand, x, layout, consoleFlow.waveTime)))
-  const widen = 1 + (DENSITY - 1) * 0.25
-
-  c.lineCap = 'round'
-  c.lineJoin = 'round'
-  paths.forEach((ys, index) => {
-    const strand = strands[index]
-    const isAccent = index % ACCENT_EVERY === ACCENT_EVERY >> 1
-    const alpha = Math.min(1, (isAccent ? 0.5 : 0.14 + strand.weight * 0.3) * DENSITY)
-    c.strokeStyle = `rgb(${isAccent ? accent : ink} / ${alpha})`
-    c.lineWidth = (0.7 + strand.weight * 0.9) * widen
-    c.beginPath()
-    c.moveTo(xs[0], ys[0])
-    for (let k = 1; k < xs.length; k++) c.lineTo(xs[k], ys[k])
-    c.stroke()
+  if (!ctx || !reach || !height) return
+  const glass = glassRect()
+  painter.paint(ctx, {
+    width: reach,
+    height,
+    dark: document.documentElement.classList.contains('dark'),
+    waveTime: consoleFlow.waveTime,
+    glowTime: consoleFlow.glowTime,
+    pulses: consoleFlow.pulses.pulses,
+    pulseTail: FLOW.pulseTail,
+    fadeFrom: phone.value ? FADE_FROM.drawer : FADE_FROM.desktop,
+    glass,
+    lens: glass ? glassScene.lens : null,
   })
-
-  drawPulses(c, xs, paths, accent)
-
-  // Fade into the workspace (desktop) or past the drawer's edge (phone).
-  const fadeStart = w * (phone.value ? FADE_FROM.drawer : FADE_FROM.desktop)
-  const fade = c.createLinearGradient(fadeStart, 0, w, 0)
-  fade.addColorStop(0, 'rgb(0 0 0 / 0)')
-  fade.addColorStop(1, 'rgb(0 0 0 / 1)')
-  c.globalCompositeOperation = 'destination-out'
-  c.fillStyle = fade
-  c.fillRect(fadeStart, 0, w - fadeStart, h)
-  c.globalCompositeOperation = 'source-over'
 }
 
-/** Same look as the landing page calls: a fading trail, a soft glow and a bright head. */
-function drawPulses(c: CanvasRenderingContext2D, xs: number[], paths: number[][], accent: string) {
-  const last = xs.length - 1
-  const column = (x: number) => Math.max(0, Math.min(last, Math.round(x / STEP)))
-  for (const pulse of consoleFlow.pulses.pulses) {
-    const ys = paths[pulse.strand]
-    if (!ys) continue
-    const head = column(pulse.x)
-    const tail = column(pulse.x - FLOW.pulseTail)
-    if (head <= tail) continue
-    const trail = c.createLinearGradient(xs[tail], ys[tail], xs[head], ys[head])
-    trail.addColorStop(0, `rgb(${accent} / 0)`)
-    trail.addColorStop(1, `rgb(${accent} / 0.95)`)
-    c.strokeStyle = trail
-    c.lineWidth = 1.8
-    c.beginPath()
-    c.moveTo(xs[tail], ys[tail])
-    for (let i = tail + 1; i <= head; i++) c.lineTo(xs[i], ys[i])
-    c.stroke()
-    if (pulse.x > xs[last]) continue // the head has left the field; only the tail remains
-    const x = xs[head]
-    const y = ys[head]
-    const glow = c.createRadialGradient(x, y, 0, x, y, 14)
-    glow.addColorStop(0, `rgb(${accent} / 0.42)`)
-    glow.addColorStop(1, `rgb(${accent} / 0)`)
-    c.fillStyle = glow
-    c.fillRect(x - 14, y - 14, 28, 28)
-    c.fillStyle = `rgb(${accent})`
-    c.beginPath()
-    c.arc(x, y, 2.4, 0, Math.PI * 2)
-    c.fill()
+const task = addFrameTask(FRAME_ORDER.field, (now) => {
+  if (!reach) {
+    lastTime = 0
+    return false
   }
-}
-
-function frame(now: number) {
-  raf = reach ? requestAnimationFrame(frame) : 0
-  if (lastTime && !frameDue(now, lastTime)) return
-  const dt = lastTime ? Math.min(0.1, (now - lastTime) / 1000) : 0
-  lastTime = now
-  stepFlow(consoleFlow, dt, reach, strands.length)
-  draw()
-}
-
-function start() {
+  const lensStep = lensMoved
+  lensMoved = false
   if (reducedMotion) {
     draw()
-    return
+    return false
   }
-  if (!raf && reach) {
-    lastTime = 0
-    raf = requestAnimationFrame(frame)
-  }
-}
-
-function stop() {
-  if (raf) cancelAnimationFrame(raf)
-  raf = 0
-}
+  if (lastTime && !frameDue(now, lastTime) && !lensStep) return true
+  const dt = lastTime ? Math.min(0.1, (now - lastTime) / 1000) : 0
+  lastTime = now
+  stepFlow(consoleFlow, dt, reach, STRAND_COUNT)
+  draw()
+  return true
+})
 
 /** Re-sizes for the current viewport and drawer state; the loop stops by itself at width 0. */
 function refresh() {
   resize()
   draw()
-  start()
+  task.wake()
 }
 
 watch(drawerOpen, (open) => {
@@ -226,18 +154,34 @@ watch(drawerOpen, (open) => {
 })
 
 onMounted(() => {
+  sidebarEl = canvasRef.value?.parentElement?.querySelector<HTMLElement>('.sidebar') ?? null
+  glassScene.invalidate = () => {
+    lensMoved = true
+    task.wake()
+  }
   refresh()
   window.addEventListener('resize', refresh)
   themeObserver = new MutationObserver(draw)
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  // Collapsing changes the glass; redraw even when the field itself is still (reduced motion).
+  if (sidebarEl && typeof ResizeObserver !== 'undefined') {
+    sidebarObserver = new ResizeObserver(() => task.wake())
+    sidebarObserver.observe(sidebarEl)
+  }
+  if (!reducedMotion) stopLight = followPointerLight()
 })
 
 onBeforeUnmount(() => {
-  stop()
+  task.remove()
+  glassScene.invalidate = () => {}
   window.clearTimeout(drawerFade)
   window.removeEventListener('resize', refresh)
   themeObserver?.disconnect()
   themeObserver = null
+  sidebarObserver?.disconnect()
+  sidebarObserver = null
+  stopLight?.()
+  stopLight = null
 })
 </script>
 
