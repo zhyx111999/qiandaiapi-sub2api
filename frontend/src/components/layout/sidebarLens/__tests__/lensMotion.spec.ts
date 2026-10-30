@@ -34,6 +34,18 @@ describe('lens travel', () => {
     expect(peak).toBeLessThan(300 + 200 * 0.05)
   })
 
+  it('resizes on the same spring when items differ in size, and settles exactly', () => {
+    const motion = createMotion(0, 0, 90, 32)
+    motion.tx = 120
+    motion.tw = 150
+    motion.th = 44
+    let wPeak = motion.w
+    const moving = run(motion, 600, () => (wPeak = Math.max(wPeak, motion.w)))
+    expect(moving).toBe(false)
+    expect(motion).toMatchObject({ x: 120, w: 150, h: 44 })
+    expect(wPeak).toBeLessThan(150 + 60 * 0.05)
+  })
+
   it('stretches along its travel and is round at rest', () => {
     const motion = createMotion(0, 0)
     motion.ty = 400
@@ -83,5 +95,13 @@ describe('lens memory across layout remounts', () => {
     expect(resumed).toMatchObject({ x: 5, y: 50, ty: 200, vy: 900 })
     expect(resumed).not.toBe(motion)
     expect(resumeMotion(1000 + 801)).toBeNull()
+  })
+
+  it('keeps each capsule under its own key', () => {
+    rememberMotion(createMotion(1, 2), 1000)
+    rememberMotion(createMotion(300, 8, 90, 32), 1000, 'toolbar')
+    expect(resumeMotion(1100)).toMatchObject({ x: 1, y: 2 })
+    expect(resumeMotion(1100, 'toolbar')).toMatchObject({ x: 300, w: 90 })
+    expect(resumeMotion(1100, 'other')).toBeNull()
   })
 })

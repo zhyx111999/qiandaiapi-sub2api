@@ -8,7 +8,7 @@
  */
 export type FrameTask = (now: number) => boolean
 
-export const FRAME_ORDER = { lens: 0, field: 1, light: 2 } as const
+export const FRAME_ORDER = { lens: 0, field: 1, light: 2, toolbar: 3 } as const
 
 interface Entry {
   order: number

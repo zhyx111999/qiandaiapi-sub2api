@@ -24,6 +24,7 @@
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="console-toolbar flex shrink-0 items-center gap-1 sm:gap-3">
         <span v-liquid-glass="TOOLBAR_GLASS" class="console-toolbar-glass" aria-hidden="true"></span>
+        <ToolbarLens />
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 
@@ -264,6 +265,7 @@ import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { TOOLBAR_GLASS } from './consoleGlass'
+import ToolbarLens from './toolbarLens/ToolbarLens.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRouteMetaKeys } from '@/router/title'
