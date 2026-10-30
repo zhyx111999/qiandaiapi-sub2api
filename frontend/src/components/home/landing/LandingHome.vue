@@ -1,5 +1,5 @@
 <template>
-  <div class="landing" data-testid="landing-home">
+  <div class="landing site-page" data-testid="landing-home">
     <PaperBackdrop />
     <ConvergenceStage :label="t('landingHome.stageLabel')" :wordmark="BRAND.wordmark" />
     <LandingHeader :is-authenticated="isAuthenticated" />

@@ -1,8 +1,8 @@
 <template>
   <header class="console-topbar sticky top-0 z-30">
     <div class="flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
-      <!-- Left: Mobile Menu Toggle + Page Title -->
-      <div class="flex min-w-0 items-center gap-2 sm:gap-4">
+      <!-- Left: Mobile Menu Toggle + Page Title (kept clear of the site nav, see titleCap) -->
+      <div class="console-title flex min-w-0 items-center gap-2 sm:gap-4" :style="titleCap">
         <button
           @click="toggleMobileSidebar"
           class="btn-ghost btn-icon lg:hidden"
@@ -22,29 +22,34 @@
       </div>
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
-      <div class="console-toolbar flex shrink-0 items-center gap-1 sm:gap-3">
+      <div ref="toolbarRef" class="console-toolbar flex shrink-0 items-center gap-1 sm:gap-3">
         <span v-liquid-glass="TOOLBAR_GLASS" class="console-toolbar-glass" aria-hidden="true"></span>
-        <ToolbarLens />
+        <GlassCapsule :rest="capsuleRest" :pick="pickControl" memory-key="toolbar" />
         <!-- Announcement Bell -->
-        <AnnouncementBell v-if="user" />
+        <AnnouncementBell v-if="user" ref="bellRef" />
 
         <!-- Docs Link -->
         <a
           v-if="docUrl"
+          ref="docsRef"
           :href="docUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
+          class="toolbar-control hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-dark-400 dark:hover:text-white sm:flex"
         >
           <Icon name="book" size="sm" />
           <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
         </a>
 
         <!-- Language Switcher -->
-        <LocaleSwitcher />
+        <LocaleSwitcher ref="localeRef" v-model:open="localeOpen" />
 
         <!-- Subscription Progress (for users with active subscriptions; not mounted at all when the feature is off) -->
-        <SubscriptionProgressMini v-if="user && subscriptionFeatureEnabled" />
+        <SubscriptionProgressMini
+          v-if="user && subscriptionFeatureEnabled"
+          ref="subscriptionRef"
+          v-model:open="subscriptionOpen"
+        />
 
         <!-- Balance Display -->
         <div
@@ -97,8 +102,9 @@
         <div v-if="user" class="relative" ref="dropdownRef">
           <button
             @click="toggleDropdown"
-            class="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-dark-800"
+            class="toolbar-control flex items-center gap-2 rounded-xl p-1.5"
             :aria-label="t('common.userMenu')"
+            :aria-expanded="dropdownOpen"
           >
             <div class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 text-sm font-medium text-white shadow-sm">
               <img
@@ -242,7 +248,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, type ComponentPublicInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
@@ -253,7 +259,8 @@ import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { TOOLBAR_GLASS } from './consoleGlass'
-import ToolbarLens from './toolbarLens/ToolbarLens.vue'
+import GlassCapsule from './glassCapsule/GlassCapsule.vue'
+import { siteNavLayout } from './siteNav/siteNavLayout'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRouteMetaKeys } from '@/router/title'
@@ -271,6 +278,46 @@ const onboardingStore = useOnboardingStore()
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
+
+/*
+ * The toolbar's selection capsule: it rests on the control whose menu is open and goes to a pressed
+ * control. The controls are held directly; the language and subscription menus report their state.
+ */
+const toolbarRef = ref<HTMLElement | null>(null)
+const bellRef = ref<ComponentPublicInstance | null>(null)
+const docsRef = ref<HTMLElement | null>(null)
+const localeRef = ref<ComponentPublicInstance | null>(null)
+const subscriptionRef = ref<ComponentPublicInstance | null>(null)
+const localeOpen = ref(false)
+const subscriptionOpen = ref(false)
+const elementOf = (component: ComponentPublicInstance | null) =>
+  component?.$el instanceof HTMLElement ? component.$el : null
+const controls = () =>
+  [elementOf(bellRef.value), docsRef.value, elementOf(localeRef.value), elementOf(subscriptionRef.value), dropdownRef.value].filter(
+    (el): el is HTMLElement => !!el
+  )
+const pickControl = (target: Element) => controls().find((el) => el.contains(target)) ?? null
+const capsuleRest = computed(() => {
+  if (dropdownOpen.value) return dropdownRef.value
+  if (localeOpen.value) return elementOf(localeRef.value)
+  if (subscriptionOpen.value) return elementOf(subscriptionRef.value)
+  return null
+})
+
+/*
+ * The site nav floats at the top centre; the page title stops short of it. Its left edge is the
+ * main area (sidebar width + margins) plus this bar's 24px padding. The nav reads where the
+ * toolbar starts, to know when to fall back to icons.
+ */
+const titleCap = computed(() => {
+  if (!siteNavLayout.navHalf) return undefined
+  const titleLeft = (appStore.sidebarCollapsed ? 96 : 280) + 24
+  return { '--title-cap': `calc(50vw - ${siteNavLayout.navHalf + 16}px - ${titleLeft}px)` }
+})
+function publishToolbar() {
+  if (toolbarRef.value) siteNavLayout.toolbarLeft = toolbarRef.value.getBoundingClientRect().left
+}
+let toolbarObserver: ResizeObserver | null = null
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
@@ -379,14 +426,28 @@ function handleClickOutside(event: MouseEvent) {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('resize', publishToolbar)
+  if (toolbarRef.value && typeof ResizeObserver !== 'undefined') {
+    toolbarObserver = new ResizeObserver(publishToolbar)
+    toolbarObserver.observe(toolbarRef.value)
+  }
+  publishToolbar()
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('resize', publishToolbar)
+  toolbarObserver?.disconnect()
 })
 </script>
 
 <style scoped>
+@media (min-width: 1024px) {
+  .console-title {
+    max-width: var(--title-cap, none);
+  }
+}
+
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.2s ease;

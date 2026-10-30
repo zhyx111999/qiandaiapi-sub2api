@@ -3,8 +3,9 @@
     <button
       @click="toggle"
       :disabled="switching"
-      class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+      class="toolbar-control flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300"
       :title="currentLocale?.name"
+      :aria-expanded="isOpen"
     >
       <span class="text-base">{{ currentLocale?.flag }}</span>
       <span class="hidden sm:inline">{{ currentLocale?.code.toUpperCase() }}</span>
@@ -42,13 +43,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
+
+/** `v-model:open` reports the menu state (the top bar's selection capsule rests on an open menu). */
+const emit = defineEmits<{ 'update:open': [open: boolean] }>()
 
 const dropdownRef = ref<HTMLElement | null>(null)
 const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, toggle, select } =
   useLocaleSwitch(dropdownRef)
+watch(isOpen, (open) => emit('update:open', open))
 </script>
 
 <style scoped>

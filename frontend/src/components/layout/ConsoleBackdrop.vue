@@ -15,7 +15,6 @@ import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
 import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
 import { FieldPainter } from './fieldPainter'
-import { useConsolePresence } from './siteNav/consolePresence'
 import { glassScene } from './glassScene'
 import type { GlassRect } from './glassOptics'
 
@@ -34,6 +33,11 @@ import type { GlassRect } from './glassOptics'
  * sidebar is a drawer, so the field spans the screen above the drawer's veil only while the
  * drawer is open, and stops once it has faded out.
  */
+const props = defineProps<{
+  /** The sidebar the field is seen through (AppLayout passes AppSidebar's aside). */
+  sidebar: HTMLElement | null
+}>()
+
 const STRAND_COUNT = 30
 const FIELD_WIDTH = 640 // px of field from the left edge on desktop
 const FADE_FROM = { desktop: 0.45, drawer: 0.7 } // fraction of the width where the fade-out starts
@@ -59,7 +63,6 @@ const phone = ref(typeof window !== 'undefined' && window.innerWidth < DESKTOP_M
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const painter = new FieldPainter(createStrands(STRAND_COUNT, seeded(20261027)))
 let ctx: CanvasRenderingContext2D | null = null
-let sidebarEl: HTMLElement | null = null
 let reach = 0
 let height = 0
 let lastTime = 0
@@ -67,9 +70,6 @@ let lensMoved = false
 let drawerFade = 0 // timer while the closed drawer's field fades out
 let themeObserver: MutationObserver | null = null
 let sidebarObserver: ResizeObserver | null = null
-
-// The site nav shows while a console page is on screen (this backdrop is in every console layout).
-useConsolePresence()
 
 /** Desktop: beside the sidebar. Phone: the full width while the drawer is open or fading out. */
 function fieldWidth(): number {
@@ -94,8 +94,8 @@ function resize() {
 
 /** The sidebar as the field sees it this frame, or null when it is off the field (closed drawer). */
 function glassRect(): GlassRect | null {
-  if (!sidebarEl || reducedTransparency) return null
-  const r = sidebarEl.getBoundingClientRect()
+  if (!props.sidebar || reducedTransparency) return null
+  const r = props.sidebar.getBoundingClientRect()
   if (r.right <= 0 || r.left >= reach) return null
   return { x: r.left, y: r.top, w: r.width, h: r.height, r: SIDEBAR_RADIUS }
 }
@@ -113,7 +113,7 @@ function draw() {
     pulseTail: FLOW.pulseTail,
     fadeFrom: phone.value ? FADE_FROM.drawer : FADE_FROM.desktop,
     glass,
-    lens: glass ? glassScene.lens : null,
+    lens: glass ? (glassScene.lens?.() ?? null) : null,
   })
 }
 
@@ -155,8 +155,22 @@ watch(drawerOpen, (open) => {
   refresh()
 })
 
+// Collapsing changes the glass; redraw even when the field itself is still (reduced motion).
+watch(
+  () => props.sidebar,
+  (el) => {
+    sidebarObserver?.disconnect()
+    sidebarObserver = null
+    if (el && typeof ResizeObserver !== 'undefined') {
+      sidebarObserver = new ResizeObserver(() => task.wake())
+      sidebarObserver.observe(el)
+    }
+    task.wake()
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
-  sidebarEl = canvasRef.value?.parentElement?.querySelector<HTMLElement>('.sidebar') ?? null
   glassScene.invalidate = () => {
     lensMoved = true
     task.wake()
@@ -165,11 +179,6 @@ onMounted(() => {
   window.addEventListener('resize', refresh)
   themeObserver = new MutationObserver(draw)
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-  // Collapsing changes the glass; redraw even when the field itself is still (reduced motion).
-  if (sidebarEl && typeof ResizeObserver !== 'undefined') {
-    sidebarObserver = new ResizeObserver(() => task.wake())
-    sidebarObserver.observe(sidebarEl)
-  }
 })
 
 onBeforeUnmount(() => {

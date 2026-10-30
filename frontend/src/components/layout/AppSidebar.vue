@@ -1,10 +1,8 @@
 <template>
   <aside
+    ref="asideRef"
     class="sidebar"
-    :class="[
-      sidebarCollapsed ? 'w-[72px]' : 'w-64',
-      { '-translate-x-full lg:translate-x-0': !mobileOpen }
-    ]"
+    :class="[sidebarCollapsed ? 'w-[72px]' : 'w-64', { 'sidebar-closed': !mobileOpen }]"
   >
     <!-- Logo/Brand -->
     <div class="sidebar-header" :class="{ 'sidebar-header-collapsed': sidebarCollapsed }">
@@ -33,6 +31,7 @@
 
     <!-- Navigation -->
     <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide">
+      <GlassCapsule :rest="activeLinkEl" :pick="pickLink" memory-key="sidebar" :radius="12" lenses-field />
       <div v-if="authStore.isObserver" class="sidebar-section">
         <router-link to="/admin/accounts" class="sidebar-link mb-1"
           :class="{ 'sidebar-link-active': isActive('/admin/accounts'), 'sidebar-link-collapsed': sidebarCollapsed }"
@@ -197,20 +196,15 @@
       </button>
     </div>
   </aside>
-  <SidebarSelectionLens :nav="sidebarNavRef" />
 
   <!-- Mobile Overlay -->
   <transition name="fade">
-    <div
-      v-if="mobileOpen"
-      class="sidebar-overlay fixed inset-0 z-30 bg-black/50 lg:hidden"
-      @click="closeMobile"
-    ></div>
+    <div v-if="mobileOpen" class="sidebar-overlay lg:hidden" @click="closeMobile"></div>
   </transition>
 </template>
 
 <script setup lang="ts">
-import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore, useSupportTicketStore } from '@/stores'
@@ -223,7 +217,7 @@ import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { getCustomMenuLabel } from '@/utils/customMenu'
-import SidebarSelectionLens from './sidebarLens/SidebarSelectionLens.vue'
+import GlassCapsule from './glassCapsule/GlassCapsule.vue'
 
 interface NavItem {
   path: string
@@ -277,6 +271,19 @@ const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
 const sidebarNavRef = ref<HTMLElement | null>(null)
+const asideRef = ref<HTMLElement | null>(null)
+
+/** The selection capsule rests on the active link and goes to a pressed route link. */
+const activeLinkEl = ref<HTMLElement | null>(null)
+function findActiveLink() {
+  activeLinkEl.value = sidebarNavRef.value?.querySelector<HTMLElement>('.sidebar-link-active') ?? null
+}
+const pickLink = (target: Element) => target.closest<HTMLElement>('a.sidebar-link')
+onMounted(findActiveLink)
+onUpdated(findActiveLink)
+
+// The console layout reads the aside to draw the field seen through it.
+defineExpose({ aside: asideRef })
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
 const homePath = computed(() => (
@@ -1083,10 +1090,11 @@ onBeforeUnmount(() => {
   min-width: 2.25rem;
 }
 
+/* Collapsed: the brand plate holds just the logo. */
 .sidebar-header-collapsed {
   gap: 0;
-  padding-left: 1.125rem;
-  padding-right: 1.125rem;
+  padding-left: 7px;
+  padding-right: 7px;
 }
 
 .sidebar-brand {

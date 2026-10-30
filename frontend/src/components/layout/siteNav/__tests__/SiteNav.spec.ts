@@ -46,7 +46,7 @@ async function openAt(path: string) {
   })
   await router.push(path)
   await router.isReady()
-  const wrapper = mount(App, { global: { plugins: [router], stubs: { ToolbarLens: true } }, attachTo: document.body })
+  const wrapper = mount(App, { global: { plugins: [router], stubs: { GlassCapsule: true } }, attachTo: document.body })
   await flushPromises()
   return { wrapper, router }
 }

@@ -677,23 +677,25 @@
       transform 300ms ease;
   }
 
-  /* Closed drawer: slide past the inset and the shadow too, or a sliver stays on screen. */
+  /* Closed drawer (phones): slid past the inset and the shadow too, so no sliver stays on screen. */
   @media (max-width: 1023.98px) {
-    .sidebar.-translate-x-full {
-      --tw-translate-x: calc(-100% - 48px);
+    .sidebar-closed {
+      transform: translateX(calc(-100% - 48px));
     }
   }
 
-  /* Phone drawer backdrop: a warm frosted veil instead of the black dim; the flowing field
-     (ConsoleBackdrop) runs above it and below the drawer. Outranks the bg/z utilities. */
-  .sidebar ~ .sidebar-overlay {
+  /* Phone drawer backdrop: a warm frosted veil; the flowing field (ConsoleBackdrop) runs above it
+     and below the drawer. */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
     z-index: 35;
     background-color: rgb(246 242 234 / 0.6);
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
   }
 
-  .dark .sidebar ~ .sidebar-overlay {
+  .dark .sidebar-overlay {
     background-color: rgb(2 6 23 / 0.6);
   }
 
@@ -701,9 +703,8 @@
      light comes in and opposite it. The light turns toward the pointer (consoleLight, --light). */
   .clear-glass::before,
   .sidebar::before,
-  .sidebar-lens::before,
   .console-toolbar-glass::before,
-  .console-toolbar-lens::before {
+  .glass-capsule::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -732,9 +733,8 @@
   }
 
   .dark .sidebar::before,
-  .dark .sidebar-lens::before,
   .dark .console-toolbar-glass::before,
-  .dark :not(.site-nav--cover) > .console-toolbar-lens::before,
+  .dark :not(.site-nav--cover) > .glass-capsule::before,
   .dark .site-nav:not(.site-nav--cover)::before {
     opacity: 0.45;
   }
@@ -794,14 +794,9 @@
     );
   }
 
-  /* Collapsed: the plate holds just the logo (outranks the scoped padding in AppSidebar). */
-  .sidebar .sidebar-header.sidebar-header-collapsed {
-    padding-left: 7px;
-    padding-right: 7px;
-  }
-
+  /* The scroll container of the links, and the box the selection capsule moves in. */
   .sidebar-nav {
-    @apply flex-1 overflow-y-auto px-3 py-4;
+    @apply relative flex-1 overflow-y-auto px-3 py-4;
   }
 
   .sidebar-link {
@@ -815,22 +810,15 @@
     padding-right: 0.875rem;
   }
 
-  .sidebar-link-active {
-    @apply bg-primary-500/10 dark:bg-primary-400/15;
+  /* The active link's highlight is the selection capsule behind it (GlassCapsule). */
+  .sidebar-link-active,
+  .sidebar-link-active:hover {
     @apply text-primary-700 dark:text-primary-300;
-    @apply hover:bg-primary-500/15 dark:hover:bg-primary-400/20;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
+    background-color: transparent;
   }
 
   .sidebar-link:active {
     transform: scale(0.97);
-  }
-
-  /* The selection lens carries the active state. */
-  .sidebar:has(~ .sidebar-lens) .sidebar-link-active,
-  .sidebar:has(~ .sidebar-lens) .sidebar-link-active:hover {
-    background-color: transparent;
-    box-shadow: none;
   }
 
   .sidebar-section {
@@ -843,39 +831,46 @@
     @apply text-gray-400 dark:text-dark-500;
   }
 
-  /* ============ 侧栏选中项：液态玻璃胶囊（SidebarSelectionLens） ============
-     Light and shadow only: the field canvas magnifies what lies under it (no second glass sampling). */
-  .sidebar-lens {
-    position: fixed;
+  /* ============ 选中胶囊（GlassCapsule：侧栏、顶栏工具条、站点导航共用） ============
+     Light and shadow only, behind the items (z-index -1 in the container's stacking context). Under
+     the sidebar's capsule the field canvas draws the magnified view (no second glass sampling). */
+  .glass-capsule {
+    position: absolute;
     left: 0;
     top: 0;
-    z-index: 45;
-    overflow: hidden;
-    border-radius: 0.75rem;
+    z-index: -1;
     pointer-events: none;
+    opacity: 0;
     will-change: transform;
-    background-color: rgb(255 255 255 / 0.16);
+    background-color: rgb(255 255 255 / 0.3);
     box-shadow:
       inset 0 1px 0.5px rgb(255 255 255 / 0.95),
       inset 0 -1px 1px rgb(255 255 255 / 0.3),
       inset 0 0 12px -4px rgb(255 255 255 / 0.6),
-      0 8px 18px -8px rgb(71 64 53 / 0.3),
-      0 1px 2px rgb(71 64 53 / 0.12);
-    transition: background-color 0.2s ease;
+      0 6px 14px -8px rgb(71 64 53 / 0.28),
+      0 1px 2px rgb(71 64 53 / 0.1);
+    transition:
+      opacity 0.2s ease,
+      background-color 0.2s ease;
   }
 
-  .sidebar-lens-hot {
-    background-color: rgb(255 255 255 / 0.26);
+  .glass-capsule-on {
+    opacity: 1;
   }
 
-  .dark .sidebar-lens {
+  .glass-capsule-hot {
+    background-color: rgb(255 255 255 / 0.42);
+  }
+
+  /* Dark console (the cover's site nav keeps the light capsule). */
+  .dark :not(.site-nav--cover) > .glass-capsule {
     background-color: rgb(255 255 255 / 0.1);
     box-shadow:
       inset 0 1px 0.5px rgb(255 255 255 / 0.35),
-      0 8px 18px -8px rgb(0 0 0 / 0.6);
+      0 6px 14px -8px rgb(0 0 0 / 0.6);
   }
 
-  .dark .sidebar-lens-hot {
+  .dark :not(.site-nav--cover) > .glass-capsule-hot {
     background-color: rgb(255 255 255 / 0.16);
   }
 
@@ -917,73 +912,30 @@
     backdrop-filter: saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   }
 
-  /* Selection capsule of the toolbar controls (ToolbarLens): the sidebar lens material, gliding to the
-     control under the pointer. Behind the controls, above the toolbar glass (same stacking layer,
-     later in the toolbar). */
-  .console-toolbar-lens {
-    position: absolute;
-    left: 0;
-    top: 0;
-    z-index: -1;
-    border-radius: 9999px;
-    pointer-events: none;
-    opacity: 0;
-    will-change: transform;
-    background-color: rgb(255 255 255 / 0.3);
-    box-shadow:
-      inset 0 1px 0.5px rgb(255 255 255 / 0.95),
-      inset 0 -1px 1px rgb(255 255 255 / 0.3),
-      inset 0 0 12px -4px rgb(255 255 255 / 0.6),
-      0 6px 14px -8px rgb(71 64 53 / 0.28),
-      0 1px 2px rgb(71 64 53 / 0.1);
-    transition:
-      opacity 0.2s ease,
-      background-color 0.2s ease;
-  }
-
-  .console-toolbar-lens-on {
-    opacity: 1;
-  }
-
-  .console-toolbar-lens-hot {
-    background-color: rgb(255 255 255 / 0.42);
-  }
-
-  .dark :not(.site-nav--cover) > .console-toolbar-lens {
-    background-color: rgb(255 255 255 / 0.1);
-    box-shadow:
-      inset 0 1px 0.5px rgb(255 255 255 / 0.35),
-      0 6px 14px -8px rgb(0 0 0 / 0.6);
-  }
-
-  .dark :not(.site-nav--cover) > .console-toolbar-lens-hot {
-    background-color: rgb(255 255 255 / 0.16);
-  }
-
-  /* Hover never moves the capsule: a hovered control gets a light wash, as the sidebar links do
-     (outranks the controls' hover utilities); the control under the capsule lets the capsule glow. */
-  .console-toolbar [data-toolbar-lens]:hover {
-    background-color: rgb(255 255 255 / 0.55);
-  }
-
-  .dark .console-toolbar [data-toolbar-lens]:hover {
-    background-color: rgb(255 255 255 / 0.05);
-  }
-
-  .console-toolbar [data-toolbar-lens='on']:hover,
-  .dark .console-toolbar [data-toolbar-lens='on']:hover {
-    background-color: transparent;
-  }
-
-  /* Press feedback on the toolbar's own controls (not on items inside their dropdowns). */
-  .console-toolbar :is(a, button):not(.dropdown *) {
+  /* The top bar's own controls (AppHeader, the bell, language and subscription triggers): a light wash
+     on hover, as the sidebar links, and a springy press. The control under the capsule lets the
+     capsule glow instead of washing. */
+  .toolbar-control {
     transition:
       transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
       background-color 0.15s ease,
       color 0.15s ease;
   }
 
-  .console-toolbar :is(a, button):not(.dropdown *):active {
+  .toolbar-control:hover {
+    background-color: rgb(255 255 255 / 0.55);
+  }
+
+  .dark .toolbar-control:hover {
+    background-color: rgb(255 255 255 / 0.05);
+  }
+
+  [data-capsule] > .toolbar-control:hover,
+  .toolbar-control[data-capsule]:hover {
+    background-color: transparent;
+  }
+
+  .toolbar-control:active {
     transform: scale(0.94);
     transition-duration: 0.12s;
   }
@@ -1013,23 +965,6 @@
     }
   }
 
-  @media (min-width: 1024px) {
-    /* The console page title stops short of the nav (left edge = main area + 24px header padding).
-       The collapsed sidebar is told by its brand plate's class (not by width utilities, which the
-       sidebar rule @applies). */
-    html {
-      --console-main-left: 280px;
-    }
-
-    html:has(.sidebar-header-collapsed) {
-      --console-main-left: 96px;
-    }
-
-    html.has-site-nav .console-topbar > div > div:first-child {
-      max-width: calc(50vw - var(--site-nav-half, 150px) - 16px - var(--console-main-left, 280px) - 24px);
-    }
-  }
-
   @media (max-width: 1023.98px) {
     .site-nav {
       top: auto;
@@ -1053,7 +988,7 @@
   }
 
   /* Switching sections: the incoming page fades in under the nav, which stays where it is. */
-  html.site-entering #app > :is(.landing, .min-h-screen) {
+  html.site-entering .site-page {
     animation: site-enter 0.34s ease-out backwards;
   }
 

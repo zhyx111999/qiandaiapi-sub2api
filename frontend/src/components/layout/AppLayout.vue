@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-dark-950">
+  <div class="site-page min-h-screen bg-gray-50 dark:bg-dark-950">
     <!-- Background Decoration -->
     <div class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
-    <ConsoleBackdrop />
+    <ConsoleBackdrop :sidebar="sidebarEl" />
 
     <!-- Sidebar -->
-    <AppSidebar />
+    <AppSidebar ref="sidebarRef" />
 
     <!-- Main Content Area -->
     <div
@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import '@/styles/onboarding.css'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingTour } from '@/composables/useOnboardingTour'
@@ -33,10 +33,17 @@ import { useOnboardingStore } from '@/stores/onboarding'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 import ConsoleBackdrop from './ConsoleBackdrop.vue'
+import { useConsolePresence } from './siteNav/consolePresence'
 
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
+/** The field behind the sidebar is seen through its glass. */
+const sidebarRef = ref<InstanceType<typeof AppSidebar> | null>(null)
+const sidebarEl = computed(() => sidebarRef.value?.aside ?? null)
+
+// The site nav shows while a console layout is on screen.
+useConsolePresence()
 const isAdmin = computed(() => authStore.user?.role === 'admin')
 
 const { replayTour } = useOnboardingTour({
