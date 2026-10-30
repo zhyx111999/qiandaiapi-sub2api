@@ -28,7 +28,7 @@
             v-liquid-glass="{ scale: 24 }"
             to="/model-plaza"
             data-testid="home-model-plaza"
-            class="landing-btn landing-btn--ghost liquid-glass"
+            class="landing-btn landing-btn--ghost liquid-glass landing-clear"
           >
             {{ t('nav.modelPlaza') }}
           </router-link>
@@ -228,11 +228,6 @@ const { t } = useI18n()
 
 .landing-btn--primary:hover i {
   transform: translateX(2px) rotate(-45deg);
-}
-
-/* Secondary: frosted white glass. */
-.landing-btn--ghost {
-  --glass-tint-alpha: 0.42;
 }
 
 .landing-hint {

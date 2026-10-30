@@ -3,7 +3,7 @@
     <button
       v-liquid-glass="{ scale: 18 }"
       type="button"
-      class="locale__trigger liquid-glass"
+      class="locale__trigger liquid-glass landing-clear"
       :disabled="switching"
       :aria-expanded="isOpen"
       aria-haspopup="menu"
@@ -59,7 +59,6 @@ const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, t
 }
 
 .locale__trigger {
-  --glass-tint-alpha: 0.4;
   display: inline-flex;
   align-items: center;
   gap: 7px;

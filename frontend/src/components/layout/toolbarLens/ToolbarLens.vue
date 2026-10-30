@@ -23,20 +23,24 @@ import { restTarget, toolbarTargets } from './toolbarTargets'
 
 /**
  * The selection capsule of the top bar's controls (model plaza, language, the user menu, ...):
- * the same spring glass as the sidebar lens. It glides to the control under the pointer
- * (resizing on the way, as the controls differ in width), squeezes while pressed, and when the
- * pointer leaves it rests on the control whose menu is open or on the current page's link, or
- * fades out. It lives inside the toolbar, behind the controls and above the toolbar glass;
- * the controls' own hover backgrounds give way to it (style.css, [data-toolbar-lens]).
+ * the same spring glass as the sidebar lens, and it moves the same way: only when a control is
+ * pressed, never on mere hover. It glides there (resizing on the way, as the controls differ in
+ * width), squeezes while pressed and bounces back on release. Otherwise it rests on the control
+ * whose menu is open, else on the current page's link, else on the control just pressed while the
+ * pointer stays on the toolbar; with none of those it fades out. Hovering a control gives it a light
+ * wash; hovering the one under the capsule makes the capsule glow (style.css, [data-toolbar-lens]).
+ * It lives inside the toolbar, behind the controls and above the toolbar glass.
+ * The cover's nav pill reuses it; each place keeps its own motion memory (`memoryKey`).
  */
-const MEMORY_KEY = 'toolbar'
+const props = withDefaults(defineProps<{ memoryKey?: string }>(), { memoryKey: 'toolbar' })
 
 const lensRef = ref<HTMLElement | null>(null)
 const shown = ref(false)
 const hot = ref(false)
 let motion: LensMotion | null = null
 let lastTime = 0
-let hovered: HTMLElement | null = null
+/** The control the capsule sits on (marked data-toolbar-lens="on"). */
+let current: HTMLElement | null = null
 let pressed = false
 let cleanup: (() => void) | null = null
 
@@ -54,22 +58,38 @@ const task = addFrameTask(FRAME_ORDER.toolbar, (now) => {
   lastTime = now
   const moving = motion ? stepMotion(motion, dt) : false
   render()
-  if (motion) rememberMotion(motion, performance.now(), MEMORY_KEY)
+  if (motion) rememberMotion(motion, performance.now(), props.memoryKey)
   if (!moving) lastTime = 0
   return moving
 })
 
-/** Box of `target` in toolbar coordinates; layout size ignores the press transform on it. */
+/**
+ * Box of `target` in the coordinates the capsule is positioned in (the toolbar's padding box,
+ * so inside its border); layout size ignores the press transform on the target.
+ */
 function boxOf(toolbar: HTMLElement, target: HTMLElement) {
   const t = target.getBoundingClientRect()
   const b = toolbar.getBoundingClientRect()
   const w = target.offsetWidth
   const h = target.offsetHeight
-  return { x: t.left + t.width / 2 - w / 2 - b.left, y: t.top + t.height / 2 - h / 2 - b.top, w, h }
+  return {
+    x: t.left + t.width / 2 - w / 2 - b.left - toolbar.clientLeft,
+    y: t.top + t.height / 2 - h / 2 - b.top - toolbar.clientTop,
+    w,
+    h,
+  }
+}
+
+function setCurrent(target: HTMLElement | null) {
+  if (current === target) return
+  if (current) current.dataset.toolbarLens = ''
+  current = target
+  if (current) current.dataset.toolbarLens = 'on'
 }
 
 /** Sends the capsule to `target` (null hides it); `jump` skips the glide. */
 function aim(toolbar: HTMLElement, target: HTMLElement | null, jump = false) {
+  setCurrent(target)
   if (!target) {
     shown.value = false
     return
@@ -78,7 +98,7 @@ function aim(toolbar: HTMLElement, target: HTMLElement | null, jump = false) {
   let appearing = !shown.value
   if (!motion) {
     // A new layout after navigation: continue the previous capsule mid-flight.
-    const resumed = resumeMotion(performance.now(), MEMORY_KEY)
+    const resumed = resumeMotion(performance.now(), props.memoryKey)
     motion = resumed ?? createMotion(box.x, box.y, box.w, box.h)
     motion.tpress = 1
     if (resumed) appearing = false
@@ -102,12 +122,16 @@ function aim(toolbar: HTMLElement, target: HTMLElement | null, jump = false) {
 
 function attach(toolbar: HTMLElement) {
   let targets: HTMLElement[] = []
+  /** The control pressed last; the capsule stays on it while the pointer is on the toolbar. */
+  let lastPressed: HTMLElement | null = null
+  let inside = false
   const visible = () => targets.filter((el) => el.offsetWidth > 0)
-  const settle = () => aim(toolbar, hovered ?? restTarget(visible()))
+  const resting = () => restTarget(visible()) ?? (inside ? lastPressed : null)
+  const settle = (jump = false) => aim(toolbar, resting(), jump)
   const refresh = () => {
     targets = toolbarTargets(toolbar)
     for (const el of targets) if (!('toolbarLens' in el.dataset)) el.dataset.toolbarLens = ''
-    if (hovered && !toolbar.contains(hovered)) hovered = null
+    if (lastPressed && !targets.includes(lastPressed)) lastPressed = null
     settle()
   }
   const targetOf = (event: Event) => {
@@ -115,24 +139,24 @@ function attach(toolbar: HTMLElement) {
     return el && targets.includes(el) ? el : null
   }
 
+  // Hover never moves the capsule; it only makes it glow over its own control.
   const onPointerOver = (event: PointerEvent) => {
-    const target = targetOf(event)
-    if (!target || target === hovered) return
-    hovered = target
-    hot.value = true
-    aim(toolbar, target)
+    inside = true
+    hot.value = !!current && targetOf(event) === current
   }
   const onPointerLeave = () => {
-    hovered = null
+    inside = false
+    lastPressed = null
     hot.value = false
     settle()
   }
   const onPointerDown = (event: PointerEvent) => {
     const target = targetOf(event)
     if (event.button !== 0 || !target) return
-    hovered = target
-    hot.value = true
+    inside = true
+    lastPressed = target
     aim(toolbar, target)
+    hot.value = true
     pressed = true
     if (motion) motion.tpress = PRESS_DEPTH
     task.wake()
@@ -143,7 +167,7 @@ function attach(toolbar: HTMLElement) {
     motion.tpress = 1
     task.wake()
   }
-  const onResize = () => aim(toolbar, hovered ?? restTarget(visible()), true)
+  const onResize = () => settle(true)
 
   // Controls come and go (user loaded, menus opening, the active link changing).
   const mutations = new MutationObserver(refresh)
@@ -167,6 +191,7 @@ function attach(toolbar: HTMLElement) {
     window.removeEventListener('pointerup', onPointerUp)
     window.removeEventListener('pointercancel', onPointerUp)
     window.removeEventListener('resize', onResize)
+    setCurrent(null)
   }
 }
 
@@ -178,7 +203,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cleanup?.()
   cleanup = null
-  if (motion) rememberMotion(motion, performance.now(), MEMORY_KEY)
+  if (motion) rememberMotion(motion, performance.now(), props.memoryKey)
   task.remove()
 })
 </script>
