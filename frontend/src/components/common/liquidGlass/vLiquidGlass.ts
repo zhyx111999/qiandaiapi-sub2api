@@ -6,7 +6,7 @@ const controllers = new WeakMap<HTMLElement, RefractionController>()
 type Binding = RefractionOptions | null | undefined
 
 function sameOptions(a: Binding, b: Binding): boolean {
-  return a?.scale === b?.scale && a?.aberration === b?.aberration && a?.mode === b?.mode
+  return a?.scale === b?.scale && a?.aberration === b?.aberration && a?.mode === b?.mode && a?.edge === b?.edge
 }
 
 /**

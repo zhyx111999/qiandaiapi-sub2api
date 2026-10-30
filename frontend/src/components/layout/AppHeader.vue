@@ -1,5 +1,5 @@
 <template>
-  <header class="glass sticky top-0 z-30 border-b border-gray-200/50 dark:border-dark-700/50">
+  <header class="console-topbar sticky top-0 z-30">
     <div class="flex h-16 items-center justify-between gap-2 px-2 sm:px-4 md:px-6">
       <!-- Left: Mobile Menu Toggle + Page Title -->
       <div class="flex min-w-0 items-center gap-2 sm:gap-4">
@@ -22,7 +22,8 @@
       </div>
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
-      <div class="flex shrink-0 items-center gap-1 sm:gap-3">
+      <div class="console-toolbar flex shrink-0 items-center gap-1 sm:gap-3">
+        <span v-liquid-glass="{ scale: 19, aberration: 2.5, mode: 'symmetric', edge: 12 }" class="console-toolbar-glass" aria-hidden="true"></span>
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 
@@ -261,6 +262,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRouteMetaKeys } from '@/router/title'

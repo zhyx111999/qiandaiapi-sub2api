@@ -538,24 +538,35 @@
     @apply border-l-primary-500;
   }
 
-  /* ============ 侧边栏：贴边一体式液态玻璃（实验分支 exp/docked-sidebar） ============ */
+  /* ============ 侧边栏：悬浮圆角的透明暖象牙液态玻璃（桌面）；手机仍是贴边抽屉 ============ */
   .sidebar {
     @apply glass-material;
     @apply fixed inset-y-0 left-0 z-40 flex w-64 flex-col;
-    /* Docked to the window on top/left/bottom; only the right edge is a glass rim. */
-    border-width: 0 1px 0 0;
-    /* Genuinely see-through: light frost, so the strands behind stay readable as lines. */
-    --glass-tint: 253 251 247;
-    --glass-tint-alpha: 0.2;
-    --glass-blur: 5px;
-    --glass-blur-refract: 3px;
+    /* Clear glass: the flowing field behind (ConsoleBackdrop) stays readable; edges are carried by the lens. */
+    --glass-tint: 248 241 226;
+    --glass-tint-alpha: 0.06;
+    --glass-blur: 6px;
+    --glass-blur-refract: 4px;
     --glass-saturate: 170%;
-    --glass-sheen: rgb(255 255 255 / 0.3);
+    --glass-brightness: 1.02;
+    --glass-highlight: 255 249 236;
+    --glass-sheen-strength: 0.35;
+    --glass-rim: rgb(var(--glass-highlight) / 0.6);
     --glass-shadow:
-      inset -1px 0 0 rgb(255 255 255 / 0.9),
-      inset -20px 0 28px -26px rgb(255 255 255 / 0.9),
-      1px 0 0 rgb(71 64 53 / 0.06),
-      14px 0 36px -28px rgb(71 64 53 / 0.3);
+      inset 0 1px 0 rgb(var(--glass-highlight) / 0.85),
+      inset 0 0 22px -10px rgb(var(--glass-highlight) / 0.55),
+      inset 0 -1px 0 rgb(71 64 53 / 0.05),
+      0 24px 50px -28px rgb(71 64 53 / 0.4),
+      0 2px 8px -3px rgb(71 64 53 / 0.1);
+    background-image:
+      radial-gradient(120% 34% at 0% 0%, rgb(var(--glass-highlight) / calc(0.55 * var(--glass-sheen-strength))), transparent 62%),
+      linear-gradient(
+        180deg,
+        rgb(var(--glass-highlight) / calc(0.32 * var(--glass-sheen-strength))) 0%,
+        rgb(var(--glass-highlight) / calc(0.06 * var(--glass-sheen-strength))) 34%,
+        transparent 64%,
+        rgb(var(--glass-highlight) / calc(0.12 * var(--glass-sheen-strength))) 100%
+      );
     transition:
       width 300ms ease,
       transform 300ms ease;
@@ -563,22 +574,94 @@
 
   .dark .sidebar {
     --glass-tint: 30 34 40;
-    --glass-tint-alpha: 0.55;
-    --glass-rim: rgb(255 255 255 / 0.1);
-    --glass-sheen: rgb(255 255 255 / 0.06);
+    --glass-tint-alpha: 0.41;
+    --glass-rim: rgb(255 255 255 / 0.12);
     --glass-shadow:
-      inset -1px 0 0 rgb(255 255 255 / 0.08),
-      14px 0 36px -28px rgb(0 0 0 / 0.7);
+      inset 0 1px 0 rgb(255 255 255 / 0.12),
+      0 24px 50px -28px rgb(0 0 0 / 0.8);
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 40%);
   }
 
+  /* Desktop: a rounded slab 12px off the window; the refraction runs round every edge. */
+  @media (min-width: 1024px) {
+    .sidebar {
+      top: 12px;
+      bottom: 12px;
+      left: 12px;
+      border-radius: 24px;
+    }
+  }
+
+  /* Mobile drawer: docked to the window and frosted, since it lies over page content. */
+  @media (max-width: 1023.98px) {
+    .sidebar,
+    .dark .sidebar {
+      border-width: 0 1px 0 0;
+      --glass-tint-alpha: 0.88;
+      --glass-blur: 16px;
+      --glass-blur-refract: 12px;
+    }
+  }
+
+  /* Brand plate: a near-clear warm sheet, concentric with the sidebar (14px = 24px - 10px inset). */
   .sidebar-header {
-    @apply h-16 px-6;
     @apply flex items-center gap-3;
-    /* Same divider as the top bar, so the two read as one continuous panel. */
-    @apply border-b border-gray-200/50 dark:border-dark-700/50;
+    position: relative;
+    margin: 10px 10px 6px;
+    height: 58px;
+    padding: 0 12px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgb(255 252 244 / 0.36), rgb(255 249 236 / 0.12));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      0 1px 2px rgb(71 64 53 / 0.05);
     transition:
       padding 0.2s ease,
       gap 0.2s ease;
+  }
+
+  .sidebar-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      rgb(255 252 244 / 0.9),
+      rgb(255 249 236 / 0) 45%,
+      rgb(255 249 236 / 0) 62%,
+      rgb(255 252 244 / 0.6)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+  }
+
+  .dark .sidebar-header {
+    background: rgb(255 255 255 / 0.04);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+
+  .dark .sidebar-header::before {
+    background: linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.25),
+      transparent 45%,
+      transparent 62%,
+      rgb(255 255 255 / 0.15)
+    );
+  }
+
+  /* Collapsed: the plate holds just the logo (outranks the scoped padding in AppSidebar). */
+  .sidebar .sidebar-header.sidebar-header-collapsed {
+    padding-left: 7px;
+    padding-right: 7px;
   }
 
   .sidebar-nav {
@@ -604,6 +687,19 @@
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
   }
 
+  @media (min-width: 1024px) {
+    .sidebar-link:active {
+      transform: scale(0.97);
+    }
+
+    /* On desktop the selection lens carries the active state. */
+    .sidebar:has(~ .sidebar-lens) .sidebar-link-active,
+    .sidebar:has(~ .sidebar-lens) .sidebar-link-active:hover {
+      background-color: transparent;
+      box-shadow: none;
+    }
+  }
+
   .sidebar-section {
     @apply mb-6;
   }
@@ -612,6 +708,207 @@
     @apply mb-2 px-3;
     @apply text-xs font-semibold uppercase tracking-wider;
     @apply text-gray-400 dark:text-dark-500;
+  }
+
+  /* ============ 侧栏选中项：液态玻璃胶囊（SidebarSelectionLens） ============ */
+  .sidebar-lens {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 45;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    pointer-events: none;
+    will-change: transform;
+    --glass-blur-refract: 0px;
+    --glass-saturate: 190%;
+    --glass-brightness: 1.04;
+    background-color: rgb(255 250 238 / 0.26);
+    box-shadow:
+      inset 0 1px 1px rgb(255 252 244 / 0.85),
+      inset 0 -1px 1px rgb(71 64 53 / 0.06),
+      inset 0 0 10px -4px rgb(255 249 236 / 0.75),
+      0 6px 16px -6px rgb(71 64 53 / 0.26);
+    -webkit-backdrop-filter: saturate(190%) brightness(1.04);
+    backdrop-filter: saturate(190%) brightness(1.04);
+    transition: background-color 0.2s ease;
+  }
+
+  .sidebar-lens-hot {
+    background-color: rgb(255 250 238 / 0.42);
+  }
+
+  .sidebar-lens::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(105deg, transparent 28%, rgb(255 252 244 / 0.7) 50%, transparent 72%);
+  }
+
+  .sidebar-lens-shimmer::after {
+    animation: sidebar-lens-shimmer 0.65s ease-out var(--lens-shimmer-delay, 0ms);
+  }
+
+  @keyframes sidebar-lens-shimmer {
+    0% {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+    25% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+
+  .dark .sidebar-lens {
+    background-color: rgb(255 255 255 / 0.08);
+    box-shadow:
+      inset 0 1px 1px rgb(255 255 255 / 0.2),
+      0 6px 16px -6px rgb(0 0 0 / 0.6);
+  }
+
+  .dark .sidebar-lens-hot {
+    background-color: rgb(255 255 255 / 0.14);
+  }
+
+  @media (max-width: 1023.98px) {
+    .sidebar-lens {
+      display: none !important;
+    }
+  }
+
+  /* Specular rim shared by the selection lens and the toolbar glass: bright where light enters and leaves. */
+  .sidebar-lens::before,
+  .console-toolbar-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      rgb(255 252 244 / 0.95) 0%,
+      rgb(255 249 236 / 0.3) 22%,
+      rgb(255 249 236 / 0) 45%,
+      rgb(255 249 236 / 0) 62%,
+      rgb(255 249 236 / 0.25) 82%,
+      rgb(255 252 244 / 0.8) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+  }
+
+  .dark .sidebar-lens::before,
+  .dark .console-toolbar-glass::before {
+    background: linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.35),
+      rgb(255 255 255 / 0) 45%,
+      rgb(255 255 255 / 0) 62%,
+      rgb(255 255 255 / 0.25)
+    );
+  }
+
+  /* ============ 顶栏：透明 + 顶部模糊渐隐；右侧控件后面垫一片液态玻璃 ============ */
+  .console-topbar::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 -20px 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgb(246 242 234 / 0.72), rgb(246 242 234 / 0));
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    -webkit-mask: linear-gradient(to bottom, #000 40%, transparent);
+    mask: linear-gradient(to bottom, #000 40%, transparent);
+  }
+
+  .dark .console-topbar::before {
+    background: linear-gradient(to bottom, rgb(2 6 23 / 0.72), rgb(2 6 23 / 0));
+  }
+
+  /* The glass is a separate layer behind the controls, not their ancestor: a backdrop-filter ancestor
+     would re-anchor the controls' fixed popovers and blank the frost of their dropdowns. */
+  .console-toolbar {
+    position: relative;
+    isolation: isolate;
+    padding: 4px 6px 4px 10px;
+  }
+
+  .console-toolbar-glass {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: 9999px;
+    pointer-events: none;
+    --glass-blur-refract: 10px;
+    --glass-saturate: 190%;
+    --glass-brightness: 1.04;
+    background-color: rgb(255 250 238 / 0.55);
+    box-shadow:
+      inset 0 1px 1px rgb(255 252 244 / 0.85),
+      inset 0 -1px 1px rgb(71 64 53 / 0.06),
+      inset 0 0 10px -4px rgb(255 249 236 / 0.75),
+      0 8px 20px -8px rgb(71 64 53 / 0.28);
+    -webkit-backdrop-filter: blur(10px) saturate(190%) brightness(1.04);
+    backdrop-filter: blur(10px) saturate(190%) brightness(1.04);
+  }
+
+  .dark .console-toolbar-glass {
+    background-color: rgb(30 36 33 / 0.6);
+    box-shadow:
+      inset 0 1px 1px rgb(255 255 255 / 0.2),
+      0 8px 20px -8px rgb(0 0 0 / 0.6);
+  }
+
+  /* Press feedback on the toolbar's own controls (not on items inside their dropdowns). */
+  .console-toolbar :is(a, button):not(.dropdown *) {
+    transition:
+      transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .console-toolbar :is(a, button):not(.dropdown *):active {
+    transform: scale(0.94);
+    transition-duration: 0.12s;
+  }
+
+  /* Page content scrolls under the top bar: with reduced transparency it is solid, not frosted. */
+  @media (prefers-reduced-transparency: reduce) {
+    .console-topbar::before {
+      background: theme('colors.gray.50');
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      -webkit-mask: none;
+      mask: none;
+    }
+
+    .console-toolbar-glass {
+      background-color: theme('colors.white');
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .dark .console-topbar::before {
+      background: theme('colors.dark.950');
+    }
+
+    .dark .console-toolbar-glass {
+      background-color: theme('colors.dark.800');
+    }
   }
 
   /* ============ 页面头部 ============ */

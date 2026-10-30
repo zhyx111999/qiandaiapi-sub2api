@@ -27,6 +27,8 @@ export interface RefractionOptions {
   /** Per-channel scale spread; 0 keeps a single clean lens pass. */
   aberration?: number
   mode?: RefractionMode
+  /** Width of the bending band in px; 0 keeps the default min(42, w/6, h/6). */
+  edge?: number
 }
 
 export interface RefractionController {
@@ -137,6 +139,7 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
     scale: options.scale ?? 48,
     aberration: options.aberration ?? 0,
     mode: options.mode ?? 'diagonal',
+    edge: options.edge ?? 0,
   }
 
   const id = `liquid-glass-refraction-${uid++}`
@@ -185,7 +188,8 @@ export function attachRefraction(el: HTMLElement, options: RefractionOptions = {
     lastW = w
     lastH = h
     const radius = Math.min(parseFloat(getComputedStyle(el).borderTopLeftRadius) || 16, w / 2, h / 2)
-    const map = buildDisplacementMap(w, h, radius, Math.min(42, w / 6, h / 6), state.mode)
+    const band = state.edge > 0 ? Math.min(state.edge, w / 2, h / 2) : Math.min(42, w / 6, h / 6)
+    const map = buildDisplacementMap(w, h, radius, band, state.mode)
     if (!map) return
     // Filter region AND primitive coordinates must use the same pixel-sized box.
     // Bounding-box filter units with pixel values cause cropped/tiled backdrop artifacts.

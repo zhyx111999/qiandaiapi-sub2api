@@ -1,6 +1,6 @@
 <template>
   <aside
-    v-liquid-glass="{ scale: 36, aberration: 0, mode: 'right' }"
+    v-liquid-glass="{ scale: 48, aberration: 2.5, mode: 'symmetric', edge: 40 }"
     class="sidebar"
     :class="[
       sidebarCollapsed ? 'w-[72px]' : 'w-64',
@@ -198,6 +198,7 @@
       </button>
     </div>
   </aside>
+  <SidebarSelectionLens :nav="sidebarNavRef" />
 
   <!-- Mobile Overlay -->
   <transition name="fade">
@@ -224,6 +225,7 @@ import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { getCustomMenuLabel } from '@/utils/customMenu'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
+import SidebarSelectionLens from './sidebarLens/SidebarSelectionLens.vue'
 
 interface NavItem {
   path: string
