@@ -582,14 +582,32 @@
     background-image: linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 40%);
   }
 
-  /* Desktop: a rounded slab 12px off the window; the refraction runs round every edge. */
-  @media (min-width: 1024px) {
-    .sidebar {
-      top: 12px;
-      bottom: 12px;
-      left: 12px;
-      border-radius: 24px;
+  /* A rounded slab 12px off the window, refracting round every edge; on phones it is the drawer. */
+  .sidebar {
+    top: 12px;
+    bottom: 12px;
+    left: 12px;
+    border-radius: 24px;
+  }
+
+  /* Closed drawer: slide past the inset and the shadow too, or a sliver stays on screen. */
+  @media (max-width: 1023.98px) {
+    .sidebar.-translate-x-full {
+      --tw-translate-x: calc(-100% - 48px);
     }
+  }
+
+  /* Phone drawer backdrop: a warm frosted veil instead of the black dim; the flowing field
+     (ConsoleBackdrop) runs above it and below the drawer. Outranks the bg/z utilities. */
+  .sidebar ~ .sidebar-overlay {
+    z-index: 35;
+    background-color: rgb(246 242 234 / 0.66);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .dark .sidebar ~ .sidebar-overlay {
+    background-color: rgb(2 6 23 / 0.6);
   }
 
   /* Brand plate: a near-clear warm sheet, concentric with the sidebar (14px = 24px - 10px inset). */
@@ -676,17 +694,15 @@
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
   }
 
-  @media (min-width: 1024px) {
-    .sidebar-link:active {
-      transform: scale(0.97);
-    }
+  .sidebar-link:active {
+    transform: scale(0.97);
+  }
 
-    /* On desktop the selection lens carries the active state. */
-    .sidebar:has(~ .sidebar-lens) .sidebar-link-active,
-    .sidebar:has(~ .sidebar-lens) .sidebar-link-active:hover {
-      background-color: transparent;
-      box-shadow: none;
-    }
+  /* The selection lens carries the active state. */
+  .sidebar:has(~ .sidebar-lens) .sidebar-link-active,
+  .sidebar:has(~ .sidebar-lens) .sidebar-link-active:hover {
+    background-color: transparent;
+    box-shadow: none;
   }
 
   .sidebar-section {
@@ -736,12 +752,6 @@
 
   .dark .sidebar-lens-hot {
     background-color: rgb(255 255 255 / 0.14);
-  }
-
-  @media (max-width: 1023.98px) {
-    .sidebar-lens {
-      display: none !important;
-    }
   }
 
   /* Specular rim shared by the selection lens and the toolbar glass: bright where light enters and leaves. */
@@ -847,7 +857,7 @@
     transition-duration: 0.12s;
   }
 
-  /* ============ 实心表面：手机（<1024px）不用液态玻璃；系统要求减少透明时也不透明 ============ */
+  /* ============ 系统要求减少透明时：侧栏、顶栏、工具条不透明 ============ */
   @media (prefers-reduced-transparency: reduce) {
     .sidebar {
       background: theme('colors.white');
@@ -880,42 +890,6 @@
 
     .dark .console-toolbar-glass {
       background-color: theme('colors.dark.800');
-    }
-  }
-
-  /* Phones: the upstream solid drawer and a solid top bar, with no glass behind the controls. */
-  @media (max-width: 1023.98px) {
-    .sidebar {
-      border-width: 0 1px 0 0;
-      border-color: theme('colors.gray.200');
-      background: theme('colors.white');
-      box-shadow: none;
-      -webkit-backdrop-filter: none;
-      backdrop-filter: none;
-    }
-
-    .dark .sidebar {
-      border-color: theme('colors.dark.800');
-      background: theme('colors.dark.900');
-    }
-
-    .console-topbar::before {
-      @apply border-b border-gray-200/50;
-      inset: 0;
-      background: theme('colors.white');
-      -webkit-backdrop-filter: none;
-      backdrop-filter: none;
-      -webkit-mask: none;
-      mask: none;
-    }
-
-    .dark .console-topbar::before {
-      @apply border-dark-700/50;
-      background: theme('colors.dark.900');
-    }
-
-    .console-toolbar-glass {
-      display: none;
     }
   }
 

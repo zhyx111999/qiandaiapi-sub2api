@@ -204,7 +204,7 @@
   <transition name="fade">
     <div
       v-if="mobileOpen"
-      class="fixed inset-0 z-30 bg-black/50 lg:hidden"
+      class="sidebar-overlay fixed inset-0 z-30 bg-black/50 lg:hidden"
       @click="closeMobile"
     ></div>
   </transition>

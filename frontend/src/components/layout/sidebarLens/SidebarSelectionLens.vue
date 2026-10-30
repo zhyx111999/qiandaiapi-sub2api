@@ -156,6 +156,23 @@ function attach(nav: HTMLElement | null) {
     render()
   }
   const onResize = () => place(true)
+  // The phone drawer slides with a transform, which no observer reports: track it per frame.
+  const aside = nav.closest<HTMLElement>('.sidebar')
+  let slide = 0
+  const followSlide = () => {
+    place(true)
+    slide = requestAnimationFrame(followSlide)
+  }
+  const isSlide = (event: TransitionEvent) => event.target === aside && event.propertyName === 'transform'
+  const onSlideStart = (event: TransitionEvent) => {
+    if (isSlide(event) && !slide) slide = requestAnimationFrame(followSlide)
+  }
+  const onSlideEnd = (event: TransitionEvent) => {
+    if (!isSlide(event)) return
+    cancelAnimationFrame(slide)
+    slide = 0
+    place(true)
+  }
 
   // Collapse/expand animates the sidebar width; group expansion and active changes flip classes.
   // The observer also fires once on observe: ignore it, or it would cut a resumed flight short.
@@ -178,6 +195,9 @@ function attach(nav: HTMLElement | null) {
   window.addEventListener('pointerup', onPointerUp)
   window.addEventListener('pointercancel', onPointerUp)
   window.addEventListener('resize', onResize)
+  aside?.addEventListener('transitionrun', onSlideStart)
+  aside?.addEventListener('transitionend', onSlideEnd)
+  aside?.addEventListener('transitioncancel', onSlideEnd)
   place(false)
 
   detach = () => {
@@ -190,6 +210,10 @@ function attach(nav: HTMLElement | null) {
     window.removeEventListener('pointerup', onPointerUp)
     window.removeEventListener('pointercancel', onPointerUp)
     window.removeEventListener('resize', onResize)
+    aside?.removeEventListener('transitionrun', onSlideStart)
+    aside?.removeEventListener('transitionend', onSlideEnd)
+    aside?.removeEventListener('transitioncancel', onSlideEnd)
+    cancelAnimationFrame(slide)
   }
 }
 

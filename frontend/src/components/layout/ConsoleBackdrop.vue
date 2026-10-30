@@ -1,9 +1,15 @@
 <template>
-  <canvas ref="canvasRef" class="console-strands" aria-hidden="true"></canvas>
+  <canvas
+    ref="canvasRef"
+    class="console-strands"
+    :class="{ 'console-strands-drawer': phone, 'console-strands-open': phone && drawerOpen }"
+    aria-hidden="true"
+  ></canvas>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useAppStore } from '@/stores'
 import { createStrands, strandY, type StrandLayout } from '@/components/home/landing/convergence/strands'
 import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
 import { DESKTOP_MIN_WIDTH } from './consoleGlass'
@@ -13,10 +19,15 @@ import { DESKTOP_MIN_WIDTH } from './consoleGlass'
  * slowly, pulses travelling along them and three drifting glows. Clear glass over still paper
  * reads as a plain panel; motion behind it is what makes the sidebar read as liquid glass.
  * Runs on requestAnimationFrame capped at 60 fps (FLOW.maxFps), pauses with the hidden tab
- * like any rAF loop, and with prefers-reduced-motion draws one still frame. The field fades out before the workspace
- * so cards and tables stay on clean paper.
+ * like any rAF loop, and with prefers-reduced-motion draws one still frame.
+ *
+ * Desktop: the field lies beside the sidebar and fades out before the workspace, so cards and
+ * tables stay on clean paper. Phone: the sidebar is a drawer, so the field spans the screen
+ * above the drawer's veil only while the drawer is open, and stops once it has faded out.
  */
-const FIELD_WIDTH = 640 // px of field from the left edge
+const FIELD_WIDTH = 640 // px of field from the left edge on desktop
+const FADE_FROM = { desktop: 0.45, drawer: 0.7 } // fraction of the width where the fade-out starts
+const DRAWER_FADE_MS = 300 // matches the canvas opacity transition below
 const STEP = 6
 const ACCENT_EVERY = 9
 const DENSITY = 1.6
@@ -39,6 +50,9 @@ function seeded(seed: number) {
   }
 }
 
+const appStore = useAppStore()
+const drawerOpen = computed(() => appStore.mobileOpen)
+const phone = ref(typeof window !== 'undefined' && window.innerWidth < DESKTOP_MIN_WIDTH)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const strands = createStrands(30, seeded(20261027))
 const reducedMotion =
@@ -48,13 +62,21 @@ let reach = 0
 let height = 0
 let raf = 0
 let lastTime = 0
+let drawerFade = 0 // timer while the closed drawer's field fades out
 let themeObserver: MutationObserver | null = null
+
+/** Desktop: beside the sidebar. Phone: the full width while the drawer is open or fading out. */
+function fieldWidth(): number {
+  if (!phone.value) return Math.min(FIELD_WIDTH, window.innerWidth * 0.5)
+  return drawerOpen.value || drawerFade ? window.innerWidth : 0
+}
 
 function resize() {
   const canvas = canvasRef.value
   ctx = canvas?.getContext('2d') ?? null
   if (!canvas || !ctx) return
-  reach = window.innerWidth < DESKTOP_MIN_WIDTH ? 0 : Math.min(FIELD_WIDTH, window.innerWidth * 0.5)
+  phone.value = window.innerWidth < DESKTOP_MIN_WIDTH
+  reach = fieldWidth()
   height = window.innerHeight
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   canvas.style.width = `${reach}px`
@@ -114,8 +136,8 @@ function draw() {
 
   drawPulses(c, xs, paths, accent)
 
-  // Fade into the workspace so cards and tables stay on clean paper.
-  const fadeStart = w * 0.45
+  // Fade into the workspace (desktop) or past the drawer's edge (phone).
+  const fadeStart = w * (phone.value ? FADE_FROM.drawer : FADE_FROM.desktop)
   const fade = c.createLinearGradient(fadeStart, 0, w, 0)
   fade.addColorStop(0, 'rgb(0 0 0 / 0)')
   fade.addColorStop(1, 'rgb(0 0 0 / 1)')
@@ -184,24 +206,36 @@ function stop() {
   raf = 0
 }
 
-function onResize() {
+/** Re-sizes for the current viewport and drawer state; the loop stops by itself at width 0. */
+function refresh() {
   resize()
   draw()
   start()
 }
 
+watch(drawerOpen, (open) => {
+  window.clearTimeout(drawerFade)
+  drawerFade = 0
+  if (!open && phone.value) {
+    drawerFade = window.setTimeout(() => {
+      drawerFade = 0
+      refresh()
+    }, DRAWER_FADE_MS)
+  }
+  refresh()
+})
+
 onMounted(() => {
-  resize()
-  draw()
-  start()
-  window.addEventListener('resize', onResize)
+  refresh()
+  window.addEventListener('resize', refresh)
   themeObserver = new MutationObserver(draw)
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 })
 
 onBeforeUnmount(() => {
   stop()
-  window.removeEventListener('resize', onResize)
+  window.clearTimeout(drawerFade)
+  window.removeEventListener('resize', refresh)
   themeObserver?.disconnect()
   themeObserver = null
 })
@@ -214,5 +248,16 @@ onBeforeUnmount(() => {
   left: 0;
   display: block;
   pointer-events: none;
+}
+
+/* Phone: above the drawer's veil (z 35) and below the drawer (z 40), fading with the veil. */
+.console-strands-drawer {
+  z-index: 36;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.console-strands-open {
+  opacity: 1;
 }
 </style>
