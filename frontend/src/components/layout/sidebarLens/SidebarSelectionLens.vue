@@ -2,7 +2,7 @@
   <div
     v-show="visible"
     ref="lensRef"
-    v-liquid-glass="LENS_OPTIONS"
+    v-liquid-glass="LENS_GLASS"
     class="sidebar-lens"
     aria-hidden="true"
   ></div>
@@ -11,17 +11,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
-import {
-  PRESS_DEPTH,
-  createMotion,
-  lensScale,
-  rememberMotion,
-  rememberRelease,
-  resumeMotion,
-  sinceRelease,
-  stepMotion,
-  type LensMotion
-} from './lensMotion'
+import { LENS_GLASS } from '../consoleGlass'
+import { PRESS_DEPTH, createMotion, lensScale, rememberMotion, resumeMotion, stepMotion, type LensMotion } from './lensMotion'
 
 /**
  * Liquid-glass capsule over the active sidebar item. It is a sibling of the sidebar (not a
@@ -34,8 +25,6 @@ import {
  */
 const props = defineProps<{ nav: HTMLElement | null }>()
 
-const LENS_OPTIONS = { scale: 24, aberration: 3, mode: 'symmetric', edge: 14 } as const
-const SHIMMER_MS = 650
 const SHADOW_ROOM = 24 // px kept outside unclipped edges so the drop shadow survives
 
 const lensRef = ref<HTMLElement | null>(null)
@@ -44,7 +33,6 @@ let motion: LensMotion | null = null
 let raf = 0
 let lastTime = 0
 let pressed = false
-let shimmerTimer = 0
 let detach: (() => void) | null = null
 /** Viewport position of the nav's content origin, and the nav's visible band. */
 let frame = { left: 0, top: 0, bandTop: -Infinity, bandBottom: Infinity }
@@ -101,17 +89,6 @@ function animate() {
   raf = requestAnimationFrame(tick)
 }
 
-function shimmer(elapsed: number) {
-  const el = lensRef.value
-  if (!el) return
-  el.classList.remove('sidebar-lens-shimmer')
-  el.style.setProperty('--lens-shimmer-delay', `${-Math.round(elapsed)}ms`)
-  void el.offsetWidth // restart the sweep
-  el.classList.add('sidebar-lens-shimmer')
-  window.clearTimeout(shimmerTimer)
-  shimmerTimer = window.setTimeout(() => el.classList.remove('sidebar-lens-shimmer'), SHIMMER_MS - elapsed)
-}
-
 /** Aims the lens at `link` inside `nav`; `jump` skips the travel (collapsing, resizing). */
 function aim(nav: HTMLElement, link: HTMLElement | null, jump: boolean) {
   const el = lensRef.value
@@ -131,11 +108,7 @@ function aim(nav: HTMLElement, link: HTMLElement | null, jump: boolean) {
     const resumed = resumeMotion(performance.now())
     motion = resumed ?? createMotion(target.x, target.y)
     motion.tpress = 1
-    if (resumed) {
-      jump = false
-      const elapsed = sinceRelease(performance.now())
-      if (elapsed < SHIMMER_MS) shimmer(elapsed)
-    }
+    if (resumed) jump = false
   }
   motion.tx = target.x
   motion.ty = target.y
@@ -171,8 +144,6 @@ function attach(nav: HTMLElement | null) {
     if (!pressed || !motion) return
     pressed = false
     motion.tpress = 1
-    rememberRelease(performance.now())
-    shimmer(0)
     animate()
   }
   const onPointerOver = (event: PointerEvent) => {
@@ -237,6 +208,5 @@ onBeforeUnmount(() => {
   detach = null
   if (motion) rememberMotion(motion, performance.now())
   if (raf) cancelAnimationFrame(raf)
-  window.clearTimeout(shimmerTimer)
 })
 </script>

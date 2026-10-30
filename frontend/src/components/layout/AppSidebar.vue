@@ -1,6 +1,6 @@
 <template>
   <aside
-    v-liquid-glass="{ scale: 48, aberration: 2.5, mode: 'symmetric', edge: 40 }"
+    v-liquid-glass="SIDEBAR_GLASS"
     class="sidebar"
     :class="[
       sidebarCollapsed ? 'w-[72px]' : 'w-64',
@@ -226,6 +226,7 @@ import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { getCustomMenuLabel } from '@/utils/customMenu'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import SidebarSelectionLens from './sidebarLens/SidebarSelectionLens.vue'
+import { SIDEBAR_GLASS } from './consoleGlass'
 
 interface NavItem {
   path: string

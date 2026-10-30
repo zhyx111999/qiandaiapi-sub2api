@@ -6,6 +6,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { createStrands, strandY, type StrandLayout } from '@/components/home/landing/convergence/strands'
 import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
+import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 
 /**
  * The living field behind the floating glass sidebar: the landing page's strands waving
@@ -16,7 +17,6 @@ import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
  * so cards and tables stay on clean paper.
  */
 const FIELD_WIDTH = 640 // px of field from the left edge
-const MIN_VIEWPORT = 1024 // the sidebar floats over the page only on desktop (lg)
 const STEP = 6
 const ACCENT_EVERY = 9
 const DENSITY = 1.6
@@ -54,7 +54,7 @@ function resize() {
   const canvas = canvasRef.value
   ctx = canvas?.getContext('2d') ?? null
   if (!canvas || !ctx) return
-  reach = window.innerWidth < MIN_VIEWPORT ? 0 : Math.min(FIELD_WIDTH, window.innerWidth * 0.5)
+  reach = window.innerWidth < DESKTOP_MIN_WIDTH ? 0 : Math.min(FIELD_WIDTH, window.innerWidth * 0.5)
   height = window.innerHeight
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   canvas.style.width = `${reach}px`

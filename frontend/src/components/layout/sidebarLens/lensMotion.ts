@@ -64,20 +64,12 @@ export function lensScale(m: LensMotion): { sx: number; sy: number } {
  * Every routed view mounts its own AppLayout, so the lens is re-created on navigation.
  * The last motion is remembered here and resumed by the next lens if it is recent.
  */
-const memory: { motion: LensMotion | null; savedAt: number; releasedAt: number } = {
-  motion: null,
-  savedAt: 0,
-  releasedAt: 0
-}
+const memory: { motion: LensMotion | null; savedAt: number } = { motion: null, savedAt: 0 }
 const RESUME_WINDOW_MS = 800
 
 export function rememberMotion(m: LensMotion, now: number): void {
   memory.motion = { ...m }
   memory.savedAt = now
-}
-
-export function rememberRelease(now: number): void {
-  memory.releasedAt = now
 }
 
 /** The remembered motion if it was saved within the resume window, else null. */
@@ -86,14 +78,8 @@ export function resumeMotion(now: number): LensMotion | null {
   return { ...memory.motion }
 }
 
-/** Milliseconds since the last release, or Infinity. */
-export function sinceRelease(now: number): number {
-  return memory.releasedAt ? now - memory.releasedAt : Infinity
-}
-
 /** Test hook. */
 export function forgetMotion(): void {
   memory.motion = null
   memory.savedAt = 0
-  memory.releasedAt = 0
 }

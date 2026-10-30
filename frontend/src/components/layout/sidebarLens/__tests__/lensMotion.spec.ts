@@ -5,9 +5,7 @@ import {
   forgetMotion,
   lensScale,
   rememberMotion,
-  rememberRelease,
   resumeMotion,
-  sinceRelease,
   stepMotion
 } from '../lensMotion'
 
@@ -85,11 +83,5 @@ describe('lens memory across layout remounts', () => {
     expect(resumed).toMatchObject({ x: 5, y: 50, ty: 200, vy: 900 })
     expect(resumed).not.toBe(motion)
     expect(resumeMotion(1000 + 801)).toBeNull()
-  })
-
-  it('reports the time since the last release', () => {
-    expect(sinceRelease(5000)).toBe(Infinity)
-    rememberRelease(5000)
-    expect(sinceRelease(5300)).toBe(300)
   })
 })

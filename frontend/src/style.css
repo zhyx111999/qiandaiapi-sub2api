@@ -592,17 +592,6 @@
     }
   }
 
-  /* Mobile drawer: docked to the window and frosted, since it lies over page content. */
-  @media (max-width: 1023.98px) {
-    .sidebar,
-    .dark .sidebar {
-      border-width: 0 1px 0 0;
-      --glass-tint-alpha: 0.88;
-      --glass-blur: 16px;
-      --glass-blur-refract: 12px;
-    }
-  }
-
   /* Brand plate: a near-clear warm sheet, concentric with the sidebar (14px = 24px - 10px inset). */
   .sidebar-header {
     @apply flex items-center gap-3;
@@ -738,34 +727,6 @@
     background-color: rgb(255 250 238 / 0.42);
   }
 
-  .sidebar-lens::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: 0;
-    background: linear-gradient(105deg, transparent 28%, rgb(255 252 244 / 0.7) 50%, transparent 72%);
-  }
-
-  .sidebar-lens-shimmer::after {
-    animation: sidebar-lens-shimmer 0.65s ease-out var(--lens-shimmer-delay, 0ms);
-  }
-
-  @keyframes sidebar-lens-shimmer {
-    0% {
-      opacity: 0;
-      transform: translateX(-100%);
-    }
-    25% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translateX(100%);
-    }
-  }
-
   .dark .sidebar-lens {
     background-color: rgb(255 255 255 / 0.08);
     box-shadow:
@@ -886,14 +847,29 @@
     transition-duration: 0.12s;
   }
 
-  /* Page content scrolls under the top bar: with reduced transparency it is solid, not frosted. */
+  /* ============ 实心表面：手机（<1024px）不用液态玻璃；系统要求减少透明时也不透明 ============ */
   @media (prefers-reduced-transparency: reduce) {
+    .sidebar {
+      background: theme('colors.white');
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .dark .sidebar {
+      background: theme('colors.dark.900');
+    }
+
     .console-topbar::before {
+      inset: 0;
       background: theme('colors.gray.50');
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       -webkit-mask: none;
       mask: none;
+    }
+
+    .dark .console-topbar::before {
+      background: theme('colors.dark.950');
     }
 
     .console-toolbar-glass {
@@ -902,12 +878,44 @@
       backdrop-filter: none;
     }
 
-    .dark .console-topbar::before {
-      background: theme('colors.dark.950');
-    }
-
     .dark .console-toolbar-glass {
       background-color: theme('colors.dark.800');
+    }
+  }
+
+  /* Phones: the upstream solid drawer and a solid top bar, with no glass behind the controls. */
+  @media (max-width: 1023.98px) {
+    .sidebar {
+      border-width: 0 1px 0 0;
+      border-color: theme('colors.gray.200');
+      background: theme('colors.white');
+      box-shadow: none;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .dark .sidebar {
+      border-color: theme('colors.dark.800');
+      background: theme('colors.dark.900');
+    }
+
+    .console-topbar::before {
+      @apply border-b border-gray-200/50;
+      inset: 0;
+      background: theme('colors.white');
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      -webkit-mask: none;
+      mask: none;
+    }
+
+    .dark .console-topbar::before {
+      @apply border-dark-700/50;
+      background: theme('colors.dark.900');
+    }
+
+    .console-toolbar-glass {
+      display: none;
     }
   }
 
