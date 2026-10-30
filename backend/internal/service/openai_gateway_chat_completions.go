@@ -75,8 +75,13 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		c.Request = c.Request.WithContext(meterCtx)
 	}
 	result, err := s.forwardAsChatCompletions(meterCtx, c, account, body, promptCacheKey, defaultMappedModel, false)
+	if result != nil && c != nil {
+		result.AuthConnectionID = c.GetString("openai_auth_connection_id")
+	}
 	errorScope.finish(result)
-	return result, regionalMeterFinishForward(meterCtx, result, err, finish)
+	finalErr := regionalMeterFinishForward(meterCtx, result, err, finish)
+	s.attributeRegionalConnectionResult(meterCtx, c, account, result)
+	return result, finalErr
 }
 
 func (s *OpenAIGatewayService) forwardAsChatCompletions(
@@ -708,7 +713,7 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 
-	finalResponse, usage, acc, err := s.readOpenAICompatBufferedTerminal(resp, c, "openai chat_completions buffered", requestID)
+	finalResponse, usage, acc, priorModels, err := s.readOpenAICompatBufferedTerminal(resp, c, account, "openai chat_completions buffered", requestID)
 	if err != nil {
 		return nil, s.newOpenAICompatBufferedReadFailoverError(c, account, resp, requestID, err)
 	}
@@ -721,6 +726,7 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	if observer == nil {
 		observer = beginUpstreamResponseModelObservation(c)
 	}
+	priorModels.apply(observer)
 	observer.Observe(finalResponse.Model, true)
 	if finalResponse.Usage != nil && c.Request != nil {
 		raw, _ := json.Marshal(finalResponse)

@@ -1,3 +1,7 @@
+import openaiAuth from './openaiAuth'
+import upstreamEntities from './upstreamEntities'
+import profitOps from './profitOps'
+import upstreamOps from './upstreamOps'
 import channelOps from './channelOps'
 import ipAudit from './ipAudit'
 import traffic from './traffic'
@@ -12,6 +16,7 @@ import tokenGuard from './tokenGuard'
 import pelicanTests from './pelicanTests'
 import modelTrace from './modelTrace'
 import tokenGuardV2 from './tokenGuardV2'
+import adminAccessKeys from './adminAccessKeys'
 import landing from './landing'
 import landingHome from './landingHome'
 import checkin from './checkin'
@@ -29,6 +34,8 @@ import requestTiming from './requestTiming'
 import autoConfig from './autoConfig'
 
 export default {
+  openaiAuth,
+  upstreamEntities,
   traffic,
   ipAudit,
   connections,
@@ -38,6 +45,8 @@ export default {
   priorityScheduling,
   qualityOps,
   channelOps,
+  upstreamOps,
+  profitOps,
   controlledExperiments,
   accountOps,
   tokenGuard,
@@ -45,6 +54,7 @@ export default {
   modelTrace,
   tokenGuardV2,
   requestTiming,
+  adminAccessKeys,
   ...landing,
   ...landingHome,
   ...checkin,
