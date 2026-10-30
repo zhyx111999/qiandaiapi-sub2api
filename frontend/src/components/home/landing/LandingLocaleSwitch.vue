@@ -3,7 +3,7 @@
     <button
       v-liquid-glass="{ scale: 18 }"
       type="button"
-      class="locale__trigger liquid-glass landing-clear"
+      class="locale__trigger liquid-glass clear-glass"
       :disabled="switching"
       :aria-expanded="isOpen"
       aria-haspopup="menu"

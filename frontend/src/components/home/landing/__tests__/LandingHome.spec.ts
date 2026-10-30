@@ -89,15 +89,19 @@ describe('home console entry', () => {
 })
 
 describe('home → original Sub2API model plaza', () => {
-  it('navigates to the actual model plaza component and requests its API, rather than returning to the offline demo', async () => {
+  it('leaves navigation and the model plaza entry to the site nav, keeping only the brand, language and sign-in', async () => {
     const app = await openHome()
     wrapper = app.wrapper
-    expect(wrapper.findAll('a[href="/model-plaza"]')).toHaveLength(1)
-    expect(wrapper.find('.landing-nav a[href="/model-plaza"]').exists()).toBe(false)
     expect(wrapper.get('.landing-brand__text strong').text()).toBe('Yezi')
-    await wrapper.get('[data-testid="home-model-plaza"]').trigger('click')
+    expect(wrapper.find('nav').exists()).toBe(false)
+    expect(wrapper.find('a[href="/model-plaza"]').exists()).toBe(false)
+  })
+
+  it('opens the actual model plaza component and requests its API', async () => {
+    const app = await openHome()
+    wrapper = app.wrapper
+    await app.router.push('/model-plaza')
     await flushPromises()
-    expect(app.router.currentRoute.value.path).toBe('/model-plaza')
     expect(wrapper.findComponent(ModelPlazaView).exists()).toBe(true)
     expect(getModelPlaza).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('modelPlaza.empty')

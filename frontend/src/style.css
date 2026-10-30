@@ -618,39 +618,58 @@
     @apply border-l-primary-500;
   }
 
-  /* ============ 侧边栏：悬浮圆角的极透液态玻璃（桌面浮于工作区旁，手机为抽屉） ============
-     Apple's Clear variant: no frost and almost no tint. The glass is its lensing edge, painted into
-     the field canvas behind it (ConsoleBackdrop / fieldPainter), plus specular light on the rim; a
-     faint veil keeps the labels legible, as Clear glass is paired with a dimming layer. No backdrop
-     filter: nothing here is recomputed per frame while the field moves. */
-  .sidebar {
-    @apply fixed inset-y-0 left-0 z-40 flex w-64 flex-col;
-    --console-veil: 251 248 242;
-    background-color: rgb(var(--console-veil) / 0.3);
-    box-shadow:
+  /* ============ 极透玻璃材质：侧栏、顶栏工具条、站点导航与封面控件共用，只在这里定义 ============
+     Apple's Clear variant: no frost and almost no tint. A faint warm veil keeps labels legible (Clear
+     glass is paired with a dimming layer), a halo sits behind them, light and a floating shadow give
+     the slab its thickness, and a specular rim (below) catches a light that follows the pointer.
+     The glass-material variables are set too, so a .liquid-glass element wearing .clear-glass (the
+     site nav, the cover controls) and the live lens chain of v-liquid-glass agree with it. */
+  .clear-glass,
+  .sidebar,
+  .console-toolbar-glass {
+    --glass-tint: 251 248 242;
+    --glass-tint-alpha: 0.3;
+    --glass-blur: 0px;
+    --glass-blur-refract: 0px;
+    --glass-saturate: 125%;
+    --glass-brightness: 1.03;
+    --glass-rim: transparent;
+    --glass-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.9),
       inset 0 -1px 0 rgb(255 255 255 / 0.3),
       inset 0 0 26px -14px rgb(255 252 244 / 0.85),
       0 20px 44px -26px rgb(71 64 53 / 0.34),
       0 1px 3px rgb(71 64 53 / 0.08);
-    /* Clear glass needs bold, bright content on top: labels get a soft halo against the field. */
+    background-color: rgb(var(--glass-tint) / var(--glass-tint-alpha));
+    background-image: none;
+    box-shadow: var(--glass-shadow);
     text-shadow:
       0 0 9px rgb(251 248 242 / 0.95),
       0 0 2px rgb(251 248 242 / 0.9);
-    transition:
-      width 300ms ease,
-      transform 300ms ease;
   }
 
-  .dark .sidebar {
-    --console-veil: 12 16 26;
-    box-shadow:
+  /* Dark console (the cover keeps its ivory palette, and so does the site nav while on it). */
+  .dark .sidebar,
+  .dark .console-toolbar-glass,
+  .dark .site-nav:not(.site-nav--cover) {
+    --glass-tint: 12 16 26;
+    --glass-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.22),
       inset 0 0 26px -14px rgb(255 255 255 / 0.12),
       0 20px 44px -26px rgb(0 0 0 / 0.8);
     text-shadow:
       0 0 9px rgb(2 6 23 / 0.9),
       0 0 2px rgb(2 6 23 / 0.8);
+  }
+
+  /* ============ 侧边栏：悬浮圆角（桌面浮于工作区旁，手机为抽屉） ============
+     The material above; its lensing edge is painted into the field canvas behind it (ConsoleBackdrop /
+     fieldPainter), so it has no backdrop filter and nothing is recomputed per frame while the field moves. */
+  .sidebar {
+    @apply fixed inset-y-0 left-0 z-40 flex w-64 flex-col;
+    transition:
+      width 300ms ease,
+      transform 300ms ease;
   }
 
   /* A rounded slab 12px off the window; on phones it is the drawer. */
@@ -683,11 +702,11 @@
 
   /* Specular rim shared by the console glass (sidebar, selection capsule, toolbar): bright where the
      light comes in and opposite it. The light turns toward the pointer (consoleLight, --light). */
+  .clear-glass::before,
   .sidebar::before,
   .sidebar-lens::before,
   .console-toolbar-glass::before,
-  .console-toolbar-lens::before,
-  .landing-clear::before {
+  .console-toolbar-lens::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -718,7 +737,8 @@
   .dark .sidebar::before,
   .dark .sidebar-lens::before,
   .dark .console-toolbar-glass::before,
-  .dark .console-toolbar-lens::before {
+  .dark .console-toolbar-lens::before,
+  .dark .site-nav:not(.site-nav--cover)::before {
     opacity: 0.45;
   }
 
@@ -895,24 +915,9 @@
     z-index: -1;
     border-radius: 9999px;
     pointer-events: none;
-    --glass-blur-refract: 0px;
-    --glass-saturate: 150%;
-    --glass-brightness: 1.04;
-    background-color: rgb(255 252 245 / 0.42);
-    box-shadow:
-      inset 0 1px 0.5px rgb(255 255 255 / 0.9),
-      inset 0 0 12px -5px rgb(255 255 255 / 0.55),
-      0 6px 16px -8px rgb(71 64 53 / 0.25),
-      0 1px 2px rgb(71 64 53 / 0.1);
-    -webkit-backdrop-filter: saturate(150%) brightness(1.04);
-    backdrop-filter: saturate(150%) brightness(1.04);
-  }
-
-  .dark .console-toolbar-glass {
-    background-color: rgb(20 24 30 / 0.45);
-    box-shadow:
-      inset 0 1px 0.5px rgb(255 255 255 / 0.3),
-      0 6px 16px -8px rgb(0 0 0 / 0.6);
+    /* Without the live lens (non-Chromium) the shared material still gets its colour lift. */
+    -webkit-backdrop-filter: saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+    backdrop-filter: saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   }
 
   /* Selection capsule of the toolbar controls (ToolbarLens): the sidebar lens material, gliding to the
@@ -986,27 +991,94 @@
     transition-duration: 0.12s;
   }
 
-  /* ============ 封面玻璃控件（导航条、语言、登录、模型广场）：与侧栏同一种极透玻璃 ============
-     They float over the cover's animated strands and keep their live lens (v-liquid-glass); the
-     material is the sidebar's: its veil, light and shadow, the halo behind labels and the rim above. */
-  .landing-clear {
-    --glass-tint: 251 248 242;
-    --glass-tint-alpha: 0.3;
-    --glass-blur: 0px;
-    --glass-blur-refract: 0px;
-    --glass-saturate: 125%;
-    --glass-brightness: 1.03;
-    --glass-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.9),
-      inset 0 -1px 0 rgb(255 255 255 / 0.3),
-      inset 0 0 26px -14px rgb(255 252 244 / 0.85),
-      0 20px 44px -26px rgb(71 64 53 / 0.34),
-      0 1px 3px rgb(71 64 53 / 0.08);
-    background-image: none;
-    border-color: transparent;
-    text-shadow:
-      0 0 9px rgb(251 248 242 / 0.95),
-      0 0 2px rgb(251 248 242 / 0.9);
+  /* ============ 站点导航（首页 / 平台 / 模型广场，SiteNav）：跨封面与控制台常驻同一位置 ============
+     Centred on y = 32, the centre line of the cover header row and of the console top bar, so it does
+     not move when switching sections; phones and tablets get it at the bottom centre. */
+  .site-nav {
+    position: fixed;
+    top: 32px;
+    left: 50%;
+    z-index: 46;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 5px;
+    border-radius: 999px;
+    transform: translate(-50%, -50%);
+    /* backwards only: a filled opacity animation would keep a backdrop root and flatten the glass. */
+    animation: site-nav-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards;
+  }
+
+  @keyframes site-nav-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% - 10px));
+    }
+  }
+
+  /* On the cover the capsule keeps the light material even in dark mode (the cover stays ivory). */
+  .dark .site-nav--cover > .console-toolbar-lens {
+    background-color: rgb(255 255 255 / 0.3);
+    box-shadow:
+      inset 0 1px 0.5px rgb(255 255 255 / 0.95),
+      inset 0 -1px 1px rgb(255 255 255 / 0.3),
+      inset 0 0 12px -4px rgb(255 255 255 / 0.6),
+      0 6px 14px -8px rgb(71 64 53 / 0.28),
+      0 1px 2px rgb(71 64 53 / 0.1);
+  }
+
+  .dark .site-nav--cover > .console-toolbar-lens::before {
+    opacity: 1;
+  }
+
+  @media (min-width: 1024px) {
+    /* The console page title stops short of the nav (left edge = main area + 24px header padding).
+       The collapsed sidebar is told by its brand plate's class (not by width utilities, which the
+       sidebar rule @applies). */
+    html {
+      --console-main-left: 280px;
+    }
+
+    html:has(.sidebar-header-collapsed) {
+      --console-main-left: 96px;
+    }
+
+    html.has-site-nav .console-topbar > div > div:first-child {
+      max-width: calc(50vw - var(--site-nav-half, 150px) - 16px - var(--console-main-left, 280px) - 24px);
+    }
+  }
+
+  @media (max-width: 1023.98px) {
+    .site-nav {
+      top: auto;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      /* Under the drawer's veil (35), so an open drawer covers it. */
+      z-index: 34;
+      transform: translateX(-50%);
+    }
+
+    @keyframes site-nav-in {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 10px);
+      }
+    }
+
+    /* Room at the end of every page so the last content clears the floating nav. */
+    html.has-site-nav body {
+      padding-bottom: 76px;
+    }
+  }
+
+  /* Switching sections: the incoming page fades in under the nav, which stays where it is. */
+  html.site-entering #app > :is(.landing, .min-h-screen) {
+    animation: site-enter 0.34s ease-out backwards;
+  }
+
+  @keyframes site-enter {
+    from {
+      opacity: 0;
+    }
   }
 
   /* ============ 系统要求减少透明时：侧栏、顶栏、工具条不透明 ============ */

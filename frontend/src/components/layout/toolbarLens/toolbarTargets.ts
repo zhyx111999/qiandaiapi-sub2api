@@ -24,9 +24,15 @@ function popoverOpen(target: HTMLElement): boolean {
 }
 
 /**
- * Where the capsule rests while the pointer is elsewhere: the trigger whose popover is open,
- * else the link of the current route, else nowhere (the capsule fades out).
+ * Where the capsule rests while the pointer is elsewhere: the item marked as the current page
+ * (`aria-current="page"`, how the site nav marks its section), else the trigger whose popover is
+ * open, else the link of the current route, else nowhere (the capsule fades out).
  */
 export function restTarget(targets: HTMLElement[]): HTMLElement | null {
-  return targets.find(popoverOpen) ?? targets.find((el) => el.classList.contains('router-link-active')) ?? null
+  return (
+    targets.find((el) => el.getAttribute('aria-current') === 'page') ??
+    targets.find(popoverOpen) ??
+    targets.find((el) => el.classList.contains('router-link-active')) ??
+    null
+  )
 }

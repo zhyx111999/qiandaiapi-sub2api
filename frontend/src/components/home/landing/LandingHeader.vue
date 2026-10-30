@@ -9,31 +9,13 @@
         </span>
       </router-link>
 
-      <nav
-        v-liquid-glass="{ scale: 26, aberration: 2 }"
-        class="landing-nav liquid-glass landing-clear"
-        :aria-label="t('landingHome.nav.label')"
-      >
-        <ToolbarLens memory-key="landing" />
-        <router-link
-          v-for="item in items"
-          :key="item.key"
-          :to="item.to"
-          class="landing-nav__link"
-          :class="{ 'is-active': item.active }"
-          :aria-current="item.active ? 'page' : undefined"
-        >
-          {{ item.label }}
-        </router-link>
-      </nav>
-
       <div class="landing-header__actions">
         <LandingLocaleSwitch />
         <router-link
           v-if="!isAuthenticated"
           v-liquid-glass="{ scale: 18 }"
           to="/login"
-          class="landing-login liquid-glass landing-clear"
+          class="landing-login liquid-glass clear-glass"
         >
           {{ t('home.login') }}
         </router-link>
@@ -43,36 +25,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
-import { followPointerLight } from '@/components/layout/consoleLight'
-import ToolbarLens from '@/components/layout/toolbarLens/ToolbarLens.vue'
 import LandingLocaleSwitch from './LandingLocaleSwitch.vue'
 import { BRAND } from './brand'
 
-const props = defineProps<{
+/** Brand on the left, language and sign-in on the right; the site nav (SiteNav) floats between. */
+defineProps<{
   isAuthenticated: boolean
-  platformPath: string
 }>()
 
 const { t } = useI18n()
-
-/** The header only renders on the home page, so "home" is always the current item. */
-const items = computed(() => [
-  { key: 'home', to: '/home', label: t('landingHome.nav.home'), active: true },
-  { key: 'platform', to: props.platformPath, label: t('landingHome.nav.platform'), active: false },
-])
-
-// The glass rims catch a light that follows the pointer, as on the console glass.
-let stopLight: (() => void) | null = null
-onMounted(() => {
-  if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) stopLight = followPointerLight()
-})
-onBeforeUnmount(() => {
-  stopLight?.()
-  stopLight = null
-})
 </script>
 
 <style scoped>
@@ -80,23 +43,27 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0 0 auto;
   z-index: 50;
-  padding: 16px clamp(14px, 2.6vw, 40px) 0;
+  padding: 0 clamp(14px, 2.6vw, 40px);
   pointer-events: none;
   /* backwards only: a filled opacity animation would keep a backdrop root and flatten the glass. */
   animation: landing-header-in 0.9s var(--landing-ease) 0.15s backwards;
 }
 
+/* 64px row: its centre line (y = 32) is the site nav's and the console top bar's. */
 .landing-header__bar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 18px;
-  height: 66px;
+  height: 64px;
+  pointer-events: none;
+}
+
+.landing-header__bar > * {
   pointer-events: auto;
 }
 
 .landing-brand {
-  justify-self: start;
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -134,51 +101,7 @@ onBeforeUnmount(() => {
   color: var(--landing-ink-3);
 }
 
-/* Clear glass pill (.landing-clear, as the console sidebar): the strands behind show through, bent at
-   the rim; the selection capsule (ToolbarLens) carries the active and hovered item. */
-.landing-nav {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 5px;
-  border-radius: 999px;
-}
-
-.landing-nav__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 999px;
-  font-size: 13.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  color: var(--landing-ink-2);
-  transition:
-    color 0.25s,
-    background 0.25s;
-}
-
-.landing-nav__link:hover,
-.landing-nav__link.is-active {
-  color: var(--landing-ink);
-}
-
-/* Hover never moves the capsule; a link without it gets a light wash, as the sidebar links do. */
-.landing-nav__link:not([data-toolbar-lens='on']):hover {
-  background: rgb(255 255 255 / 0.4);
-}
-
-.landing-nav__link.is-active::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--landing-accent);
-}
-
 .landing-header__actions {
-  justify-self: end;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -205,34 +128,6 @@ onBeforeUnmount(() => {
   from {
     opacity: 0;
     transform: translate3d(0, -12px, 0);
-  }
-}
-
-@media (max-width: 760px) {
-  .landing-header__bar {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      'brand actions'
-      'nav nav';
-    row-gap: 10px;
-    height: auto;
-  }
-
-  .landing-brand {
-    grid-area: brand;
-  }
-
-  .landing-header__actions {
-    grid-area: actions;
-  }
-
-  .landing-nav {
-    grid-area: nav;
-    justify-self: center;
-  }
-
-  .landing-nav__link {
-    padding: 9px 16px;
   }
 }
 

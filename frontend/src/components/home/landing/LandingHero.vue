@@ -24,14 +24,6 @@
               <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </i>
           </router-link>
-          <router-link
-            v-liquid-glass="{ scale: 24 }"
-            to="/model-plaza"
-            data-testid="home-model-plaza"
-            class="landing-btn landing-btn--ghost liquid-glass landing-clear"
-          >
-            {{ t('nav.modelPlaza') }}
-          </router-link>
         </div>
       </div>
     </div>
@@ -282,13 +274,17 @@ const { t } = useI18n()
   }
 }
 
-@media (max-width: 760px) {
-  .landing-hero__inner {
-    padding-top: 150px;
-  }
-
+/* Below desktop the site nav floats at the bottom centre, where the hint would be. */
+@media (max-width: 1023.98px) {
   .landing-hint {
     display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  /* One header row (brand, language, login); the site nav is at the bottom. */
+  .landing-hero__inner {
+    padding-top: 110px;
   }
 
   .landing-kicker {

@@ -6,6 +6,7 @@ import NavigationProgress from '@/components/common/NavigationProgress.vue'
 import AdminComplianceDialog from '@/components/admin/AdminComplianceDialog.vue'
 import { resolveRouteDocumentTitle } from '@/router/title'
 import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
+import SiteNav from '@/components/layout/siteNav/SiteNav.vue'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore, useSupportTicketStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
@@ -179,6 +180,7 @@ onMounted(async () => {
 <template>
   <NavigationProgress />
   <RouterView />
+  <SiteNav />
   <Toast />
   <AnnouncementPopup />
   <AdminComplianceDialog />

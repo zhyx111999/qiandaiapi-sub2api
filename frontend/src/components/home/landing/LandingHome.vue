@@ -2,10 +2,7 @@
   <div class="landing" data-testid="landing-home">
     <PaperBackdrop />
     <ConvergenceStage :label="t('landingHome.stageLabel')" :wordmark="BRAND.wordmark" />
-    <LandingHeader
-      :is-authenticated="isAuthenticated"
-      :platform-path="platformPath"
-    />
+    <LandingHeader :is-authenticated="isAuthenticated" />
     <main>
       <LandingHero :console-path="consolePath" />
     </main>
@@ -28,9 +25,6 @@ const { t } = useI18n()
 const { isAuthenticated, consolePath, refreshSiteState } = useLandingSite()
 
 onMounted(refreshSiteState)
-
-/** "平台" enters the existing console; the hero's model plaza CTA uses the original public route. */
-const platformPath = consolePath
 </script>
 
 <style scoped>

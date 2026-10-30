@@ -25,9 +25,10 @@ import { restTarget, toolbarTargets } from './toolbarTargets'
  * The selection capsule of the top bar's controls (model plaza, language, the user menu, ...):
  * the same spring glass as the sidebar lens, and it moves the same way: only when a control is
  * pressed, never on mere hover. It glides there (resizing on the way, as the controls differ in
- * width), squeezes while pressed and bounces back on release. Otherwise it rests on the control
- * whose menu is open, else on the current page's link, else on the control just pressed while the
- * pointer stays on the toolbar; with none of those it fades out. Hovering a control gives it a light
+ * width), squeezes while pressed and bounces back on release. It stays on the control just pressed
+ * while the pointer is on the toolbar (also while the navigation it started is still resolving);
+ * otherwise it rests on the current page's item, else on the control whose menu is open, else on
+ * the current route's link; with none of those it fades out. Hovering a control gives it a light
  * wash; hovering the one under the capsule makes the capsule glow (style.css, [data-toolbar-lens]).
  * It lives inside the toolbar, behind the controls and above the toolbar glass.
  * The cover's nav pill reuses it; each place keeps its own motion memory (`memoryKey`).
@@ -126,7 +127,7 @@ function attach(toolbar: HTMLElement) {
   let lastPressed: HTMLElement | null = null
   let inside = false
   const visible = () => targets.filter((el) => el.offsetWidth > 0)
-  const resting = () => restTarget(visible()) ?? (inside ? lastPressed : null)
+  const resting = () => (inside && lastPressed && targets.includes(lastPressed) ? lastPressed : null) ?? restTarget(visible())
   const settle = (jump = false) => aim(toolbar, resting(), jump)
   const refresh = () => {
     targets = toolbarTargets(toolbar)
@@ -169,9 +170,14 @@ function attach(toolbar: HTMLElement) {
   }
   const onResize = () => settle(true)
 
-  // Controls come and go (user loaded, menus opening, the active link changing).
+  // Controls come and go (user loaded, menus opening, the current page or active link changing).
   const mutations = new MutationObserver(refresh)
-  mutations.observe(toolbar, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] })
+  mutations.observe(toolbar, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['class', 'aria-current', 'aria-expanded'],
+  })
   const sizes = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize)
   sizes?.observe(toolbar)
   toolbar.addEventListener('pointerover', onPointerOver)

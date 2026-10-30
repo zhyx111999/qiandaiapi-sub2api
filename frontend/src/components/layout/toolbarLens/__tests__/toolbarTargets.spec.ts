@@ -34,6 +34,12 @@ describe('toolbar capsule targets', () => {
     expect(restTarget(toolbarTargets(toolbar()))).toBeNull()
   })
 
+  it('rests on the item marked as the current page before anything else', () => {
+    const el = toolbar({ menuOpen: true, plazaActive: true })
+    el.querySelector('#localeBtn')!.setAttribute('aria-current', 'page')
+    expect(restTarget(toolbarTargets(el))?.id).toBe('localeBtn')
+  })
+
   it('does not take a badge inside a trigger for an open popover', () => {
     // The language button holds an absolutely positioned badge of its own; that is not a popover beside it.
     expect(restTarget(toolbarTargets(toolbar()))).toBeNull()

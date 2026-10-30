@@ -14,8 +14,8 @@ import { createStrands } from '@/components/home/landing/convergence/strands'
 import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
 import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
-import { followPointerLight } from './consoleLight'
 import { FieldPainter } from './fieldPainter'
+import { useConsolePresence } from './siteNav/consolePresence'
 import { glassScene } from './glassScene'
 import type { GlassRect } from './glassOptics'
 
@@ -67,7 +67,9 @@ let lensMoved = false
 let drawerFade = 0 // timer while the closed drawer's field fades out
 let themeObserver: MutationObserver | null = null
 let sidebarObserver: ResizeObserver | null = null
-let stopLight: (() => void) | null = null
+
+// The site nav shows while a console page is on screen (this backdrop is in every console layout).
+useConsolePresence()
 
 /** Desktop: beside the sidebar. Phone: the full width while the drawer is open or fading out. */
 function fieldWidth(): number {
@@ -168,7 +170,6 @@ onMounted(() => {
     sidebarObserver = new ResizeObserver(() => task.wake())
     sidebarObserver.observe(sidebarEl)
   }
-  if (!reducedMotion) stopLight = followPointerLight()
 })
 
 onBeforeUnmount(() => {
@@ -180,8 +181,6 @@ onBeforeUnmount(() => {
   themeObserver = null
   sidebarObserver?.disconnect()
   sidebarObserver = null
-  stopLight?.()
-  stopLight = null
 })
 </script>
 
