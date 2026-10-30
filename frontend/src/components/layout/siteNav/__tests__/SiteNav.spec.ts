@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { defineComponent, h } from 'vue'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
 const { authStore, appStore, flags } = vi.hoisted(() => ({
   authStore: { isAuthenticated: false, isAdmin: false, checkAuth: vi.fn() },
@@ -18,18 +19,34 @@ vi.mock('vue-i18n', async (original) => ({
 }))
 
 import SiteNav from '../SiteNav.vue'
-import { consoleLayouts } from '../consolePresence'
+import { consoleLayouts, useConsolePresence } from '../consolePresence'
 
-const page = { template: '<div />' }
+/** A console page: registers itself the way each AppLayout does (through ConsoleBackdrop). */
+const consolePage = defineComponent({
+  setup() {
+    useConsolePresence()
+    return () => h('div', { class: 'min-h-screen' }, 'console')
+  },
+})
+const plainPage = defineComponent({ render: () => h('div', 'page') })
+/** As App.vue: the routed view first, the site nav after it. */
+const App = defineComponent({ render: () => [h(RouterView), h(SiteNav)] })
 
-async function mountAt(path: string) {
+async function openAt(path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: ['/home', '/model-plaza', '/login', '/dashboard', '/admin/dashboard', '/admin/users'].map((p) => ({ path: p, component: page })),
+    routes: [
+      { path: '/home', component: plainPage },
+      { path: '/login', component: plainPage },
+      { path: '/model-plaza', component: consolePage },
+      { path: '/dashboard', component: consolePage },
+      { path: '/admin/dashboard', component: consolePage },
+      { path: '/admin/users', component: consolePage },
+    ],
   })
   await router.push(path)
   await router.isReady()
-  const wrapper = mount(SiteNav, { global: { plugins: [router], stubs: { ToolbarLens: true } }, attachTo: document.body })
+  const wrapper = mount(App, { global: { plugins: [router], stubs: { ToolbarLens: true } }, attachTo: document.body })
   await flushPromises()
   return { wrapper, router }
 }
@@ -51,7 +68,7 @@ afterEach(() => {
 
 describe('site nav', () => {
   it('on the cover: home, platform (sign-in for visitors) and the public model plaza', async () => {
-    wrapper = (await mountAt('/home')).wrapper
+    wrapper = (await openAt('/home')).wrapper
     expect(links(wrapper)).toEqual(['/home', '/login', '/model-plaza'])
     expect(current(wrapper)).toBe('/home')
     expect(wrapper.get('nav').classes()).toContain('site-nav--cover')
@@ -60,8 +77,7 @@ describe('site nav', () => {
 
   it('in the console: the dashboard as platform and the model plaza inside the console', async () => {
     authStore.isAuthenticated = true
-    consoleLayouts.value = 1
-    wrapper = (await mountAt('/admin/users')).wrapper
+    wrapper = (await openAt('/admin/users')).wrapper
     expect(links(wrapper)).toEqual(['/home', '/dashboard', '/model-plaza?embedded=1'])
     expect(current(wrapper)).toBe('/dashboard')
   })
@@ -69,47 +85,44 @@ describe('site nav', () => {
   it('sends administrators to the admin dashboard, and marks the plaza while on it', async () => {
     authStore.isAuthenticated = true
     authStore.isAdmin = true
-    wrapper = (await mountAt('/model-plaza')).wrapper
+    wrapper = (await openAt('/model-plaza')).wrapper
     expect(links(wrapper)[1]).toBe('/admin/dashboard')
     expect(current(wrapper)).toBe('/model-plaza?embedded=1')
   })
 
   it('leaves the model plaza out when it is switched off', async () => {
     flags.plaza = false
-    wrapper = (await mountAt('/home')).wrapper
+    wrapper = (await openAt('/home')).wrapper
     expect(links(wrapper)).toEqual(['/home', '/login'])
   })
 
-  it('hides on pages outside the cover, the plaza and the console', async () => {
-    wrapper = (await mountAt('/login')).wrapper
+  it('does not show on pages outside the cover, the plaza and the console', async () => {
+    wrapper = (await openAt('/login')).wrapper
     expect(wrapper.find('nav').exists()).toBe(false)
     expect(document.documentElement.classList.contains('has-site-nav')).toBe(false)
   })
 
-  it('goes away a moment after leaving for such a page', async () => {
-    const app = await mountAt('/home')
+  it('goes away when leaving for such a page', async () => {
+    const app = await openAt('/home')
     wrapper = app.wrapper
     await app.router.push('/login')
     await flushPromises()
-    expect(wrapper.find('nav').exists()).toBe(true)
-    await new Promise((resolve) => setTimeout(resolve, 250))
     expect(wrapper.find('nav').exists()).toBe(false)
   })
 
-  it('is the same element across the switch from the cover to the console, and fades the page in', async () => {
+  it('is the same element across cover → console → cover, and fades each new page in', async () => {
     authStore.isAuthenticated = true
-    const app = await mountAt('/home')
+    const app = await openAt('/home')
     wrapper = app.wrapper
     const nav = wrapper.get('nav').element
-    // As in the app: the route changes first, the console layout mounts after it.
-    await app.router.push('/dashboard')
-    await flushPromises()
-    consoleLayouts.value = 1
-    await flushPromises()
-    expect(wrapper.get('nav').element).toBe(nav)
-    expect(current(wrapper)).toBe('/dashboard')
-    expect(document.documentElement.classList.contains('site-entering')).toBe(true)
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    expect(document.documentElement.classList.contains('site-entering')).toBe(false)
+    for (const [path, href] of [['/dashboard', '/dashboard'], ['/home', '/home']]) {
+      await app.router.push(path)
+      await flushPromises()
+      expect(wrapper.get('nav').element).toBe(nav)
+      expect(current(wrapper)).toBe(href)
+      expect(document.documentElement.classList.contains('site-entering')).toBe(true)
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      expect(document.documentElement.classList.contains('site-entering')).toBe(false)
+    }
   })
 })

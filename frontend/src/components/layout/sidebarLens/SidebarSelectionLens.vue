@@ -17,8 +17,9 @@ import { PRESS_DEPTH, createMotion, lensScale, rememberMotion, resumeMotion, ste
  * Liquid-glass capsule over the active sidebar item: light, shadow and a faint tint here; the
  * magnification of what lies under it is drawn by the field canvas (it reads the box published to
  * `glassScene`), so the capsule never samples the sidebar glass a second time. It is a sibling of
- * the sidebar (not a child), so it floats above the sidebar's own surface. The sidebar markup is untouched: the lens finds `.sidebar-link-active` inside `nav` and
- * follows it through scrolling, collapsing, group expansion and route changes.
+ * the sidebar (not a child), so it floats above the sidebar's own surface. The sidebar markup is
+ * untouched: the lens finds `.sidebar-link-active` inside `nav` and follows it through scrolling,
+ * collapsing, group expansion and route changes.
  *
  * Motion runs in the nav's content coordinates, so scrolling never disturbs a flight and a
  * flight resumed in the next layout does not depend on when that layout restores its scroll.

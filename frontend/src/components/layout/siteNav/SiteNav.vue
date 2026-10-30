@@ -1,6 +1,6 @@
 <template>
   <nav
-    v-if="shown"
+    v-if="visible"
     ref="navRef"
     v-liquid-glass="NAV_GLASS"
     class="site-nav liquid-glass clear-glass"
@@ -55,8 +55,6 @@ const ICONS = {
     'M16 18a2 2 0 0 1 2 2 2 2 0 0 1 2-2 2 2 0 0 1-2-2 2 2 0 0 1-2 2m0-12a2 2 0 0 1 2 2 2 2 0 0 1 2-2 2 2 0 0 1-2-2 2 2 0 0 1-2 2M9 18a6 6 0 0 1 6-6 6 6 0 0 1-6-6 6 6 0 0 1-6 6 6 6 0 0 1 6 6',
 } as const
 const ENTER_MS = 340 // the incoming page's fade-in (style.css, html.site-entering)
-/** A switch to the console changes the route before the console layout mounts; keep the nav meanwhile. */
-const HIDE_DELAY_MS = 200
 
 const route = useRoute()
 const { t } = useI18n()
@@ -66,14 +64,6 @@ const compact = ref(false)
 
 const section = computed(() => siteSection(route.path))
 const visible = computed(() => siteNavVisible(route.path, consoleLayouts.value > 0))
-/** `visible`, but hidden only once it has stayed false for HIDE_DELAY_MS, so the nav is never rebuilt mid-switch. */
-const shown = ref(visible.value)
-let hiding = 0
-watch(visible, (on) => {
-  window.clearTimeout(hiding)
-  if (on) shown.value = true
-  else hiding = window.setTimeout(() => (shown.value = false), HIDE_DELAY_MS)
-})
 const items = computed(() => [
   { key: 'home', to: '/home', label: t('landingHome.nav.home'), icon: ICONS.home },
   { key: 'platform', to: consolePath.value, label: t('landingHome.nav.platform'), icon: ICONS.platform },
@@ -124,7 +114,7 @@ function watchToolbar() {
 }
 
 watch(
-  shown,
+  visible,
   (on) => {
     root().classList.toggle('has-site-nav', on)
     if (on) nextTick(watchToolbar)
@@ -133,14 +123,19 @@ watch(
 )
 watch([() => route.fullPath, consoleLayouts, items], () => nextTick(watchToolbar))
 
-// Switching sections: the incoming page fades in under the nav, which stays put.
+// Switching sections: the incoming page fades in under the nav, which stays put. Checked after the
+// render, once the new page (and its console presence) is in place.
 let entering = 0
-watch(section, (now, before) => {
-  if (!before || now === before || !shown.value) return
-  root().classList.add('site-entering')
-  window.clearTimeout(entering)
-  entering = window.setTimeout(() => root().classList.remove('site-entering'), ENTER_MS)
-})
+watch(
+  section,
+  (now, before) => {
+    if (!before || now === before || !visible.value) return
+    root().classList.add('site-entering')
+    window.clearTimeout(entering)
+    entering = window.setTimeout(() => root().classList.remove('site-entering'), ENTER_MS)
+  },
+  { flush: 'post' }
+)
 
 let stopLight: (() => void) | null = null
 const onResize = () => void layout()
@@ -152,7 +147,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   toolbarObserver?.disconnect()
   window.clearTimeout(entering)
-  window.clearTimeout(hiding)
   stopLight?.()
   root().classList.remove('has-site-nav', 'site-entering')
 })
