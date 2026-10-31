@@ -7,12 +7,30 @@ export interface LensView extends GlassRect {
   bandBottom: number
 }
 
-/**
- * What the field canvas draws through. The capsule that sits over the field registers how to read
- * its current box (`lens`, read on every draw) and tells the field to redraw when it moves; the
- * field registers how to be told (`invalidate`).
- */
-export const glassScene: { lens: (() => LensView | null) | null; invalidate: () => void } = {
-  lens: null,
-  invalidate: () => {},
+/** What the field canvas of one console layout draws through. */
+export interface GlassScene {
+  /** The capsule over the field registers how to read its current box. */
+  setLens(read: (() => LensView | null) | null): void
+  /** Its box this frame (read on every draw), or null. */
+  lens(): LensView | null
+  /** The field registers how to redraw. */
+  onInvalidate(redraw: () => void): void
+  /** The capsule moved: redraw now. */
+  invalidate(): void
+}
+
+/** AppLayout creates one and hands it to its field (ConsoleBackdrop) and its sidebar. */
+export function createGlassScene(): GlassScene {
+  let read: (() => LensView | null) | null = null
+  let redraw = () => {}
+  return {
+    setLens: (next) => {
+      read = next
+    },
+    lens: () => read?.() ?? null,
+    onInvalidate: (next) => {
+      redraw = next
+    },
+    invalidate: () => redraw(),
+  }
 }

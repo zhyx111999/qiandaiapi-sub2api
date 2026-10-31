@@ -6,6 +6,7 @@ import i18n, { initI18n } from './i18n'
 import { useAppStore } from '@/stores/app'
 import { updateFavicon } from '@/utils/branding'
 import { isIOSDevice } from '@/utils/device'
+import { initTheme } from '@/composables/useTheme'
 import '@fontsource-variable/manrope'
 import './style.css'
 
@@ -23,16 +24,9 @@ function initIOSViewportZoomFix() {
   viewport.setAttribute('content', `${content}, maximum-scale=1.0`)
 }
 
-function initThemeClass() {
-  const savedTheme = localStorage.getItem('theme')
-  // Ivory is the default; an explicit user-selected dark theme is still respected.
-  const shouldUseDark = savedTheme === 'dark'
-  document.documentElement.classList.toggle('dark', shouldUseDark)
-}
-
 async function bootstrap() {
-  // Apply theme class globally before app mount to keep all routes consistent.
-  initThemeClass()
+  // Apply the theme globally before app mount (ivory unless dark was chosen) to keep all routes consistent.
+  initTheme()
   initIOSViewportZoomFix()
 
   const app = createApp(App)

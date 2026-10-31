@@ -2,7 +2,9 @@
   <div v-if="subscriptionFeatureEnabled && hasActiveSubscriptions" class="relative" ref="containerRef">
     <!-- Mini Progress Display -->
     <button
+      ref="triggerRef"
       @click="toggleTooltip"
+      :data-capsule="capsuleOn ? '' : undefined"
       class="toolbar-control flex cursor-pointer items-center gap-2 rounded-xl bg-purple-50 px-3 py-1.5 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30"
       :title="t('subscriptionProgress.viewDetails')"
       :aria-expanded="tooltipOpen"
@@ -193,8 +195,14 @@ const subscriptionStore = useSubscriptionStore()
 
 const containerRef = ref<HTMLElement | null>(null)
 const tooltipOpen = ref(false)
-/** `v-model:open` reports the panel state (the top bar's selection capsule rests on an open panel). */
+/**
+ * In the console top bar the glass capsule rests on the open panel's trigger: `v-model:open` reports
+ * the panel state, `capsuleOn` says the capsule is here, and the bar reads `trigger`.
+ */
+defineProps<{ capsuleOn?: boolean }>()
 const emit = defineEmits<{ 'update:open': [open: boolean] }>()
+const triggerRef = ref<HTMLButtonElement | null>(null)
+defineExpose({ trigger: triggerRef })
 watch(tooltipOpen, (open) => emit('update:open', open))
 
 // Use store data instead of local state

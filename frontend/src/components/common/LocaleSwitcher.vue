@@ -1,8 +1,10 @@
 <template>
   <div class="relative" ref="dropdownRef">
     <button
+      ref="triggerRef"
       @click="toggle"
       :disabled="switching"
+      :data-capsule="capsuleOn ? '' : undefined"
       class="toolbar-control flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300"
       :title="currentLocale?.name"
       :aria-expanded="isOpen"
@@ -47,8 +49,14 @@ import { ref, watch } from 'vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
 
-/** `v-model:open` reports the menu state (the top bar's selection capsule rests on an open menu). */
+/**
+ * In the console top bar the glass capsule rests on an open menu's trigger: `v-model:open` reports
+ * the menu state, `capsuleOn` says the capsule is here, and the bar reads `trigger`.
+ */
+defineProps<{ capsuleOn?: boolean }>()
 const emit = defineEmits<{ 'update:open': [open: boolean] }>()
+const triggerRef = ref<HTMLButtonElement | null>(null)
+defineExpose({ trigger: triggerRef })
 
 const dropdownRef = ref<HTMLElement | null>(null)
 const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, toggle, select } =

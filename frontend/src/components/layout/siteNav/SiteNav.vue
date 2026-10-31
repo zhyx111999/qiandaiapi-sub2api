@@ -6,12 +6,14 @@
     class="site-nav liquid-glass clear-glass"
     :class="{ 'site-nav--cover': section === 'home', 'site-nav--compact': compact }"
     :aria-label="t('landingHome.nav.label')"
+    v-on="capsule.on"
   >
-    <GlassCapsule :rest="links[section] ?? null" :pick="pickLink" memory-key="site" />
+    <GlassCapsule :capsule="capsule" />
     <RouterLink v-for="item in items" :key="item.key" v-slot="{ href, navigate }" :to="item.to" custom>
       <a
-        :ref="(el) => setLink(item.key, el)"
+        :ref="linkRefs.ref(item.key)"
         :href="href"
+        :data-capsule="capsule.state.at === item.key ? '' : undefined"
         class="site-nav__link"
         :aria-current="item.key === section ? 'page' : undefined"
         :title="item.label"
@@ -25,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
@@ -34,8 +36,9 @@ import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { followPointerLight } from '../consoleLight'
 import { DESKTOP_MIN_WIDTH } from '../consoleGlass'
 import GlassCapsule from '../glassCapsule/GlassCapsule.vue'
+import { useGlassCapsule, useItemRefs } from '../glassCapsule/useGlassCapsule'
 import { consoleLayouts } from './consolePresence'
-import { needsCompact, siteNavVisible, siteSection, type SiteSection } from './siteSection'
+import { needsCompact, siteNavVisible, siteSection } from './siteSection'
 import { siteNavLayout } from './siteNavLayout'
 
 /**
@@ -83,12 +86,14 @@ const items = computed(() => [
 ])
 
 /** The capsule rests on the current section's link and goes to a pressed one. */
-const links = shallowReactive<Partial<Record<SiteSection, HTMLElement | null>>>({})
-function setLink(key: SiteSection, el: unknown) {
-  const link = el instanceof HTMLElement ? el : null
-  if (links[key] !== link) links[key] = link
-}
-const pickLink = (target: Element) => target.closest<HTMLElement>('.site-nav__link')
+const linkRefs = useItemRefs()
+const capsule = useGlassCapsule({
+  container: navRef,
+  pressable: linkRefs.keys,
+  element: linkRefs.get,
+  rest: () => section.value,
+  memoryKey: 'site',
+})
 
 /** Full labels unless they would reach the console toolbar; publishes the half width for the title. */
 async function layout() {

@@ -2,7 +2,9 @@
   <div>
     <!-- 铃铛按钮 -->
     <button
+      ref="triggerRef"
       @click="openModal"
+      :data-capsule="capsuleOn ? '' : undefined"
       class="toolbar-control relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 dark:text-gray-400"
       :class="{ 'text-blue-600 dark:text-blue-400': unreadCount > 0 }"
       :aria-label="t('announcements.title')"
@@ -323,6 +325,11 @@ import { formatRelativeTime, formatRelativeWithDateTime } from '@/utils/format'
 import type { UserAnnouncement } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
 import '@/styles/announcement-markdown.css'
+
+/** In the console top bar the glass capsule can rest on the bell (`capsuleOn`); it reads `trigger`. */
+defineProps<{ capsuleOn?: boolean }>()
+const triggerRef = ref<HTMLButtonElement | null>(null)
+defineExpose({ trigger: triggerRef })
 
 const { t } = useI18n()
 const appStore = useAppStore()

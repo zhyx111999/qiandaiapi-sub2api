@@ -22,17 +22,18 @@
       </div>
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
-      <div ref="toolbarRef" class="console-toolbar flex shrink-0 items-center gap-1 sm:gap-3">
+      <div ref="toolbarRef" class="console-toolbar flex shrink-0 items-center gap-1 sm:gap-3" v-on="capsule.on">
         <span v-liquid-glass="TOOLBAR_GLASS" class="console-toolbar-glass" aria-hidden="true"></span>
-        <GlassCapsule :rest="capsuleRest" :pick="pickControl" memory-key="toolbar" />
+        <GlassCapsule :capsule="capsule" />
         <!-- Announcement Bell -->
-        <AnnouncementBell v-if="user" ref="bellRef" />
+        <AnnouncementBell v-if="user" ref="bellRef" :capsule-on="capsule.state.at === 'bell'" />
 
         <!-- Docs Link -->
         <a
           v-if="docUrl"
           ref="docsRef"
           :href="docUrl"
+          :data-capsule="capsule.state.at === 'docs' ? '' : undefined"
           target="_blank"
           rel="noopener noreferrer"
           class="toolbar-control hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-dark-400 dark:hover:text-white sm:flex"
@@ -42,13 +43,14 @@
         </a>
 
         <!-- Language Switcher -->
-        <LocaleSwitcher ref="localeRef" v-model:open="localeOpen" />
+        <LocaleSwitcher ref="localeRef" v-model:open="localeOpen" :capsule-on="capsule.state.at === 'locale'" />
 
         <!-- Subscription Progress (for users with active subscriptions; not mounted at all when the feature is off) -->
         <SubscriptionProgressMini
           v-if="user && subscriptionFeatureEnabled"
           ref="subscriptionRef"
           v-model:open="subscriptionOpen"
+          :capsule-on="capsule.state.at === 'subscription'"
         />
 
         <!-- Balance Display -->
@@ -101,8 +103,10 @@
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
           <button
+            ref="userButtonRef"
             @click="toggleDropdown"
             class="toolbar-control flex items-center gap-2 rounded-xl p-1.5"
+            :data-capsule="capsule.state.at === 'user' ? '' : undefined"
             :aria-label="t('common.userMenu')"
             :aria-expanded="dropdownOpen"
           >
@@ -248,7 +252,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, type ComponentPublicInstance } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
@@ -260,6 +264,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { TOOLBAR_GLASS } from './consoleGlass'
 import GlassCapsule from './glassCapsule/GlassCapsule.vue'
+import { useGlassCapsule } from './glassCapsule/useGlassCapsule'
 import { siteNavLayout } from './siteNav/siteNavLayout'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
@@ -281,27 +286,31 @@ const dropdownRef = ref<HTMLElement | null>(null)
 
 /*
  * The toolbar's selection capsule: it rests on the control whose menu is open and goes to a pressed
- * control. The controls are held directly; the language and subscription menus report their state.
+ * control. The controls are this bar's own trigger buttons (the bell, language and subscription
+ * components hand theirs over); the language and subscription menus report whether they are open.
  */
 const toolbarRef = ref<HTMLElement | null>(null)
-const bellRef = ref<ComponentPublicInstance | null>(null)
+const bellRef = ref<InstanceType<typeof AnnouncementBell> | null>(null)
 const docsRef = ref<HTMLElement | null>(null)
-const localeRef = ref<ComponentPublicInstance | null>(null)
-const subscriptionRef = ref<ComponentPublicInstance | null>(null)
+const localeRef = ref<InstanceType<typeof LocaleSwitcher> | null>(null)
+const subscriptionRef = ref<InstanceType<typeof SubscriptionProgressMini> | null>(null)
+const userButtonRef = ref<HTMLElement | null>(null)
 const localeOpen = ref(false)
 const subscriptionOpen = ref(false)
-const elementOf = (component: ComponentPublicInstance | null) =>
-  component?.$el instanceof HTMLElement ? component.$el : null
-const controls = () =>
-  [elementOf(bellRef.value), docsRef.value, elementOf(localeRef.value), elementOf(subscriptionRef.value), dropdownRef.value].filter(
-    (el): el is HTMLElement => !!el
-  )
-const pickControl = (target: Element) => controls().find((el) => el.contains(target)) ?? null
-const capsuleRest = computed(() => {
-  if (dropdownOpen.value) return dropdownRef.value
-  if (localeOpen.value) return elementOf(localeRef.value)
-  if (subscriptionOpen.value) return elementOf(subscriptionRef.value)
-  return null
+const controls: Record<string, () => HTMLElement | null | undefined> = {
+  bell: () => bellRef.value?.trigger,
+  docs: () => docsRef.value,
+  locale: () => localeRef.value?.trigger,
+  subscription: () => subscriptionRef.value?.trigger,
+  user: () => userButtonRef.value,
+}
+const CONTROL_KEYS = Object.keys(controls)
+const capsule = useGlassCapsule({
+  container: toolbarRef,
+  pressable: () => CONTROL_KEYS,
+  element: (key) => controls[key]?.(),
+  rest: () => (dropdownOpen.value ? 'user' : localeOpen.value ? 'locale' : subscriptionOpen.value ? 'subscription' : null),
+  memoryKey: 'toolbar',
 })
 
 /*

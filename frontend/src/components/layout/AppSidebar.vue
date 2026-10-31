@@ -30,17 +30,17 @@
     <FeatureSearch v-if="isAdmin" :items="searchNavItems" :collapsed="sidebarCollapsed" @navigate="handleMenuItemClick" />
 
     <!-- Navigation -->
-    <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide">
-      <GlassCapsule :rest="activeLinkEl" :pick="pickLink" memory-key="sidebar" :radius="12" lenses-field />
+    <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide" v-on="capsule.on">
+      <GlassCapsule :capsule="capsule" />
       <div v-if="authStore.isObserver" class="sidebar-section">
-        <router-link to="/admin/accounts" class="sidebar-link mb-1"
+        <router-link :ref="linkRefs.ref('observer:/admin/accounts')" to="/admin/accounts" class="sidebar-link mb-1"
           :class="{ 'sidebar-link-active': isActive('/admin/accounts'), 'sidebar-link-collapsed': sidebarCollapsed }"
           :title="sidebarCollapsed ? t('nav.accounts') : undefined"
           @click="handleMenuItemClick('/admin/accounts')">
           <GlobeIcon class="h-5 w-5 flex-shrink-0" />
           <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }">{{ t('nav.accounts') }}</span>
         </router-link>
-        <router-link v-if="appStore.backendModeEnabled" to="/usage" class="sidebar-link mb-1"
+        <router-link v-if="appStore.backendModeEnabled" :ref="linkRefs.ref('observer:/usage')" to="/usage" class="sidebar-link mb-1"
           :class="{ 'sidebar-link-active': isActive('/usage'), 'sidebar-link-collapsed': sidebarCollapsed }"
           :title="sidebarCollapsed ? t('nav.usage') : undefined"
           @click="handleMenuItemClick('/usage')">
@@ -56,6 +56,7 @@
             <!-- Collapsible group (has children) -->
             <template v-if="item.children?.length">
               <button
+                :ref="linkRefs.ref('group:' + item.path)"
                 type="button"
                 class="sidebar-link mb-1 w-full"
                 :class="{
@@ -83,6 +84,7 @@
                 <router-link
                   v-for="child in item.children"
                   :key="child.path"
+                  :ref="linkRefs.ref('admin:' + child.path)"
                   :to="child.path"
                   class="sidebar-link mb-0.5 py-1.5 text-sm"
                   :class="{ 'sidebar-link-active': route.path === child.path }"
@@ -96,6 +98,7 @@
             <!-- Normal item (no children) -->
             <router-link
               v-else
+              :ref="linkRefs.ref('admin:' + item.path)"
               :to="item.path"
               class="sidebar-link mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
@@ -130,6 +133,7 @@
           <router-link
             v-for="item in personalNavItems"
             :key="item.path"
+            :ref="linkRefs.ref('me:' + item.path)"
             :to="item.path"
             class="sidebar-link mb-1"
             :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
@@ -151,6 +155,7 @@
           <router-link
             v-for="item in userNavItems"
             :key="item.path"
+            :ref="linkRefs.ref('user:' + item.path)"
             :to="item.path"
             class="sidebar-link mb-1"
             :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
@@ -204,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore, useSupportTicketStore } from '@/stores'
@@ -217,7 +222,13 @@ import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { getCustomMenuLabel } from '@/utils/customMenu'
+import { useTheme } from '@/composables/useTheme'
 import GlassCapsule from './glassCapsule/GlassCapsule.vue'
+import { useGlassCapsule, useItemRefs } from './glassCapsule/useGlassCapsule'
+import type { GlassScene } from './glassScene'
+
+/** The console layout's glass scene: the field behind the sidebar magnifies under the capsule. */
+const props = defineProps<{ scene?: GlassScene | null }>()
 
 interface NavItem {
   path: string
@@ -273,18 +284,9 @@ const isAdmin = computed(() => authStore.isAdmin)
 const sidebarNavRef = ref<HTMLElement | null>(null)
 const asideRef = ref<HTMLElement | null>(null)
 
-/** The selection capsule rests on the active link and goes to a pressed route link. */
-const activeLinkEl = ref<HTMLElement | null>(null)
-function findActiveLink() {
-  activeLinkEl.value = sidebarNavRef.value?.querySelector<HTMLElement>('.sidebar-link-active') ?? null
-}
-const pickLink = (target: Element) => target.closest<HTMLElement>('a.sidebar-link')
-onMounted(findActiveLink)
-onUpdated(findActiveLink)
-
 // The console layout reads the aside to draw the field seen through it.
 defineExpose({ aside: asideRef })
-const isDark = ref(document.documentElement.classList.contains('dark'))
+const { isDark, toggleTheme } = useTheme()
 
 const homePath = computed(() => (
   isAdmin.value ? '/admin/dashboard' : authStore.isObserver ? '/admin/accounts' : '/dashboard'
@@ -967,14 +969,50 @@ const searchNavItems = computed(() => [
   ...(authStore.isSimpleMode ? [] : personalNavItems.value)
 ])
 
+/*
+ * The selection capsule. Every entry of the nav is a keyed ref ('observer:', 'admin:', 'me:',
+ * 'user:' + path; 'group:' + path for a group header). It rests on the highlighted entry, the first
+ * in the order the nav lists them (a group header while its group is closed), and goes to a
+ * pressed route link.
+ */
+const linkRefs = useItemRefs()
+const capsuleRest = computed(() => {
+  const entries: Array<[string, boolean]> = []
+  if (authStore.isObserver) {
+    entries.push(['observer:/admin/accounts', isActive('/admin/accounts')])
+    if (appStore.backendModeEnabled) entries.push(['observer:/usage', isActive('/usage')])
+  }
+  if (isAdmin.value) {
+    for (const item of adminNavItems.value) {
+      if (!item.children?.length) {
+        entries.push(['admin:' + item.path, isActive(item.path)])
+        continue
+      }
+      entries.push(['group:' + item.path, isGroupActive(item) && !isGroupExpanded(item)])
+      if (!sidebarCollapsed.value && isGroupExpanded(item)) {
+        for (const child of item.children) entries.push(['admin:' + child.path, route.path === child.path])
+      }
+    }
+    if (!authStore.isSimpleMode) {
+      for (const item of personalNavItems.value) entries.push(['me:' + item.path, isActive(item.path)])
+    }
+  } else if (!appStore.backendModeEnabled) {
+    for (const item of userNavItems.value) entries.push(['user:' + item.path, isActive(item.path)])
+  }
+  return entries.find(([, active]) => active)?.[0] ?? null
+})
+const capsule = useGlassCapsule({
+  container: sidebarNavRef,
+  pressable: () => linkRefs.keys().filter((key) => !key.startsWith('group:')),
+  element: linkRefs.get,
+  rest: () => capsuleRest.value,
+  memoryKey: 'sidebar',
+  radius: 12,
+  scene: props.scene,
+})
+
 function toggleSidebar() {
   appStore.toggleSidebar()
-}
-
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
 }
 
 function closeMobile() {

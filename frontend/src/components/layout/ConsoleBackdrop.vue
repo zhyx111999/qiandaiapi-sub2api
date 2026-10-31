@@ -10,12 +10,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores'
+import { useTheme } from '@/composables/useTheme'
 import { createStrands } from '@/components/home/landing/convergence/strands'
 import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
 import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
 import { FieldPainter } from './fieldPainter'
-import { glassScene } from './glassScene'
+import type { GlassScene } from './glassScene'
 import type { GlassRect } from './glassOptics'
 
 /**
@@ -36,6 +37,8 @@ import type { GlassRect } from './glassOptics'
 const props = defineProps<{
   /** The sidebar the field is seen through (AppLayout passes AppSidebar's aside). */
   sidebar: HTMLElement | null
+  /** The layout's glass scene: the sidebar capsule's box, and the redraw it asks for. */
+  scene: GlassScene
 }>()
 
 const STRAND_COUNT = 30
@@ -58,6 +61,7 @@ const reducedMotion = media('(prefers-reduced-motion: reduce)')
 const reducedTransparency = media('(prefers-reduced-transparency: reduce)') // the sidebar is solid then
 
 const appStore = useAppStore()
+const { isDark } = useTheme()
 const drawerOpen = computed(() => appStore.mobileOpen)
 const phone = ref(typeof window !== 'undefined' && window.innerWidth < DESKTOP_MIN_WIDTH)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -68,7 +72,6 @@ let height = 0
 let lastTime = 0
 let lensMoved = false
 let drawerFade = 0 // timer while the closed drawer's field fades out
-let themeObserver: MutationObserver | null = null
 let sidebarObserver: ResizeObserver | null = null
 
 /** Desktop: beside the sidebar. Phone: the full width while the drawer is open or fading out. */
@@ -106,14 +109,14 @@ function draw() {
   painter.paint(ctx, {
     width: reach,
     height,
-    dark: document.documentElement.classList.contains('dark'),
+    dark: isDark.value,
     waveTime: consoleFlow.waveTime,
     glowTime: consoleFlow.glowTime,
     pulses: consoleFlow.pulses.pulses,
     pulseTail: FLOW.pulseTail,
     fadeFrom: phone.value ? FADE_FROM.drawer : FADE_FROM.desktop,
     glass,
-    lens: glass ? (glassScene.lens?.() ?? null) : null,
+    lens: glass ? props.scene.lens() : null,
   })
 }
 
@@ -155,6 +158,8 @@ watch(drawerOpen, (open) => {
   refresh()
 })
 
+watch(isDark, draw)
+
 // Collapsing changes the glass; redraw even when the field itself is still (reduced motion).
 watch(
   () => props.sidebar,
@@ -171,23 +176,19 @@ watch(
 )
 
 onMounted(() => {
-  glassScene.invalidate = () => {
+  props.scene.onInvalidate(() => {
     lensMoved = true
     task.wake()
-  }
+  })
   refresh()
   window.addEventListener('resize', refresh)
-  themeObserver = new MutationObserver(draw)
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 })
 
 onBeforeUnmount(() => {
   task.remove()
-  glassScene.invalidate = () => {}
+  props.scene.onInvalidate(() => {})
   window.clearTimeout(drawerFade)
   window.removeEventListener('resize', refresh)
-  themeObserver?.disconnect()
-  themeObserver = null
   sidebarObserver?.disconnect()
   sidebarObserver = null
 })

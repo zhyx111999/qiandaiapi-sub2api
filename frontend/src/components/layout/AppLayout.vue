@@ -2,10 +2,10 @@
   <div class="site-page min-h-screen bg-gray-50 dark:bg-dark-950">
     <!-- Background Decoration -->
     <div class="pointer-events-none fixed inset-0 bg-mesh-gradient"></div>
-    <ConsoleBackdrop :sidebar="sidebarEl" />
+    <ConsoleBackdrop :sidebar="sidebarEl" :scene="scene" />
 
     <!-- Sidebar -->
-    <AppSidebar ref="sidebarRef" />
+    <AppSidebar ref="sidebarRef" :scene="scene" />
 
     <!-- Main Content Area -->
     <div
@@ -33,12 +33,14 @@ import { useOnboardingStore } from '@/stores/onboarding'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 import ConsoleBackdrop from './ConsoleBackdrop.vue'
+import { createGlassScene } from './glassScene'
 import { useConsolePresence } from './siteNav/consolePresence'
 
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
-/** The field behind the sidebar is seen through its glass. */
+/** The field behind the sidebar is seen through its glass; the capsule's box goes through the scene. */
+const scene = createGlassScene()
 const sidebarRef = ref<InstanceType<typeof AppSidebar> | null>(null)
 const sidebarEl = computed(() => sidebarRef.value?.aside ?? null)
 
