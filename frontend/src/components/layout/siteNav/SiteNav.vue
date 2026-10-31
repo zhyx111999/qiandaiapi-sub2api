@@ -24,6 +24,8 @@
       </a>
     </RouterLink>
   </nav>
+  <!-- Phones: room at the end of the page, so the last content clears the floating nav. -->
+  <div v-if="visible" class="site-nav-spacer lg:hidden" aria-hidden="true"></div>
 </template>
 
 <script setup lang="ts">
@@ -45,7 +47,7 @@ import { siteNavLayout } from './siteNavLayout'
  * The site nav: 首页 / 平台 / 模型广场 in one glass pill that stays where it is (top centre on
  * desktop, bottom centre on phones) across the cover, the console and the model plaza. App.vue
  * mounts it outside the routed views, so switching sections never rebuilds it: its selection
- * capsule glides to the pressed item and the new page fades in underneath.
+ * capsule glides to the pressed item and the new page fades in underneath (SiteRouterView).
  *
  * On narrow desktops, where the full labels would reach the console toolbar (whose left edge the
  * top bar publishes), it shows icons; it publishes its own half width for the top bar's title.
@@ -59,7 +61,6 @@ const ICONS = {
   plaza:
     'M16 18a2 2 0 0 1 2 2 2 2 0 0 1 2-2 2 2 0 0 1-2-2 2 2 0 0 1-2 2m0-12a2 2 0 0 1 2 2 2 2 0 0 1 2-2 2 2 0 0 1-2-2 2 2 0 0 1-2 2M9 18a6 6 0 0 1 6-6 6 6 0 0 1-6-6 6 6 0 0 1-6 6 6 6 0 0 1 6 6',
 } as const
-const ENTER_MS = 340 // the incoming page's fade-in (style.css, html.site-entering)
 
 const route = useRoute()
 const { t } = useI18n()
@@ -112,29 +113,8 @@ async function layout() {
   siteNavLayout.navHalf = (navRef.value?.offsetWidth ?? 0) / 2
 }
 
-watch(
-  visible,
-  (on) => {
-    document.documentElement.classList.toggle('has-site-nav', on)
-    nextTick(layout)
-  },
-  { immediate: true }
-)
+watch(visible, () => nextTick(layout), { immediate: true })
 watch([() => siteNavLayout.toolbarLeft, consoleLayouts, items], () => nextTick(layout))
-
-// Switching sections: the incoming page fades in under the nav, which stays put. Checked after the
-// render, once the new page (and its console presence) is in place.
-let entering = 0
-watch(
-  section,
-  (now, before) => {
-    if (!before || now === before || !visible.value) return
-    document.documentElement.classList.add('site-entering')
-    window.clearTimeout(entering)
-    entering = window.setTimeout(() => document.documentElement.classList.remove('site-entering'), ENTER_MS)
-  },
-  { flush: 'post' }
-)
 
 let stopLight: (() => void) | null = null
 const onResize = () => void layout()
@@ -144,10 +124,8 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
-  window.clearTimeout(entering)
   stopLight?.()
   siteNavLayout.navHalf = 0
-  document.documentElement.classList.remove('has-site-nav', 'site-entering')
 })
 </script>
 

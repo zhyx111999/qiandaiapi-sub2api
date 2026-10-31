@@ -983,15 +983,16 @@
         transform: translate(-50%, 10px);
       }
     }
-
-    /* Room at the end of every page so the last content clears the floating nav. */
-    html.has-site-nav body {
-      padding-bottom: 76px;
-    }
   }
 
-  /* Switching sections: the incoming page fades in under the nav, which stays where it is. */
-  html.site-entering .site-page {
+  /* Room at the end of every page so the last content clears the floating nav (phones only, SiteNav). */
+  .site-nav-spacer {
+    height: 76px;
+  }
+
+  /* Switching sections: the incoming site page fades in under the nav, which stays where it is
+     (SiteRouterView's Transition; the sign-in and setup pages are not site pages). */
+  .site-page.site-enter-enter-active {
     animation: site-enter 0.34s ease-out backwards;
   }
 
