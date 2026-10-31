@@ -1,3 +1,37 @@
+import defaultColors from 'tailwindcss/colors'
+import plugin from 'tailwindcss/plugin'
+
+/** Warm neutrals: the ivory gray. */
+const warmGray = {
+  50: '#f6f2ea',
+  100: '#f0ede5',
+  200: '#e3dfd4',
+  300: '#cbc5b8',
+  400: '#a49e91',
+  500: '#7b756a',
+  600: '#605b52',
+  700: '#49443d',
+  800: '#35312c',
+  900: '#1f1d1a',
+  950: '#171613'
+}
+
+/*
+ * The other Tailwind grays the original pages use (platform and group badges, a few chips and
+ * cards). In the light theme they follow the warm gray; in the dark theme they keep Tailwind's own
+ * cool values, so the dark console looks as before. Each shade reads a CSS variable that the plugin
+ * below sets per theme, so utilities with opacity (bg-slate-500/10) and gradients still work.
+ */
+const THEMED_GRAYS = ['slate', 'zinc', 'neutral']
+const SHADES = Object.keys(warmGray)
+const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(' ')
+const themedGray = (name) =>
+  Object.fromEntries(SHADES.map((shade) => [shade, `rgb(var(--${name}-${shade}) / <alpha-value>)`]))
+const grayVariables = (paletteOf) =>
+  Object.fromEntries(
+    THEMED_GRAYS.flatMap((name) => SHADES.map((shade) => [`--${name}-${shade}`, channels(paletteOf(name)[shade])]))
+  )
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
@@ -22,19 +56,8 @@ export default {
           950: '#11261e'
         },
         // Warm neutrals retheme existing gray utilities without replacing business components.
-        gray: {
-          50: '#f6f2ea',
-          100: '#f0ede5',
-          200: '#e3dfd4',
-          300: '#cbc5b8',
-          400: '#a49e91',
-          500: '#7b756a',
-          600: '#605b52',
-          700: '#49443d',
-          800: '#35312c',
-          900: '#1f1d1a',
-          950: '#171613'
-        },
+        gray: warmGray,
+        ...Object.fromEntries(THEMED_GRAYS.map((name) => [name, themedGray(name)])),
         accent: {
           50: '#f5f5ef',
           100: '#eaece3',
@@ -146,5 +169,13 @@ export default {
       }
     }
   },
-  plugins: []
+  plugins: [
+    // Light theme: the warm gray; dark theme: Tailwind's original values of each gray.
+    plugin(({ addBase }) => {
+      addBase({
+        ':root': grayVariables(() => warmGray),
+        '.dark': grayVariables((name) => defaultColors[name])
+      })
+    })
+  ]
 }
