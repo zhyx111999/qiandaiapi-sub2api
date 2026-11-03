@@ -31,6 +31,7 @@ import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
 import { FieldPainter } from './fieldPainter'
 import { DARK_GLOW_ALPHA, GLOWS, SINE_SWING, driftX, driftY, offsetAt, type Glow } from './fieldGlows'
+import { createGovernor, qualitySteps, saveQuality, savedQuality, type FieldQuality } from './fieldQuality'
 import type { GlassScene } from './glassScene'
 import type { GlassRect } from './glassOptics'
 
@@ -46,6 +47,8 @@ import type { GlassRect } from './glassOptics'
  * elements below the canvas drifting on compositor animations (fieldGlows), and the fade toward the
  * workspace is the container's mask, so neither costs the main thread anything per frame. Pauses
  * with the hidden tab like any rAF loop; with prefers-reduced-motion it draws still frames only.
+ * A device whose frames stay slow while the field moves steps down (fieldQuality): a lower-resolution
+ * canvas, then a still field, so the console stays smooth on any machine.
  *
  * Desktop: the field lies beside the sidebar and fades out before the workspace. Phone: the
  * sidebar is a drawer, so the field spans the screen above the drawer's veil only while the
@@ -84,9 +87,15 @@ const phone = ref(typeof window !== 'undefined' && window.innerWidth < DESKTOP_M
 const size = reactive({ w: 0, h: 0 })
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const glowEls = GLOWS.map(() => ({ x: null as HTMLElement | null, y: null as HTMLElement | null }))
+const steps = qualitySteps(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1)
+const quality = ref<FieldQuality>(savedQuality(steps))
+const governor = createGovernor(quality.value, steps)
+/** The field stands still: reduced motion, or a device that could not keep it moving smoothly. */
+const still = () => reducedMotion || quality.value === 'still'
 const painter = new FieldPainter(createStrands(STRAND_COUNT, seeded(20261027)))
 let ctx: CanvasRenderingContext2D | null = null
 let lastTime = 0
+let lastFrame = 0 // rAF time of the previous frame, for the governor
 let lensMoved = false
 let drawerFade = 0 // timer while the closed drawer's field fades out
 let sidebarObserver: ResizeObserver | null = null
@@ -105,7 +114,7 @@ function startGlows() {
   GLOWS.forEach((glow, i) => {
     const { x, y } = glowEls[i]
     if (!x || !y) return
-    if (reducedMotion || typeof x.animate !== 'function') {
+    if (still() || typeof x.animate !== 'function') {
       const at = offsetAt(glow, consoleFlow.glowTime)
       x.style.transform = `translateX(${at.x}px)`
       y.style.transform = `translateY(${at.y}px)`
@@ -138,7 +147,7 @@ function resize() {
   phone.value = window.innerWidth < DESKTOP_MIN_WIDTH
   size.w = fieldWidth()
   size.h = window.innerHeight
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const dpr = quality.value === 'full' ? Math.min(window.devicePixelRatio || 1, 2) : 1
   canvas.style.width = `${size.w}px`
   canvas.style.height = `${size.h}px`
   canvas.width = Math.round(size.w * dpr)
@@ -169,17 +178,32 @@ function draw() {
   })
 }
 
+/** Steps down to a lighter field (see fieldQuality) and remembers it for the tab. */
+function setQuality(next: FieldQuality) {
+  quality.value = next
+  saveQuality(next)
+  if (still()) startGlows()
+  refresh()
+}
+
 const task = addFrameTask(FRAME_ORDER.field, (now) => {
   if (!size.w) {
     lastTime = 0
+    lastFrame = 0
     return false
   }
   const lensStep = lensMoved
   lensMoved = false
-  if (reducedMotion) {
+  if (still()) {
     draw()
+    lastFrame = 0
     return false
   }
+  if (lastFrame) {
+    const next = governor.record(now - lastFrame)
+    if (next) setQuality(next)
+  }
+  lastFrame = now
   if (lastTime && !frameDue(now, lastTime) && !lensStep) return true
   const dt = lastTime ? Math.min(0.1, (now - lastTime) / 1000) : 0
   lastTime = now
