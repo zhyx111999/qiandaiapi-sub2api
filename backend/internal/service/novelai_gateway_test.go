@@ -35,11 +35,13 @@ func TestParseNovelAIImagesRequest(t *testing.T) {
 	require.True(t, req.Stream)
 	require.Equal(t, ImageBillingSize1K, req.BillingTier())
 	require.Zero(t, req.ReferenceImages)
+	require.JSONEq(t, `{"prompt":"orca"}`, string(req.ModerationBody()))
 }
 
 func TestParseNovelAINativeJSONRequest(t *testing.T) {
 	body := `{"input":"orca","model":"nai-diffusion-5-full","action":"generate","parameters":{
 		"width":1536,"height":1024,"n_samples":1,
+		"v4_prompt":{"caption":{"base_caption":"orca","char_captions":[{"char_caption":"girl, smile"},{"char_caption":" "}]}},
 		"reference_image_multiple":["aGVsbG8=","aGVsbG8="],"reference_image":"aGVsbG8=",
 		"director_reference_images":[{"image":"aGVsbG8="}],"director_reference_images_cached":[{"cache_id":"abc"}]}}`
 	req, err := ParseNovelAIRequest("/ai/generate-image", "application/json", []byte(body))
@@ -51,6 +53,7 @@ func TestParseNovelAINativeJSONRequest(t *testing.T) {
 	// Vibe: the larger of the two lists (2). Character: a JSON request repeats the same
 	// references in either list, so the larger one (1).
 	require.Equal(t, 3, req.ReferenceImages)
+	require.Equal(t, "orca\ngirl, smile", req.Prompt, "distinct non-empty prompt texts")
 }
 
 func TestParseNovelAINativeMultipartRequest(t *testing.T) {
@@ -97,6 +100,7 @@ func TestParseNovelAIEncodeVibeAndErrors(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, NovelAIEncodeVibe, req.Operation)
 	require.Zero(t, req.ReferenceImages)
+	require.Nil(t, req.ModerationBody())
 
 	_, err = ParseNovelAIRequest("/ai/generate-image", "application/json", []byte(`{"parameters":{}}`))
 	require.Error(t, err, "the model is required")

@@ -37,8 +37,10 @@ func TestEveryGatewayPOSTRouteIsClassifiedForPromptAuditCoverage(t *testing.T) {
 		"/alpha/search":             {"openai_alpha_search.go"},
 		"/live":                     {"openai_live.go"},
 		"/realtime/calls":           {"openai_live.go"},
-		"/images/generations":       {"openai_images.go", "grok_media.go"},
-		"/images/edits":             {"openai_images.go", "grok_media.go"},
+		"/images/generations":       {"openai_images.go", "grok_media.go", "novelai_gateway.go"},
+		"/images/edits":             {"openai_images.go", "grok_media.go", "novelai_gateway.go"},
+		"/ai/generate-image":        {"novelai_gateway.go"},
+		"/ai/generate-image-stream": {"novelai_gateway.go"},
 		"/images/generations/async": {"image_task_handler.go"},
 		"/images/edits/async":       {"image_task_handler.go"},
 		"/images/batches":           {"batch_image_handler.go"},
@@ -57,6 +59,7 @@ func TestEveryGatewayPOSTRouteIsClassifiedForPromptAuditCoverage(t *testing.T) {
 		"/images/batches/:id/cancel": "control-plane cancellation with no user prompt",
 		"/stt":                       "speech transcription is not a text-generation prompt",
 		"/custom-voices":             "voice profile management has no model prompt",
+		"/ai/encode-vibe":            "NovelAI vibe encoding takes an image and no prompt",
 	}
 
 	unclassified := make([]string, 0)

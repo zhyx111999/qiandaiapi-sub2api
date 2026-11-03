@@ -20,7 +20,8 @@ import (
 // NovelAI image operations relayed to an operator-configured NovelAI gateway (nai-station): the
 // OpenAI-compatible Images endpoints and the NovelAI native ones. Chat Completions go through the
 // stock raw Chat Completions path like any provider. Requests and responses are relayed verbatim;
-// parsing only reads what billing needs (model, image count, size, reference images).
+// parsing only reads what billing and the prompt audit need (model, image count, size, reference
+// images, prompt text).
 
 type NovelAIOperation string
 
@@ -46,6 +47,18 @@ type NovelAIRequest struct {
 	Width, Height int64
 	// ReferenceImages counts the vibe / character references sent with a native generation.
 	ReferenceImages int
+	// Prompt is the positive prompt text (Images prompt; native input, v4 base and character
+	// captions), audited like an OpenAI Images prompt.
+	Prompt string
+}
+
+// ModerationBody is the prompt audit payload, in the OpenAI Images shape; nil without a prompt.
+func (r *NovelAIRequest) ModerationBody() []byte {
+	if r == nil || r.Prompt == "" {
+		return nil
+	}
+	body, _ := json.Marshal(map[string]string{"prompt": r.Prompt})
+	return body
 }
 
 // BillingTier is the stock image tier of the request (by total pixels), "" when the size is unknown.
@@ -96,12 +109,21 @@ func ParseNovelAIRequest(path, contentType string, body []byte) (*NovelAIRequest
 		req.Stream = novelAIJSONTrue(fields["stream"])
 		req.Samples = novelAICount(fields["n"])
 		req.Width, req.Height = novelAISize(fields)
+		req.Prompt = novelAIPrompt(fields["prompt"])
 	case NovelAIGenerateImage, NovelAIGenerateImageStream:
 		req.Stream = op == NovelAIGenerateImageStream
 		params := novelAIJSONObject(fields["parameters"])
 		req.Samples = novelAICount(params["n_samples"])
 		req.Width, req.Height = novelAIJSONInt(params["width"]), novelAIJSONInt(params["height"])
 		req.ReferenceImages = novelAIReferenceCount(params, multipartRequest)
+		caption := novelAIJSONObject(novelAIJSONObject(params["v4_prompt"])["caption"])
+		var characters []map[string]json.RawMessage
+		_ = json.Unmarshal(caption["char_captions"], &characters)
+		texts := []json.RawMessage{fields["input"], caption["base_caption"]}
+		for _, character := range characters {
+			texts = append(texts, character["char_caption"])
+		}
+		req.Prompt = novelAIPrompt(texts...)
 	case NovelAIEncodeVibe:
 		// Encoding a vibe produces no image; it is not an image generation.
 	}
@@ -148,7 +170,7 @@ func novelAIFields(contentType string, body []byte) (map[string]json.RawMessage,
 				return native, true, nil
 			}
 			return nil, false, errors.New("multipart request part must be a JSON object")
-		case "model", "size":
+		case "model", "size", "prompt":
 			fields[name], _ = json.Marshal(strings.TrimSpace(string(value)))
 		case "n", "stream", "width", "height":
 			fields[name] = json.RawMessage(bytes.TrimSpace(value))
@@ -205,6 +227,25 @@ func novelAIReferenceAsset(value string) bool {
 		return comma >= 0 && strings.TrimSpace(value[comma+1:]) != ""
 	}
 	return value != ""
+}
+
+// novelAIPrompt joins the distinct non-empty prompt strings.
+func novelAIPrompt(values ...json.RawMessage) string {
+	seen := make(map[string]struct{}, len(values))
+	parts := make([]string, 0, len(values))
+	for _, raw := range values {
+		var text string
+		if json.Unmarshal(raw, &text) != nil {
+			continue
+		}
+		text = strings.TrimSpace(text)
+		if _, ok := seen[text]; ok || text == "" {
+			continue
+		}
+		seen[text] = struct{}{}
+		parts = append(parts, text)
+	}
+	return strings.Join(parts, "\n")
 }
 
 // novelAISize reads an Images request's size ("WxH") or width/height.

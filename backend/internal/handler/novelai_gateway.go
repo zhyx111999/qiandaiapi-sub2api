@@ -18,7 +18,7 @@ import (
 
 // NovelAI relays NovelAI image requests (OpenAI-compatible Images and the native
 // /ai/generate-image, /ai/generate-image-stream, /ai/encode-vibe) for NovelAI groups. It follows
-// the stock Images flow: the group's image permission, user / image / account slots, the balance
+// the stock Images flow: the group's image permission, the prompt audit, user / image / account slots, the balance
 // hold, account failover on retryable upstream errors, and the stock image billing, priced by the
 // request's total pixels and its reference images.
 func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
@@ -68,6 +68,12 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 	reqLog = reqLog.With(zap.String("model", req.Model), zap.String("operation", string(req.Operation)), zap.Bool("stream", req.Stream))
 
 	requireAPIKeyQueueCapability(c, service.APIKeyQueueCapabilityImageGeneration)
+	if req.Operation != service.NovelAIEncodeVibe {
+		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, req.Model, req.ModerationBody()); decision != nil && !decision.AllowNextStage {
+			h.openAISecurityAuditError(c, decision)
+			return
+		}
+	}
 	imageRelease, acquired := h.acquireImageGenerationSlot(c, streamStarted)
 	if !acquired {
 		return
