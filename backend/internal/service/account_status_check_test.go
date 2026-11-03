@@ -389,38 +389,107 @@ func TestAccountStatusCheckFollowsOfficialPlanToggle(t *testing.T) {
 	require.Empty(t, r.admin.updates)
 }
 
-// 降智时关闭调度：只在开启该策略且答错（降智）时关闭；请求失败、答对、未开启、其他计划都不动账号。
-func TestAccountStatusCheckClosesDegradedAccount(t *testing.T) {
+var (
+	statusCheckWrong  = []*ScheduledTestResult{{Status: "failed", ResponseText: "20", ErrorMessage: "answer_mismatch: expected 21"}}
+	statusCheckRight  = []*ScheduledTestResult{{Status: "success", ResponseText: "21"}}
+	statusCheckFailed = []*ScheduledTestResult{{Status: "failed", ErrorMessage: "timeout"}}
+)
+
+// statusCheckPolicyHarness: OpenAI accounts 1..n, schedulable, each with the given policy switches.
+func statusCheckPolicyHarness(t *testing.T, policies ...[2]bool) (*AccountStatusCheckService, *statusCheckStore, func(int64) *ScheduledTestPlan) {
+	t.Helper()
 	s, r := statusCheckHarness(t)
 	ctx := context.Background()
-	for id := int64(1); id <= 2; id++ {
+	for i := range policies {
+		id := int64(i + 1)
 		r.admin.accounts[id] = &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true}
 	}
 	s.sweep(ctx)
-	view, err := s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), DisableOnDegraded: statusCheckBool(true)})
-	require.NoError(t, err)
-	require.True(t, view.DisableOnDegraded)
-	plan := func(id int64) *ScheduledTestPlan { return r.plans.plans[*r.rows[id].PlanID] }
-	wrong := []*ScheduledTestResult{{Status: "failed", ResponseText: "20", ErrorMessage: "answer_mismatch: expected 21"}}
+	for i, p := range policies {
+		_, err := s.Update(ctx, int64(i+1), AccountStatusCheckInput{Enabled: statusCheckBool(true),
+			DisableOnDegraded: statusCheckBool(p[0]), ReopenOnRecovered: statusCheckBool(p[1])})
+		require.NoError(t, err)
+	}
+	return s, r, func(id int64) *ScheduledTestPlan { return r.plans.plans[*r.rows[id].PlanID] }
+}
 
-	s.closeIfDegraded(ctx, plan(1), []*ScheduledTestResult{{Status: "failed", ErrorMessage: "timeout"}})
-	s.closeIfDegraded(ctx, plan(1), []*ScheduledTestResult{{Status: "success", ResponseText: "21"}})
-	s.closeIfDegraded(ctx, plan(2), wrong) // policy off
+// 降智时关闭调度（不开恢复）：答错关闭调度并停止自动检测；请求失败、答对、未开启、其他计划都不动账号。
+func TestAccountStatusCheckClosesDegradedAccountAndStops(t *testing.T) {
+	s, r, plan := statusCheckPolicyHarness(t, [2]bool{true, false}, [2]bool{false, false})
+	ctx := context.Background()
+
+	s.followStatusCheck(ctx, plan(1), statusCheckFailed)
+	s.followStatusCheck(ctx, plan(1), statusCheckRight)
+	s.followStatusCheck(ctx, plan(2), statusCheckWrong) // policy off
 	other := copyStatusPlan(plan(1))
 	other.PelicanConfig.RuleName = "admin quality rule"
-	s.closeIfDegraded(ctx, other, wrong)
+	s.followStatusCheck(ctx, other, statusCheckWrong)
 	require.Empty(t, r.admin.updates)
+	require.True(t, plan(2).Enabled)
 
-	s.closeIfDegraded(ctx, plan(1), wrong)
+	s.followStatusCheck(ctx, plan(1), statusCheckWrong)
 	require.Equal(t, []int64{1}, r.admin.updates)
 	require.False(t, r.admin.accounts[1].Schedulable)
 	require.True(t, r.admin.accounts[2].Schedulable)
+	require.False(t, plan(1).Enabled, "without reopening the check stops with the account")
+	view, err := s.Get(ctx, 1)
+	require.NoError(t, err)
+	require.False(t, view.CheckEnabled)
+	require.True(t, view.Enabled && view.DisableOnDegraded, "the settings themselves stay as saved")
+	require.NotNil(t, r.rows[1].DegradedClosedAt)
 
 	// With the whole status check switched off for the account, nothing is closed either.
+	r.admin.accounts[1].Schedulable = true
 	_, err = s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(false)})
 	require.NoError(t, err)
-	s.closeIfDegraded(ctx, plan(1), wrong)
+	s.followStatusCheck(ctx, plan(1), statusCheckWrong)
 	require.Len(t, r.admin.updates, 1)
+}
+
+// 恢复后打开调度：降智关闭后继续检测，答对 21 重新打开；只打开本模块关掉的调度。
+func TestAccountStatusCheckReopensRecoveredAccount(t *testing.T) {
+	s, r, plan := statusCheckPolicyHarness(t, [2]bool{true, true}, [2]bool{true, true})
+	ctx := context.Background()
+
+	s.followStatusCheck(ctx, plan(1), statusCheckWrong)
+	require.False(t, r.admin.accounts[1].Schedulable)
+	require.True(t, plan(1).Enabled, "the check goes on while the account is closed")
+	s.followStatusCheck(ctx, plan(1), statusCheckWrong)
+	s.followStatusCheck(ctx, plan(1), statusCheckFailed)
+	require.Equal(t, []int64{1}, r.admin.updates, "closed once; a failed request does not reopen")
+	require.False(t, r.admin.accounts[1].Schedulable)
+
+	s.followStatusCheck(ctx, plan(1), statusCheckRight)
+	require.True(t, r.admin.accounts[1].Schedulable)
+	require.Equal(t, []int64{1, 1}, r.admin.updates)
+	require.Nil(t, r.rows[1].DegradedClosedAt)
+	s.followStatusCheck(ctx, plan(1), statusCheckRight)
+	require.Len(t, r.admin.updates, 2, "nothing left to reopen")
+
+	// An account an administrator closed is not reopened by a correct answer, and a wrong answer on
+	// it is not taken as closed by the check.
+	r.admin.accounts[2].Schedulable = false
+	s.followStatusCheck(ctx, plan(2), statusCheckWrong)
+	s.followStatusCheck(ctx, plan(2), statusCheckRight)
+	require.False(t, r.admin.accounts[2].Schedulable)
+	require.Len(t, r.admin.updates, 2)
+}
+
+// 恢复后打开调度可以单独开启：没开降智关调度时没有要恢复的账号，不起作用。
+func TestAccountStatusCheckReopenAloneDoesNothing(t *testing.T) {
+	s, r, plan := statusCheckPolicyHarness(t, [2]bool{false, true})
+	ctx := context.Background()
+	view, err := s.Get(ctx, 1)
+	require.NoError(t, err)
+	require.True(t, view.ReopenOnRecovered)
+	require.False(t, view.DisableOnDegraded)
+
+	s.followStatusCheck(ctx, plan(1), statusCheckWrong)
+	r.admin.accounts[1].Schedulable = false // closed by hand meanwhile
+	s.followStatusCheck(ctx, plan(1), statusCheckRight)
+	require.Empty(t, r.admin.updates)
+	require.False(t, r.admin.accounts[1].Schedulable)
+	require.True(t, plan(1).Enabled)
 }
 
 func TestAccountStatusCheckHearsTheRunner(t *testing.T) {

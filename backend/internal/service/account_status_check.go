@@ -61,7 +61,12 @@ type AccountStatusCheckConfig struct {
 	TimeoutSeconds  int
 	// DisableOnDegraded 答错（降智）时关闭账号调度；请求失败不算降智，不触发。
 	DisableOnDegraded bool
-	PlanID            *int64
+	// ReopenOnRecovered 降智关闭调度后继续检测，答对（21）就重新打开调度；不开启时降智关闭调度后停止自动检测。
+	// 可以单独开启，没有本模块关闭的调度时不起作用。
+	ReopenOnRecovered bool
+	// DegradedClosedAt 是本模块因降智把调度从开改为关的时间（只由策略写入），恢复只作用于它非空的账号。
+	DegradedClosedAt *time.Time
+	PlanID           *int64
 	// PlanEnabled 是官方计划当前的实际开关，只读（nil 表示还没有计划）；官方“定时测试计划”页面可直接启停它。
 	PlanEnabled *bool
 }
@@ -90,6 +95,8 @@ type AccountStatusCheckInput struct {
 	TimeoutSeconds  *int    `json:"timeout_seconds"`
 	// DisableOnDegraded 降智时关闭调度。
 	DisableOnDegraded *bool `json:"disable_on_degraded"`
+	// ReopenOnRecovered 恢复后打开调度。
+	ReopenOnRecovered *bool `json:"reopen_on_recovered"`
 }
 
 func (in AccountStatusCheckInput) merge(base AccountStatusCheckConfig) (AccountStatusCheckConfig, error) {
@@ -114,6 +121,9 @@ func (in AccountStatusCheckInput) merge(base AccountStatusCheckConfig) (AccountS
 	}
 	if in.DisableOnDegraded != nil {
 		base.DisableOnDegraded = *in.DisableOnDegraded
+	}
+	if in.ReopenOnRecovered != nil {
+		base.ReopenOnRecovered = *in.ReopenOnRecovered
 	}
 	if base.IntervalMinutes < accountStatusCheckIntervalMin || base.IntervalMinutes > accountStatusCheckIntervalMax {
 		return base, accountStatusCheckInvalid("interval_minutes must be %d-%d", accountStatusCheckIntervalMin, accountStatusCheckIntervalMax)
@@ -187,6 +197,7 @@ type AccountStatusCheckView struct {
 	ReasoningEffort        string `json:"reasoning_effort"`
 	TimeoutSeconds         int    `json:"timeout_seconds"`
 	DisableOnDegraded      bool   `json:"disable_on_degraded"`
+	ReopenOnRecovered      bool   `json:"reopen_on_recovered"`
 	PlanID                 *int64 `json:"plan_id"`
 	InheritedFromAccountID *int64 `json:"inherited_from_account_id"`
 }
@@ -195,7 +206,8 @@ func accountStatusCheckView(a *Account, cfg AccountStatusCheckConfig, configured
 	cfg = cfg.actual()
 	view := &AccountStatusCheckView{AccountID: requested, Configured: configured, Enabled: cfg.Enabled, CheckEnabled: cfg.CheckEnabled,
 		IntervalMinutes: cfg.IntervalMinutes, Model: cfg.Model, EffectiveModel: accountStatusCheckModel(a, cfg.Model),
-		ReasoningEffort: cfg.ReasoningEffort, TimeoutSeconds: cfg.TimeoutSeconds, DisableOnDegraded: cfg.DisableOnDegraded, PlanID: cfg.PlanID}
+		ReasoningEffort: cfg.ReasoningEffort, TimeoutSeconds: cfg.TimeoutSeconds, DisableOnDegraded: cfg.DisableOnDegraded,
+		ReopenOnRecovered: cfg.ReopenOnRecovered, PlanID: cfg.PlanID}
 	if requested != a.ID {
 		id := a.ID
 		view.InheritedFromAccountID = &id
@@ -213,6 +225,7 @@ type AccountStatusCheckDefaults struct {
 	ReasoningEffort   string            `json:"reasoning_effort"`
 	TimeoutSeconds    int               `json:"timeout_seconds"`
 	DisableOnDegraded bool              `json:"disable_on_degraded"`
+	ReopenOnRecovered bool              `json:"reopen_on_recovered"`
 	Models            map[string]string `json:"models"`
 }
 type AccountStatusCheckLimits struct {
@@ -224,7 +237,7 @@ type AccountStatusCheckLimits struct {
 
 func AccountStatusCheckCapabilitiesView() AccountStatusCheckCapabilities {
 	return AccountStatusCheckCapabilities{
-		Defaults: AccountStatusCheckDefaults{accountStatusCheckDefaultInterval, accountStatusCheckDefaultEffort, accountStatusCheckDefaultTimeout, false,
+		Defaults: AccountStatusCheckDefaults{accountStatusCheckDefaultInterval, accountStatusCheckDefaultEffort, accountStatusCheckDefaultTimeout, false, false,
 			map[string]string{PlatformOpenAI: accountStatusCheckDefaultModels[PlatformOpenAI]}},
 		Limits: AccountStatusCheckLimits{1, 1440, 5, 600}, Efforts: slices.Clone(accountStatusCheckEfforts)}
 }
@@ -262,7 +275,7 @@ func NewAccountStatusCheckService(store AccountStatusCheckStore, admin AdminServ
 			runner.runOnePlan(ctx, plan)
 		}
 		// The official runner reports each finished plan; only this module's plans are acted on.
-		runner.statusCheckFinished = s.closeIfDegraded
+		runner.statusCheckFinished = s.followStatusCheck
 	}
 	return s
 }

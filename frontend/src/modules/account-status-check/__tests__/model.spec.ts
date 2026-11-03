@@ -30,7 +30,7 @@ describe('状态检测配置模型', () => {
 
   it('比较全部可保存字段', () => {
     expect(sameSettings(defaultBody, { ...defaultBody })).toBe(true)
-    for (const patch of [{ enabled: false }, { check_enabled: false }, { interval_minutes: 6 }, { model: 'account-model' }, { reasoning_effort: 'high' }, { timeout_seconds: 60 }, { disable_on_degraded: true }]) {
+    for (const patch of [{ enabled: false }, { check_enabled: false }, { interval_minutes: 6 }, { model: 'account-model' }, { reasoning_effort: 'high' }, { timeout_seconds: 60 }, { disable_on_degraded: true }, { reopen_on_recovered: true }]) {
       expect(sameSettings(defaultBody, { ...defaultBody, ...patch })).toBe(false)
     }
   })

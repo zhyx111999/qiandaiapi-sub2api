@@ -34,12 +34,15 @@ func insertStatusCheckPlan(ctx context.Context, q statusCheckQueryer, p *service
 }
 func saveStatusCheckConfig(ctx context.Context, q statusCheckQueryer, c *service.AccountStatusCheckConfig) error {
 	_, err := q.ExecContext(ctx, `INSERT INTO account_status_check
- (account_id,enabled,check_enabled,interval_minutes,model,reasoning_effort,timeout_seconds,disable_on_degraded,plan_id)
- VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(account_id) DO UPDATE SET
+ (account_id,enabled,check_enabled,interval_minutes,model,reasoning_effort,timeout_seconds,disable_on_degraded,
+ reopen_on_recovered,degraded_closed_at,plan_id)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(account_id) DO UPDATE SET
  enabled=EXCLUDED.enabled,check_enabled=EXCLUDED.check_enabled,interval_minutes=EXCLUDED.interval_minutes,
  model=EXCLUDED.model,reasoning_effort=EXCLUDED.reasoning_effort,timeout_seconds=EXCLUDED.timeout_seconds,
- disable_on_degraded=EXCLUDED.disable_on_degraded,plan_id=EXCLUDED.plan_id,updated_at=NOW()`,
-		c.AccountID, c.Enabled, c.CheckEnabled, c.IntervalMinutes, c.Model, c.ReasoningEffort, c.TimeoutSeconds, c.DisableOnDegraded, c.PlanID)
+ disable_on_degraded=EXCLUDED.disable_on_degraded,reopen_on_recovered=EXCLUDED.reopen_on_recovered,
+ degraded_closed_at=EXCLUDED.degraded_closed_at,plan_id=EXCLUDED.plan_id,updated_at=NOW()`,
+		c.AccountID, c.Enabled, c.CheckEnabled, c.IntervalMinutes, c.Model, c.ReasoningEffort, c.TimeoutSeconds, c.DisableOnDegraded,
+		c.ReopenOnRecovered, c.DegradedClosedAt, c.PlanID)
 	return err
 }
 

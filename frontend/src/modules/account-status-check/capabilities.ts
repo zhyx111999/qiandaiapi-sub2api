@@ -33,6 +33,7 @@ function normalizeCapabilities(raw: unknown): AccountStatusCheckCapabilities | n
       interval_minutes: defaults.interval_minutes,
       timeout_seconds: defaults.timeout_seconds,
       disable_on_degraded: defaults.disable_on_degraded === true,
+      reopen_on_recovered: defaults.reopen_on_recovered === true,
       reasoning_effort: efforts.includes(defaults.reasoning_effort) ? defaults.reasoning_effort : efforts[0],
       models: Object.fromEntries(Object.entries(models).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
     },

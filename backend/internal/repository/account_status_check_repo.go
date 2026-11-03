@@ -20,7 +20,8 @@ const statusCheckEligible = `a.deleted_at IS NULL AND a.platform='openai'`
 
 func scanAccountStatusCheckConfig(row interface{ Scan(...any) error }, extra ...any) (*service.AccountStatusCheckConfig, error) {
 	c := &service.AccountStatusCheckConfig{}
-	dest := append([]any{&c.AccountID, &c.Enabled, &c.CheckEnabled, &c.IntervalMinutes, &c.Model, &c.ReasoningEffort, &c.TimeoutSeconds, &c.DisableOnDegraded, &c.PlanID, &c.PlanEnabled}, extra...)
+	dest := append([]any{&c.AccountID, &c.Enabled, &c.CheckEnabled, &c.IntervalMinutes, &c.Model, &c.ReasoningEffort, &c.TimeoutSeconds, &c.DisableOnDegraded, &c.ReopenOnRecovered, &c.DegradedClosedAt,
+		&c.PlanID, &c.PlanEnabled}, extra...)
 	err := row.Scan(dest...)
 	return c, err
 }
@@ -44,7 +45,8 @@ func (r *accountStatusCheckRepository) Get(ctx context.Context, id int64) (*serv
 	var configured bool
 	c, err := scanAccountStatusCheckConfig(r.db.QueryRowContext(ctx, `SELECT a.id,COALESCE(p.enabled,true),
  COALESCE(p.check_enabled,true),COALESCE(p.interval_minutes,5),COALESCE(p.model,''),
- COALESCE(p.reasoning_effort,'low'),COALESCE(p.timeout_seconds,600),COALESCE(p.disable_on_degraded,false),p.plan_id,sp.enabled,
+ COALESCE(p.reasoning_effort,'low'),COALESCE(p.timeout_seconds,600),COALESCE(p.disable_on_degraded,false),
+ COALESCE(p.reopen_on_recovered,false),p.degraded_closed_at,p.plan_id,sp.enabled,
  p.account_id IS NOT NULL
  FROM accounts a LEFT JOIN account_status_check p ON p.account_id=a.id
  LEFT JOIN scheduled_test_plans sp ON sp.id=p.plan_id AND sp.account_id=a.id
@@ -67,7 +69,8 @@ func (r *accountStatusCheckRepository) ListStatus(ctx context.Context, ids []int
 	// 左连接保证尚未补齐的 OpenAI 账号也有灰色状态；影子使用母账号的配置/计划，保留自身账号状态。
 	rows, err := r.db.QueryContext(ctx, `SELECT COALESCE(p.account_id,COALESCE(a.parent_account_id,a.id)),
  COALESCE(p.enabled,true),COALESCE(p.check_enabled,true),COALESCE(p.interval_minutes,5),COALESCE(p.model,''),
- COALESCE(p.reasoning_effort,'low'),COALESCE(p.timeout_seconds,600),COALESCE(p.disable_on_degraded,false),p.plan_id,sp.enabled,
+ COALESCE(p.reasoning_effort,'low'),COALESCE(p.timeout_seconds,600),COALESCE(p.disable_on_degraded,false),
+ COALESCE(p.reopen_on_recovered,false),p.degraded_closed_at,p.plan_id,sp.enabled,
  a.id,a.parent_account_id,COALESCE(sp.model_id,''),a.platform,a.status,a.expires_at,a.auto_pause_on_expired
  FROM accounts a LEFT JOIN account_status_check p ON p.account_id=COALESCE(a.parent_account_id,a.id)
  LEFT JOIN scheduled_test_plans sp ON sp.id=p.plan_id AND sp.account_id=p.account_id

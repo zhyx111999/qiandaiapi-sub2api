@@ -189,13 +189,13 @@ func TestAccountStatusCheckRoutesFollowTheContract(t *testing.T) {
 
 	code, reply := env.call(t, http.MethodGet, base+"/capabilities", "")
 	require.Equal(t, http.StatusOK, code)
-	require.JSONEq(t, `{"defaults":{"interval_minutes":5,"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"models":{"openai":"gpt-6-astra"}},
+	require.JSONEq(t, `{"defaults":{"interval_minutes":5,"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"reopen_on_recovered":false,"models":{"openai":"gpt-6-astra"}},
 		"limits":{"interval_min":1,"interval_max":1440,"timeout_min":5,"timeout_max":600},"efforts":["none","low","medium","high","xhigh"]}`, string(reply.Data))
 
 	code, reply = env.call(t, http.MethodGet, base+"/accounts/1", "")
 	require.Equal(t, http.StatusOK, code)
 	require.JSONEq(t, `{"account_id":1,"configured":false,"enabled":true,"check_enabled":true,"interval_minutes":5,"model":"",
-		"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"plan_id":null,"effective_model":"gpt-6-astra","inherited_from_account_id":null}`, string(reply.Data))
+		"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"reopen_on_recovered":false,"plan_id":null,"effective_model":"gpt-6-astra","inherited_from_account_id":null}`, string(reply.Data))
 
 	for _, tc := range []struct {
 		method, path, body string
@@ -218,7 +218,7 @@ func TestAccountStatusCheckRoutesFollowTheContract(t *testing.T) {
 	}
 
 	code, reply = env.call(t, http.MethodPut, base+"/accounts/1",
-		`{"enabled":true,"check_enabled":true,"interval_minutes":2,"model":"","reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":true}`)
+		`{"enabled":true,"check_enabled":true,"interval_minutes":2,"model":"","reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":true,"reopen_on_recovered":true}`)
 	require.Equal(t, http.StatusOK, code, string(reply.Data))
 	var view map[string]any
 	require.NoError(t, json.Unmarshal(reply.Data, &view))
@@ -227,6 +227,7 @@ func TestAccountStatusCheckRoutesFollowTheContract(t *testing.T) {
 	require.NotContains(t, view, "proxy_id")
 	require.EqualValues(t, 2, view["interval_minutes"])
 	require.Equal(t, true, view["disable_on_degraded"])
+	require.Equal(t, true, view["reopen_on_recovered"])
 	require.NotNil(t, view["plan_id"])
 
 	code, reply = env.call(t, http.MethodGet, base+"/status?account_ids=1,2", "")

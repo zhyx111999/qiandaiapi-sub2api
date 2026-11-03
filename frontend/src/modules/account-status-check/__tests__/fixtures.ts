@@ -3,14 +3,14 @@ import zh from '../locales/zh'
 import type { AccountStatusCheckCapabilities, AccountStatusCheckConfig, AccountStatusCheckStatusItem } from '../types'
 
 export const caps = (): AccountStatusCheckCapabilities => ({
-  defaults: { interval_minutes: 5, reasoning_effort: 'low', timeout_seconds: 600, disable_on_degraded: false, models: { openai: 'gpt-6-astra' } },
+  defaults: { interval_minutes: 5, reasoning_effort: 'low', timeout_seconds: 600, disable_on_degraded: false, reopen_on_recovered: false, models: { openai: 'gpt-6-astra' } },
   limits: { interval_min: 1, interval_max: 1440, timeout_min: 5, timeout_max: 600 },
   efforts: ['none', 'low', 'medium', 'high', 'xhigh']
 })
 
 export const config = (patch: Partial<AccountStatusCheckConfig> = {}): AccountStatusCheckConfig => ({
   account_id: 42, configured: true, enabled: true, check_enabled: true, interval_minutes: 2,
-  model: 'gpt-6-astra', reasoning_effort: 'low', timeout_seconds: 600, disable_on_degraded: false, plan_id: 3,
+  model: 'gpt-6-astra', reasoning_effort: 'low', timeout_seconds: 600, disable_on_degraded: false, reopen_on_recovered: false, plan_id: 3,
   effective_model: 'gpt-6-astra', inherited_from_account_id: null, ...patch
 })
 
@@ -25,4 +25,4 @@ export const statusItem = (patch: Partial<AccountStatusCheckStatusItem> = {}): A
 export const zhI18n = () => createI18n({ legacy: false, locale: 'zh', messages: { zh: { accountStatusCheck: zh } } })
 
 /** 新配置默认开启、只观察，模型留空由服务端选择。 */
-export const defaultBody = { enabled: true, check_enabled: true, interval_minutes: 5, model: '', reasoning_effort: 'low', timeout_seconds: 600, disable_on_degraded: false }
+export const defaultBody = { enabled: true, check_enabled: true, interval_minutes: 5, model: '', reasoning_effort: 'low', timeout_seconds: 600, disable_on_degraded: false, reopen_on_recovered: false }

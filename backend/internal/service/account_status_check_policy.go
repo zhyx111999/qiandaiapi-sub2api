@@ -6,27 +6,84 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
-// closeIfDegraded turns scheduling off for the account of a finished status check plan whose answer was
-// wrong (degraded), when the account's status check asks for it (DisableOnDegraded). A failed request is
-// not a degraded answer and changes nothing; neither does a correct one. Scheduling stays off until an
-// administrator turns it back on. The plan's single sample is judged like the status display judges it.
-func (s *AccountStatusCheckService) closeIfDegraded(ctx context.Context, plan *ScheduledTestPlan, results []*ScheduledTestResult) {
+// followStatusCheck acts on the account of a finished status check plan (this module's plans only),
+// judging the plan's single sample like the status display does:
+//
+//   - a wrong answer (degraded) with DisableOnDegraded turns scheduling off. Only a change from on to
+//     off made here is remembered (DegradedClosedAt), so an account an administrator closed is never
+//     reopened by the check. Without ReopenOnRecovered the automatic check stops with it;
+//   - a correct answer (21) with ReopenOnRecovered turns scheduling back on for an account this module
+//     closed. ReopenOnRecovered may be on without DisableOnDegraded; it then has nothing to reopen.
+//
+// A failed request is neither and changes nothing. The account lock serialises this with saving the
+// settings, so the stopped check and the marker are written through the same path as an edit.
+func (s *AccountStatusCheckService) followStatusCheck(ctx context.Context, plan *ScheduledTestPlan, results []*ScheduledTestResult) {
 	if !isAccountStatusCheckPlan(plan) || len(results) == 0 || results[0] == nil {
 		return
 	}
-	result := results[0]
-	outcome, _ := accountStatusCheckOutcome(AccountStatusCheckResult{Status: result.Status, ResponseText: result.ResponseText, ErrorMessage: result.ErrorMessage})
-	if outcome != AccountStatusCheckStateDegraded {
+	result := AccountStatusCheckResult{Status: results[0].Status, ResponseText: results[0].ResponseText, ErrorMessage: results[0].ErrorMessage}
+	outcome, _ := accountStatusCheckOutcome(result)
+	if outcome != AccountStatusCheckStateDegraded && outcome != AccountStatusCheckStateNormal {
 		return
 	}
-	cfg, err := s.config(ctx, plan.AccountID)
-	if err != nil || cfg == nil || !cfg.Enabled || !cfg.DisableOnDegraded {
-		return
+	err := s.store.WithAccountLock(ctx, plan.AccountID, func(ctx context.Context) error {
+		a, err := s.eligibleAccount(ctx, plan.AccountID)
+		if err != nil || a.ID != plan.AccountID {
+			return err
+		}
+		cfg, err := s.config(ctx, a.ID)
+		if err != nil || cfg == nil || !cfg.Enabled {
+			return err
+		}
+		if outcome == AccountStatusCheckStateDegraded {
+			return s.closeDegraded(ctx, a, *cfg, accountStatusCheckAnswerHint(result, false))
+		}
+		return s.reopenRecovered(ctx, a, *cfg)
+	})
+	if err != nil {
+		logger.LegacyPrintf("service.account_status_check", "[AccountStatusCheck] account %d: acting on the %s answer failed: %v", plan.AccountID, outcome, err)
 	}
-	if _, err := s.admin.SetAccountSchedulable(ctx, plan.AccountID, false); err != nil {
-		logger.LegacyPrintf("service.account_status_check", "[AccountStatusCheck] account %d answered wrong; turning scheduling off failed: %v", plan.AccountID, err)
-		return
+}
+
+func (s *AccountStatusCheckService) closeDegraded(ctx context.Context, a *Account, cfg AccountStatusCheckConfig, answer string) error {
+	if !cfg.DisableOnDegraded {
+		return nil
 	}
-	logger.LegacyPrintf("service.account_status_check", "[AccountStatusCheck] account %d answered the status check wrong (%q); scheduling turned off",
-		plan.AccountID, accountStatusCheckAnswerHint(AccountStatusCheckResult{ResponseText: result.ResponseText}, false))
+	changed := false
+	if a.Schedulable {
+		if _, err := s.admin.SetAccountSchedulable(ctx, a.ID, false); err != nil {
+			return err
+		}
+		if cfg.DegradedClosedAt == nil {
+			now := s.now()
+			cfg.DegradedClosedAt = &now
+		}
+		changed = true
+		logger.LegacyPrintf("service.account_status_check", "[AccountStatusCheck] account %d answered the status check wrong (%q); scheduling turned off", a.ID, answer)
+	}
+	if !cfg.ReopenOnRecovered && cfg.CheckEnabled {
+		cfg.CheckEnabled = false
+		changed = true
+		logger.LegacyPrintf("service.account_status_check", "[AccountStatusCheck] account %d is degraded; automatic checking stopped", a.ID)
+	}
+	if !changed {
+		return nil
+	}
+	_, err := s.apply(ctx, a, cfg)
+	return err
+}
+
+func (s *AccountStatusCheckService) reopenRecovered(ctx context.Context, a *Account, cfg AccountStatusCheckConfig) error {
+	if !cfg.ReopenOnRecovered || cfg.DegradedClosedAt == nil {
+		return nil
+	}
+	if !a.Schedulable {
+		if _, err := s.admin.SetAccountSchedulable(ctx, a.ID, true); err != nil {
+			return err
+		}
+		logger.LegacyPrintf("service.account_status_check", "[AccountStatusCheck] account %d answered 21 again; scheduling turned back on", a.ID)
+	}
+	cfg.DegradedClosedAt = nil
+	_, err := s.apply(ctx, a, cfg)
+	return err
 }

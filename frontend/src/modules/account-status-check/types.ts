@@ -7,6 +7,7 @@ export interface AccountStatusCheckCapabilities {
     reasoning_effort: string
     timeout_seconds: number
     disable_on_degraded: boolean
+    reopen_on_recovered: boolean
     models: Record<string, string>
   }
   limits: {
@@ -27,6 +28,8 @@ export interface AccountStatusCheckSettings {
   timeout_seconds: number
   /** 答错（降智）时关闭账号调度；请求失败不触发。 */
   disable_on_degraded: boolean
+  /** 降智关闭调度后继续检测、答对 21 重新打开；不开启时降智关闭调度后停止自动检测。可单独开启，没有本功能关闭的调度时不起作用。 */
+  reopen_on_recovered: boolean
 }
 
 export interface AccountStatusCheckConfig extends AccountStatusCheckSettings {

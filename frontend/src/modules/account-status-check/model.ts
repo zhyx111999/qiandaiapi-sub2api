@@ -15,7 +15,8 @@ export function defaultSettings(caps: AccountStatusCheckCapabilities): AccountSt
     model: '',
     reasoning_effort: caps.defaults.reasoning_effort,
     timeout_seconds: caps.defaults.timeout_seconds,
-    disable_on_degraded: caps.defaults.disable_on_degraded
+    disable_on_degraded: caps.defaults.disable_on_degraded,
+    reopen_on_recovered: caps.defaults.reopen_on_recovered
   }
 }
 
@@ -27,7 +28,8 @@ export function settingsFromConfig(config: AccountStatusCheckConfig, caps: Accou
     model: typeof config.model === 'string' ? config.model : '',
     reasoning_effort: config.reasoning_effort,
     timeout_seconds: config.timeout_seconds,
-    disable_on_degraded: config.disable_on_degraded === true
+    disable_on_degraded: config.disable_on_degraded === true,
+    reopen_on_recovered: config.reopen_on_recovered === true
   }, caps)
 }
 
@@ -46,7 +48,8 @@ export function normalizeSettings(settings: AccountStatusCheckSettings, caps: Ac
     model: String(settings.model ?? '').trim(),
     reasoning_effort: efforts.includes(settings.reasoning_effort) ? settings.reasoning_effort : defaults.reasoning_effort,
     timeout_seconds: clampInt(settings.timeout_seconds, limits.timeout_min, limits.timeout_max, defaults.timeout_seconds),
-    disable_on_degraded: settings.disable_on_degraded === true
+    disable_on_degraded: settings.disable_on_degraded === true,
+    reopen_on_recovered: settings.reopen_on_recovered === true
   }
 }
 
@@ -54,7 +57,7 @@ export function sameSettings(left: AccountStatusCheckSettings, right: AccountSta
   return left.enabled === right.enabled && left.check_enabled === right.check_enabled &&
     left.interval_minutes === right.interval_minutes && left.model === right.model &&
     left.reasoning_effort === right.reasoning_effort && left.timeout_seconds === right.timeout_seconds &&
-    left.disable_on_degraded === right.disable_on_degraded
+    left.disable_on_degraded === right.disable_on_degraded && left.reopen_on_recovered === right.reopen_on_recovered
 }
 
 type Translate = (key: string, params?: Record<string, unknown>) => string

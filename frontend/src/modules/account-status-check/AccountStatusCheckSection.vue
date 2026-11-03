@@ -39,12 +39,19 @@
             <label :id="`${uid}-auto`" class="input-label mb-0">{{ t('accountStatusCheck.autoCheck') }}</label>
             <Toggle v-model="draft.check_enabled" data-testid="account-status-check-check-toggle" :aria-labelledby="`${uid}-auto`" />
           </div>
-          <div v-if="draft.check_enabled" class="flex items-center justify-between gap-4">
+          <div class="flex items-center justify-between gap-4">
             <div>
               <label :id="`${uid}-close`" class="input-label mb-0">{{ t('accountStatusCheck.disableOnDegraded') }}</label>
               <p class="input-hint mt-0.5">{{ t('accountStatusCheck.disableOnDegradedHint') }}</p>
             </div>
             <Toggle v-model="draft.disable_on_degraded" data-testid="account-status-check-disable-on-degraded" :aria-labelledby="`${uid}-close`" />
+          </div>
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <label :id="`${uid}-reopen`" class="input-label mb-0">{{ t('accountStatusCheck.reopenOnRecovered') }}</label>
+              <p class="input-hint mt-0.5">{{ t('accountStatusCheck.reopenOnRecoveredHint') }}</p>
+            </div>
+            <Toggle v-model="draft.reopen_on_recovered" data-testid="account-status-check-reopen-on-recovered" :aria-labelledby="`${uid}-reopen`" />
           </div>
           <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div>

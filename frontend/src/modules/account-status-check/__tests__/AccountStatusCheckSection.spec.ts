@@ -92,22 +92,31 @@ describe('状态检测独立编辑区', () => {
     await formOf(wrapper).saveEdited(savedAccount())
     expect(mocks.put).toHaveBeenCalledWith(42, {
       enabled: true, check_enabled: false, interval_minutes: 10, model: 'gpt-6-astra', reasoning_effort: 'low', timeout_seconds: 600,
-      disable_on_degraded: false
+      disable_on_degraded: false, reopen_on_recovered: false
     })
     expect(mocks.changed).toHaveBeenCalledTimes(1)
   })
 
-  it('降智关闭调度默认关闭，随自动检测显示并单独提交', async () => {
+  it('降智关闭调度与恢复后打开调度默认关闭，各自单独提交', async () => {
     const closeToggle = '[data-testid="account-status-check-disable-on-degraded"]'
+    const reopenToggle = '[data-testid="account-status-check-reopen-on-recovered"]'
     const wrapper = await mountHost({ accountId: 42 })
     expect(wrapper.text()).toContain('降智时关闭调度')
+    expect(wrapper.text()).toContain('恢复后打开调度')
+    expect(wrapper.get(reopenToggle).attributes('aria-checked')).toBe('false')
     await wrapper.get(closeToggle).trigger('click')
     await formOf(wrapper).saveEdited(savedAccount())
-    expect(mocks.put).toHaveBeenCalledWith(42, expect.objectContaining({ check_enabled: true, disable_on_degraded: true }))
+    expect(mocks.put).toHaveBeenLastCalledWith(42, expect.objectContaining({ check_enabled: true, disable_on_degraded: true, reopen_on_recovered: false }))
+  })
 
+  it('两个开关没有前提条件：没开降智关调度、自动检测关闭时也能开恢复后打开调度', async () => {
+    const reopenToggle = '[data-testid="account-status-check-reopen-on-recovered"]'
     mocks.get.mockResolvedValue(config({ check_enabled: false }))
-    const manual = await mountHost({ accountId: 42 })
-    expect(manual.find(closeToggle).exists()).toBe(false)
+    const wrapper = await mountHost({ accountId: 42 })
+    expect(wrapper.find('[data-testid="account-status-check-disable-on-degraded"]').exists()).toBe(true)
+    await wrapper.get(reopenToggle).trigger('click')
+    await formOf(wrapper).saveEdited(savedAccount())
+    expect(mocks.put).toHaveBeenLastCalledWith(42, expect.objectContaining({ check_enabled: false, disable_on_degraded: false, reopen_on_recovered: true }))
   })
 
   it('模块主开关可独立关闭并手动立即检测', async () => {
