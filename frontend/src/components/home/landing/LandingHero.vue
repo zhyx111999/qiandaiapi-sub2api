@@ -28,7 +28,7 @@
       </div>
     </div>
 
-    <p class="landing-hint" aria-hidden="true"><i></i>{{ t('landingHome.hint') }}</p>
+    <p class="landing-hint" :class="{ 'landing-hint--still': fieldQuality === 'still' }" aria-hidden="true"><i></i>{{ t('landingHome.hint') }}</p>
   </section>
 </template>
 
@@ -36,6 +36,8 @@
 import { useI18n } from 'vue-i18n'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { BRAND } from './brand'
+// A device that settled on a still field (fieldQuality) stops the hint's pulse too.
+import { fieldQuality } from '@/components/layout/fieldQuality'
 
 defineProps<{
   consolePath: string
@@ -245,6 +247,10 @@ const { t } = useI18n()
   border-radius: 50%;
   background: var(--landing-accent);
   animation: landing-pulse 2.2s ease-in-out infinite;
+}
+
+.landing-hint--still i {
+  animation-play-state: paused;
 }
 
 @keyframes landing-fade {

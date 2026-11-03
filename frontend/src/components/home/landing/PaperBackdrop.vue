@@ -1,9 +1,14 @@
 <template>
-  <div class="paper" aria-hidden="true">
+  <div class="paper" :class="{ 'paper--still': fieldQuality === 'still' }" aria-hidden="true">
     <div class="paper__daylight"></div>
     <div class="paper__grain"></div>
   </div>
 </template>
+
+<script setup lang="ts">
+// A device that settled on a still field (fieldQuality) keeps the daylight where it is.
+import { fieldQuality } from '@/components/layout/fieldQuality'
+</script>
 
 <style scoped>
 /* Ivory paper: soft daylight from the top left, a breath of the accent bottom right, warm edges and fine grain. */
@@ -41,6 +46,10 @@
   to {
     transform: translate3d(4%, 3%, 0);
   }
+}
+
+.paper--still .paper__daylight {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
