@@ -737,6 +737,9 @@ func (s *BillingService) initFallbackPricing() {
 		OutputPricePerToken: 0,
 	}
 
+	// NovelAI（Chat Completions 按 token 计）：见 novelai_pricing.go
+	s.fallbackPrices[novelAIFallbackPricingKey] = novelAIFallbackTokenPricing()
+
 	// ---- 智谱 GLM（Z.AI）----
 	// Source: https://docs.z.ai/guides/overview/pricing (USD per 1M tokens)
 	// 注意：CacheReadPricePerToken 即"缓存命中"价格，CacheCreationPricePerToken 留空（智谱未公开写入价，按 0 处理）。
@@ -1049,6 +1052,9 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	modelLower := normalizeAntigravityClaudeTierAlias(strings.ToLower(model))
 	if modelLower == "jev-latest" {
 		return s.fallbackPrices["jev-latest"]
+	}
+	if CanonicalNovelAIPriceFamily(modelLower) != "" {
+		return s.fallbackPrices[novelAIFallbackPricingKey]
 	}
 
 	// 按模型系列匹配

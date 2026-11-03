@@ -2,9 +2,10 @@ package service
 
 import "strings"
 
-// NovelAI image pricing on the stock image billing: the request's total pixels map onto the same
-// 1K / 2K / 4K tiers every image model uses, and each model family has built-in defaults that a
-// group's image prices (or a channel price card) override.
+// NovelAI pricing on the stock billing: the request's total pixels map onto the same 1K / 2K / 4K
+// tiers every image model uses, each model family has built-in image defaults that a group's
+// image prices (or a channel price card) override, and Chat Completions on NovelAI models take a
+// built-in token price from the stock fallback price table.
 
 const (
 	novelAIFamilyV45 = "nai-diffusion-4-5"
@@ -56,6 +57,14 @@ var novelAIDefaultImagePrices = map[string]map[string]float64{
 var novelAIDefaultReferencePrices = map[string]float64{
 	novelAIFamilyV45: 0.05,
 	novelAIFamilyV5:  0.075,
+}
+
+// novelAIFallbackPricingKey is the stock fallback price table entry of NovelAI chat: 1 token =
+// $0.000001 for input and output alike.
+const novelAIFallbackPricingKey = "nai-diffusion"
+
+func novelAIFallbackTokenPricing() *ModelPricing {
+	return &ModelPricing{InputPricePerToken: 0.000001, OutputPricePerToken: 0.000001}
 }
 
 // getDefaultNovelAIImagePrice returns the built-in per-image price of a NovelAI model.

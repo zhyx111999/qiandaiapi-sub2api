@@ -3,6 +3,7 @@ package service
 import (
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,4 +48,11 @@ func TestNovelAIDefaultPrices(t *testing.T) {
 	require.InDelta(t, 0.05, DefaultReferenceImagePrice("nai-diffusion-4-full"), 1e-12)
 	require.InDelta(t, 0.075, DefaultReferenceImagePrice("nai-diffusion-5-full"), 1e-12)
 	require.Zero(t, DefaultReferenceImagePrice("gpt-image-2"))
+}
+
+func TestNovelAIChatTokenFallbackPrice(t *testing.T) {
+	pricing, err := NewBillingService(&config.Config{}, nil).GetModelPricing("NAI-Diffusion-4-5-Full")
+	require.NoError(t, err)
+	require.InDelta(t, 0.000001, pricing.InputPricePerToken, 1e-15)
+	require.InDelta(t, 0.000001, pricing.OutputPricePerToken, 1e-15)
 }
