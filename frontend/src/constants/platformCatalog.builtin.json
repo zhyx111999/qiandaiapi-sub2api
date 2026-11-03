@@ -297,6 +297,35 @@
           }
         ]
       }
+    },
+    {
+      "id": "novelai",
+      "display_name": "NovelAI",
+      "gateway": "openai",
+      "cn_provider": false,
+      "multi_protocol": {
+        "default_mode": "payg",
+        "routing": "by_inbound",
+        "default_models": [
+          "nai-diffusion-4-5-curated",
+          "nai-diffusion-4-5-curated-inpainting",
+          "nai-diffusion-4-5-full",
+          "nai-diffusion-4-5-full-inpainting",
+          "nai-diffusion-4-full",
+          "nai-diffusion-4-full-inpainting",
+          "nai-diffusion-5-curated",
+          "nai-diffusion-5-full",
+          "nai-diffusion-5-full-inpainting"
+        ],
+        "modes": [
+          {
+            "mode": "payg",
+            "base_urls": {
+              "chat_completions": "http://nai-station:8300/v1"
+            }
+          }
+        ]
+      }
     }
   ],
   "composite_precedence": [
@@ -313,6 +342,7 @@
     "typesafe",
     "command_code",
     "cline",
-    "mistral"
+    "mistral",
+    "novelai"
   ]
 }

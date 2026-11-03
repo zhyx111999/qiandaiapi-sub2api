@@ -4532,6 +4532,7 @@ import {
 } from "./groupsVideoModelPricing";
 import {
   createImageReferenceModelPricesForm,
+  parseReferencePrice,
   serializeImageReferenceModelPrices,
 } from "./groupsImageReferencePricing";
 
@@ -6145,6 +6146,8 @@ const handleCreateGroup = async () => {
       ...(Object.keys(referenceModelPrices).length > 0
         ? { image_reference_model_prices: referenceModelPrices }
         : {}),
+      // 表单保留输入原样（如 "0."），提交时转为数字；留空即未配置
+      image_reference_price: parseReferencePrice(createForm.image_reference_price),
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
       ),
@@ -6202,7 +6205,6 @@ const handleCreateGroup = async () => {
     requestData.image_price_1k = emptyToNull(requestData.image_price_1k);
     requestData.image_price_2k = emptyToNull(requestData.image_price_2k);
     requestData.image_price_4k = emptyToNull(requestData.image_price_4k);
-    requestData.image_reference_price = emptyToNull(requestData.image_reference_price);
     requestData.video_price_480p = emptyToNull(requestData.video_price_480p);
     requestData.video_price_720p = emptyToNull(requestData.video_price_720p);
     requestData.video_price_1080p = emptyToNull(requestData.video_price_1080p);
@@ -6502,6 +6504,8 @@ const handleUpdateGroup = async () => {
       image_reference_model_prices: serializeImageReferenceModelPrices(
         editForm.image_reference_model_prices,
       ),
+      // 更新语义中 null 表示"不修改"，清空时发送 -1，后端 normalizePrice 将负价归一为 NULL
+      image_reference_price: parseReferencePrice(editForm.image_reference_price) ?? -1,
       fallback_group_id:
         editForm.fallback_group_id === null ? 0 : editForm.fallback_group_id,
       fallback_group_id_on_invalid_request:
@@ -6574,7 +6578,6 @@ const handleUpdateGroup = async () => {
     payload.image_price_1k = emptyPriceToClear(payload.image_price_1k);
     payload.image_price_2k = emptyPriceToClear(payload.image_price_2k);
     payload.image_price_4k = emptyPriceToClear(payload.image_price_4k);
-    payload.image_reference_price = emptyPriceToClear(payload.image_reference_price);
     payload.video_price_480p = emptyPriceToClear(payload.video_price_480p);
     payload.video_price_720p = emptyPriceToClear(payload.video_price_720p);
     payload.video_price_1080p = emptyPriceToClear(payload.video_price_1080p);

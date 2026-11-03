@@ -1118,7 +1118,7 @@ export default {
         finalPricePreview: '最终单张价格预览',
         notConfigured: '未配置',
         referenceTitle: '参考图附加费',
-        referenceHint: '每张随请求发送的参考图（NovelAI 风格/角色参考、图片编辑与对话中上传的图片）在出图价之外按张加收。按模型族的价格优先，其次统一单价；都留空时使用模型默认价（NovelAI V4.5 $0.05、V5 $0.075，其他模型不加收）。',
+        referenceHint: '每张随请求发送的参考图（NovelAI 为风格/角色参考，局部重绘的底图不算；其他模型为图片编辑与对话中上传的图片）在出图价之外按张加收。按模型族的价格优先，其次统一单价；都留空时使用模型默认价（NovelAI V4.5 $0.05、V5 $0.075，其他模型不加收）。',
         referencePrice: '统一单价（$/张）',
         referenceModelDefault: '按模型默认',
         referenceOtherModels: '其他模型',
