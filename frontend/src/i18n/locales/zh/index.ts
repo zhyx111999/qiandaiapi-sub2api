@@ -22,6 +22,8 @@ import tokenGuardV2 from './tokenGuardV2'
 import adminAccessKeys from './adminAccessKeys'
 import landing from './landing'
 import landingHome from './landingHome'
+import accountStatusCheck from '@/modules/account-status-check/locales/zh'
+import channelMonitorV4 from '@/modules/channel-monitor-v4/locales/zh'
 import common from './common'
 import dashboard from './dashboard'
 import channelMonitorV2 from './channelMonitorV2'
@@ -64,6 +66,8 @@ export default {
   adminAccessKeys,
   ...landing,
   ...landingHome,
+  accountStatusCheck,
+  channelMonitorV4,
   ...common,
   ...dashboard,
   ...channelMonitorV2,

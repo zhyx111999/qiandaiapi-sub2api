@@ -181,6 +181,9 @@ func RegisterUserRoutes(
 			showcase.GET("/items/:id", h.PelicanShowcase.GetItem)
 		}
 
+		// Which monitor view the site shows, and the v4 cards' real-traffic samples.
+		registerChannelMonitorV4UserRoutes(authenticated, h, settingService, panelRateLimiter)
+
 		// V2 passive views require feature on + mode=v2.
 		monitorV2 := authenticated.Group("/channel-monitor-v2")
 		monitorV2.Use(panelRateLimiter.Heavy())

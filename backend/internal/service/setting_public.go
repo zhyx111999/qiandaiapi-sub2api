@@ -232,6 +232,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyExcelBPSEnabled,
 		SettingKeyPrismBrowserEnabled,
 		SettingKeyChannelMonitorMode,
+		SettingKeyChannelMonitorV4Selection,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorShowQuota,
@@ -369,7 +370,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorEnabled:                !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled]),
 		ExcelBPSEnabled:                      !isFalseSettingValue(settings[SettingKeyExcelBPSEnabled]),
 		PrismBrowserEnabled:                  settings[SettingKeyPrismBrowserEnabled] == "true",
-		ChannelMonitorMode:                   normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode]),
+		ChannelMonitorMode:                   channelMonitorEngineMode(settings),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		ChannelMonitorHideThroughput:         !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput]),
 		ChannelMonitorShowQuota:              settings[SettingKeyChannelMonitorShowQuota] == "true",
@@ -499,6 +500,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 	vals, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorMode,
+		SettingKeyChannelMonitorV4Selection,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorShowQuota,
@@ -514,7 +516,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 	}
 	return ChannelMonitorRuntime{
 		Enabled:                !isFalseSettingValue(vals[SettingKeyChannelMonitorEnabled]),
-		Mode:                   normalizeChannelMonitorMode(vals[SettingKeyChannelMonitorMode]),
+		Mode:                   channelMonitorEngineMode(vals),
 		DefaultIntervalSeconds: parseChannelMonitorInterval(vals[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		HideThroughput:         !isFalseSettingValue(vals[SettingKeyChannelMonitorHideThroughput]),
 		ShowQuota:              vals[SettingKeyChannelMonitorShowQuota] == "true",

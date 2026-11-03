@@ -38,8 +38,8 @@ const (
 	PlatformCommandCode = "command_code"
 	// PlatformCline 是 Cline API（多模型聚合，OpenAI 兼容 Chat Completions；按量积分计费，
 	// 另有 ClinePass 订阅）。
-	PlatformCline     = "cline"
-	PlatformMistral   = "mistral"
+	PlatformCline   = "cline"
+	PlatformMistral = "mistral"
 	// PlatformNovelAI 是运营方配置的 NovelAI 网关（OpenAI 兼容 Chat / Images，另有 NovelAI 原生
 	// /ai/generate-image、/ai/generate-image-stream、/ai/encode-vibe）。
 	PlatformNovelAI   = "novelai"

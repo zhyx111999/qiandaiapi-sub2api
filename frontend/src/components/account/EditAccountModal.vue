@@ -1983,6 +1983,8 @@
         <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
       </div>
 
+      <AccountStatusCheckSection />
+
       <UpstreamRequestIdHeaderField
         v-model="upstreamRequestIdHeader"
         :platform="account.platform"
@@ -3755,6 +3757,8 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import AccountGroupModelLimits from '@/components/account/AccountGroupModelLimits.vue'
 import AccountAutoBPSSection from '@/components/account/AccountAutoBPSSection.vue'
+import AccountStatusCheckSection from '@/modules/account-status-check/AccountStatusCheckSection.vue'
+import { useAccountStatusCheckForm } from '@/modules/account-status-check/useAccountStatusCheckForm'
 import {
   buildGroupAllowedModelsPayload,
   groupAllowedModelsFromAccount,
@@ -4952,6 +4956,10 @@ const form = reactive({
   status: 'active' as 'active' | 'inactive' | 'error',
   group_ids: [] as number[],
   expires_at: null as number | null
+})
+
+const accountStatusCheck = useAccountStatusCheckForm({
+  open: () => props.show, platform: () => props.account?.platform, accountId: () => props.account?.id, parentAccountId: () => props.account?.parent_account_id
 })
 
 const handleUpstreamBillingRateSyncChange = (enabled: boolean) => {
@@ -6154,6 +6162,7 @@ const submitUpdateAccount = async (accountID: number, updatePayload: Record<stri
     updatedAccount = await persistGrokMediaEligibility(accountID, updatedAccount)
     appStore.showSuccess(t('admin.accounts.accountUpdated'))
     if (autoBPSSupported.value) await saveAutoBPSRule(accountID)
+    updatedAccount = await accountStatusCheck.saveEdited(updatedAccount)
     emit('updated', updatedAccount)
     handleClose()
   } catch (error: any) {

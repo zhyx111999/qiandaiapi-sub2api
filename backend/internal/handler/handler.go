@@ -39,6 +39,7 @@ type AdminHandlers struct {
 	Plugin                 *admin.PluginHandler
 	APIKey                 *admin.AdminAPIKeyHandler
 	ScheduledTest          *admin.ScheduledTestHandler
+	AccountStatusCheck     *admin.AccountStatusCheckHandler
 	PelicanGroupTest       *admin.PelicanGroupTestHandler
 	ControlledExperiment   *admin.ControlledExperimentHandler
 	Channel                *admin.ChannelHandler

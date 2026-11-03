@@ -302,21 +302,21 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 	}
 
 	return &ForwardResult{
-		RequestID:        requestID,
-		UpstreamHeaders:  resp.Header,
-		Usage:            *usage,
-		Model:            originalModel,
-		UpstreamModel:    mappedModel,
-		Stream:           clientStream,
-		Duration:         time.Since(startTime),
-		FirstTokenMs:     firstTokenMs,
-		ReasoningEffort:  reasoningEffort,
-		ImageEndpoint:    imageCount > 0,
-		ImageCount:       imageCount,
+		RequestID:           requestID,
+		UpstreamHeaders:     resp.Header,
+		Usage:               *usage,
+		Model:               originalModel,
+		UpstreamModel:       mappedModel,
+		Stream:              clientStream,
+		Duration:            time.Since(startTime),
+		FirstTokenMs:        firstTokenMs,
+		ReasoningEffort:     reasoningEffort,
+		ImageEndpoint:       imageCount > 0,
+		ImageCount:          imageCount,
 		ReferenceImageCount: imageReferenceCount(imageCount, claudeBody),
-		ImageSize:        imageSize,
-		ImageInputSize:   imageInputSize,
-		ClientDisconnect: clientDisconnect,
+		ImageSize:           imageSize,
+		ImageInputSize:      imageInputSize,
+		ClientDisconnect:    clientDisconnect,
 	}, nil
 }
 

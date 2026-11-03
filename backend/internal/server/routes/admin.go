@@ -73,6 +73,7 @@ func RegisterAdminRoutes(
 
 		// 账号管理
 		registerAccountRoutes(admin, h, stepUpAuth)
+		registerAccountStatusCheckRoutes(admin, h)
 
 		// 公告管理
 		registerAnnouncementRoutes(admin, h)
@@ -165,6 +166,7 @@ func RegisterAdminRoutes(
 		registerChannelMonitorRoutes(admin, h, settingService)
 		registerChannelMonitorV2Routes(admin, h, settingService)
 		registerChannelMonitorV3Routes(admin, h, settingService)
+		registerChannelMonitorV4AdminRoutes(admin, h, settingService)
 
 		// 风控中心
 		registerContentModerationRoutes(admin, h)

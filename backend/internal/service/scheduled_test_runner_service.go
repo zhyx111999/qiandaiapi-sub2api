@@ -25,6 +25,10 @@ type ScheduledTestRunnerService struct {
 	groupTests   *PelicanGroupTestService
 	candyMonitor *ChannelMonitorV2CandyService
 
+	// statusCheckFinished hears every finished pelican plan with its saved results; the account status
+	// check (account_status_check_policy.go) acts on its own plans only.
+	statusCheckFinished func(context.Context, *ScheduledTestPlan, []*ScheduledTestResult)
+
 	qualityTrigger *quality5xxTrigger
 	triggerCancel  context.CancelFunc
 	triggerWG      sync.WaitGroup

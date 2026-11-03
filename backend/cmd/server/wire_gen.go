@@ -342,6 +342,14 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	qualityRuleTemplateRepository := repository.NewQualityRuleTemplateRepository(client, db)
 	scheduledTestService := service.ProvideScheduledTestService(scheduledTestPlanRepository, scheduledTestResultRepository, qualityRuleTemplateRepository, accountTestService)
 	scheduledTestHandler := admin.NewScheduledTestHandler(scheduledTestService)
+	accountStatusCheckStore := repository.NewAccountStatusCheckRepository(db)
+	contentModerationRepository := repository.NewContentModerationRepository(db)
+	contentModerationHashCache := repository.NewContentModerationHashCache(redisClient)
+	contentModerationService := service.ProvideContentModerationService(settingRepository, contentModerationRepository, contentModerationHashCache, groupRepository, userRepository, proxyRepository, apiKeyAuthCacheInvalidator, emailService, db, secretEncryptor, configConfig)
+	qualityJudgeService := service.NewQualityJudgeService(accountRepository, groupRepository, concurrencyService, accountTestService, contentModerationService)
+	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig, qualityJudgeService, redisClient, pelicanGroupTestService, channelMonitorV2Service)
+	accountStatusCheckService := service.ProvideAccountStatusCheckService(accountStatusCheckStore, adminService, scheduledTestService, scheduledTestRunnerService, configConfig)
+	accountStatusCheckHandler := admin.NewAccountStatusCheckHandler(accountStatusCheckService)
 	pelicanGroupTestHandler := admin.NewPelicanGroupTestHandler(pelicanGroupTestService)
 	controlledExperimentRepository := repository.NewControlledExperimentRepository(db)
 	controlledExperimentExecutor := service.NewControlledExperimentGateway(accountRepository, openAIGatewayService, accountTestService, billingService)
@@ -359,9 +367,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	channelMonitorRequestTemplateRepository := repository.NewChannelMonitorRequestTemplateRepository(client, db)
 	channelMonitorRequestTemplateService := service.NewChannelMonitorRequestTemplateService(channelMonitorRequestTemplateRepository)
 	channelMonitorRequestTemplateHandler := admin.NewChannelMonitorRequestTemplateHandler(channelMonitorRequestTemplateService)
-	contentModerationRepository := repository.NewContentModerationRepository(db)
-	contentModerationHashCache := repository.NewContentModerationHashCache(redisClient)
-	contentModerationService := service.ProvideContentModerationService(settingRepository, contentModerationRepository, contentModerationHashCache, groupRepository, userRepository, proxyRepository, apiKeyAuthCacheInvalidator, emailService, db, secretEncryptor, configConfig)
 	contentModerationHandler := admin.NewContentModerationHandlerWithSafetyPrompt(contentModerationService, safetyPromptStore, settingService)
 	configManager := securityaudit.NewConfigManager(db, settingRepository, redisClient, secretEncryptor, configConfig)
 	postgreSQLRepository := securityaudit.NewPostgreSQLRepository(db)
@@ -379,7 +384,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	auditLogHandler := admin.NewAuditLogHandler(auditLogService, totpService)
 	upstreamBillingProbeService := service.ProvideUpstreamBillingProbeService(accountRepository, accountTestService, settingService, leaderLockCache, db, configConfig, newAPIAuthorizationRepository, secretEncryptor)
 	openCodeGoUsageService := service.ProvideOpenCodeGoUsageService(accountRepository, httpUpstream, settingService, leaderLockCache, db, configConfig)
-	adminHandlers := handler.ProvideAdminHandlers(requestCaptureHandler, dashboardHandler, adminUserHandler, groupHandler, accountHandler, openAIOAuthReauthService, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, openAIOAuthReauthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, cnProviderHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, pluginHandler, adminAPIKeyHandler, scheduledTestHandler, pelicanGroupTestHandler, controlledExperimentHandler, accountOpsHandler, accountTokenGuardHandler, accountTokenGuardV2Handler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, promptAdminHandler, paymentHandler, affiliateHandler, complianceHandler, auditLogHandler, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, settingService, codexHarvestService, openAIGatewayService)
+	adminHandlers := handler.ProvideAdminHandlers(requestCaptureHandler, dashboardHandler, adminUserHandler, groupHandler, accountHandler, openAIOAuthReauthService, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, openAIOAuthReauthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, cnProviderHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, pluginHandler, adminAPIKeyHandler, scheduledTestHandler, accountStatusCheckHandler, pelicanGroupTestHandler, controlledExperimentHandler, accountOpsHandler, accountTokenGuardHandler, accountTokenGuardV2Handler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, promptAdminHandler, paymentHandler, affiliateHandler, complianceHandler, auditLogHandler, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, settingService, codexHarvestService, openAIGatewayService)
 	usageRecordWorkerPool := service.ProvideUsageRecordWorkerPool(configConfig, usageBillingRepository, billingCacheService, apiKeyAuthCacheInvalidator)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
@@ -444,15 +449,13 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	proxyExpiryService := service.ProvideProxyExpiryService(proxyRepository, configConfig)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository, settingRepository, notificationEmailService, leaderLockCache, db, configConfig)
 	batchImageWorkerRuntime := service.ProvideBatchImageWorkerRuntime(batchImageRepository, accountRepository, batchImageQueue, usageBillingRepository, usageLogRepository, batchImageModelPricingResolver, apiKeyAuthCacheInvalidator, configConfig)
-	qualityJudgeService := service.NewQualityJudgeService(accountRepository, groupRepository, concurrencyService, accountTestService, contentModerationService)
-	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig, qualityJudgeService, redisClient, pelicanGroupTestService, channelMonitorV2Service)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService, leaderLockCache, db, configConfig)
 	channelMonitorQuotaFetcher := service.NewChannelMonitorQuotaFetcher(accountUsageService, cnProviderQuotaService, cnProviderBalanceService, accountRepository, configConfig)
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService, channelMonitorQuotaFetcher, configConfig)
 	channelMonitorV2Aggregator := service.ProvideChannelMonitorV2Aggregator(channelMonitorV2Repository, db, settingService, configConfig)
 	channelMonitorV3Prober := service.ProvideChannelMonitorV3Prober(channelMonitorV3Repository, pelicanGroupTestService, settingService, configConfig)
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
-	v := provideCleanup(configConfig, manager, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, concurrencyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, claudeCodeVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, geminiCachedContentService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, controlledExperimentService, accountOpsService, accountPerformanceService, accountTokenGuardService, accountTokenGuardV2Service, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, channelMonitorV3Prober, userPlatformQuotaUsageFlusher, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, auditLogService, openAIQuotaAutoResetService, promptService, pluginManager, contentModerationService)
+	v := provideCleanup(configConfig, manager, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, concurrencyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, claudeCodeVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, geminiCachedContentService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, controlledExperimentService, accountOpsService, accountPerformanceService, accountTokenGuardService, accountTokenGuardV2Service, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, channelMonitorV3Prober, userPlatformQuotaUsageFlusher, upstreamBillingProbeService, ollamaCloudUsageService, openCodeGoUsageService, auditLogService, openAIQuotaAutoResetService, promptService, pluginManager, contentModerationService, accountStatusCheckService)
 	application := &Application{
 		Server:        httpServer,
 		PromptAudit:   promptService,
@@ -551,6 +554,7 @@ func provideCleanup(
 	promptAudit *securityaudit.PromptService,
 	pluginManager *service.PluginManager,
 	cyberModeration *service.ContentModerationService,
+	accountStatusCheck *service.AccountStatusCheckService,
 ) func() {
 	if openAIGateway != nil {
 		openAIGateway.StartBPSWarmPool()
@@ -835,6 +839,10 @@ func provideCleanup(
 				if scheduledTestRunner != nil {
 					scheduledTestRunner.Stop()
 				}
+				return nil
+			}},
+			{"AccountStatusCheckService", func() error {
+				accountStatusCheck.Stop()
 				return nil
 			}},
 			{"BackupService", func() error {

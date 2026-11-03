@@ -146,6 +146,7 @@ func provideCleanup(
 	promptAudit *securityaudit.PromptService,
 	pluginManager *service.PluginManager,
 	cyberModeration *service.ContentModerationService,
+	accountStatusCheck *service.AccountStatusCheckService,
 ) func() {
 	if openAIGateway != nil {
 		openAIGateway.StartBPSWarmPool()
@@ -431,6 +432,10 @@ func provideCleanup(
 				if scheduledTestRunner != nil {
 					scheduledTestRunner.Stop()
 				}
+				return nil
+			}},
+			{"AccountStatusCheckService", func() error {
+				accountStatusCheck.Stop()
 				return nil
 			}},
 			{"BackupService", func() error {

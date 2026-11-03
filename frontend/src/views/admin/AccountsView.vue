@@ -296,6 +296,7 @@
             <div class="flex items-center gap-1.5">
               <AccountStatusIndicator :account="row" :global-bps-enabled="appStore.cachedPublicSettings?.excel_bps_enabled !== false" @show-temp-unsched="handleShowTempUnsched" />
             </div>
+            <AccountStatusCheckStatus :status="accountStatusChecks.statusFor(row.id)" />
           </template>
           <template #cell-schedulable="{ row }">
             <SchedulableTimerControl v-if="authStore.isAdmin" :account-id="row.id" :refresh-key="timerRefreshKey" @executed="handleTimerExecuted" />
@@ -547,6 +548,8 @@ import AccountPerformanceCell from '@/components/account/AccountPerformanceCell.
 import AccountPerformanceDialog from '@/components/account/AccountPerformanceDialog.vue'
 import { performanceWindowMinutes, type AccountPerformance } from '@/types/accountPerformance'
 import AccountCapacityCell from '@/components/account/AccountCapacityCell.vue'
+import AccountStatusCheckStatus from '@/modules/account-status-check/AccountStatusCheckStatus.vue'
+import { useAccountStatusChecks } from '@/modules/account-status-check/useAccountStatusChecks'
 import ExcelBPS403Badge from '@/components/account/ExcelBPS403Badge.vue'
 import UpstreamBillingRateCell from '@/components/account/UpstreamBillingRateCell.vue'
 import NewAPIUpstreamConfigDialog from '@/components/account/NewAPIUpstreamConfigDialog.vue'
@@ -1167,6 +1170,8 @@ const {
     sort_order: sortState.sort_order
   }
 })
+// The status check column of the current page: one batch query, no polling per row.
+const accountStatusChecks = useAccountStatusChecks(accounts, () => loading.value || autoRefreshFetching.value)
 
 const {
   selectedSet,

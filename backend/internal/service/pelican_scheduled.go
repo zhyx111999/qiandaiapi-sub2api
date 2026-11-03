@@ -52,7 +52,7 @@ func (s *AccountTestService) RunPelicanBackground(ctx context.Context, accountID
 	ctx = withPelicanTestOptions(ctx, pelicanTestOptions{
 		qualityBatch: cfg.QualityBatch,
 		testChannel:  cfg.TestChannel,
-		observeOnly:  cfg.Quality != nil && cfg.Quality.Action == QualityActionObserveOnly,
+		observeOnly:  cfg.Quality != nil && cfg.Quality.Action == QualityActionObserveOnly || accountStatusCheckObservation(cfg),
 	})
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -157,7 +157,7 @@ func (s *ScheduledTestRunnerService) runPelicanPlan(ctx context.Context, plan *S
 			return false
 		}
 	}
-	runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	runCtx, cancel := context.WithTimeout(ctx, accountStatusCheckPlanTimeout(plan, 10*time.Minute))
 	defer cancel()
 	models := []string{plan.ModelID}
 	if len(plan.PelicanConfig.ModelIDs) > 0 {
@@ -321,6 +321,9 @@ func (s *ScheduledTestRunnerService) runPelicanPlan(ctx context.Context, plan *S
 	}
 	if succeeded && plan.AutoRecover && plan.PelicanConfig.Quality == nil && !isBuiltinCandyPlan(plan.PelicanConfig) && !isOpenAICodexStateProbePlan(plan.PelicanConfig) {
 		s.tryRecoverAccount(saveCtx, plan.AccountID, plan.ID)
+	}
+	if s.statusCheckFinished != nil {
+		s.statusCheckFinished(saveCtx, plan, results)
 	}
 	finished := time.Now()
 	if plan.TriggerSource == quality5xxSource {

@@ -3181,6 +3181,8 @@
         <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
       </div>
 
+      <AccountStatusCheckSection />
+
       <UpstreamRequestIdHeaderField
         v-model="upstreamRequestIdHeader"
         :platform="form.platform"
@@ -4294,6 +4296,8 @@ import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import AccountAutoBPSSection from '@/components/account/AccountAutoBPSSection.vue'
+import AccountStatusCheckSection from '@/modules/account-status-check/AccountStatusCheckSection.vue'
+import { useAccountStatusCheckForm } from '@/modules/account-status-check/useAccountStatusCheckForm'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import AccountRpmSettings from '@/components/account/AccountRpmSettings.vue'
@@ -5215,6 +5219,9 @@ const form = reactive({
   group_ids: [] as number[],
   expires_at: null as number | null
 })
+
+// New OpenAI accounts get their status check on the server, in the account's own transaction.
+useAccountStatusCheckForm({ open: () => props.show, platform: () => form.platform })
 
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {

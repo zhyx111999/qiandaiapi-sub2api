@@ -9,6 +9,8 @@ import (
 type PelicanTestConfig struct {
 	// Optional display name stored in the existing configuration JSON.
 	RuleName string `json:"rule_name,omitempty"`
+	// Request timeout of an account status check plan (account_status_check.go); other plans keep the runner's limit.
+	StatusCheckTimeoutSeconds int `json:"status_check_timeout_seconds,omitempty"`
 	// Filled only on saved result snapshots, never used to configure a rule.
 	QualityRestoreDiagnostic *QualityRestoreDiagnostic `json:"quality_restore_diagnostic,omitempty"`
 	QualityModelOutcomes     map[string]string         `json:"quality_model_outcomes,omitempty"`
