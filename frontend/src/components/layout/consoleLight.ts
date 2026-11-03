@@ -1,9 +1,14 @@
+import { onBeforeUnmount, watch, type Ref } from 'vue'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
 
 /**
- * Specular light of the console glass. The rims are conic gradients starting at `--light`; the
- * angle turns toward the pointer (from the viewport centre, like one light source over the
- * page), eased so it glides instead of snapping. Pointer moves are only sampled once per frame.
+ * Specular light of the glass. The rims are conic gradients starting at `--light`; the angle turns
+ * toward the pointer (from the viewport centre, like one light source over the page), eased so it
+ * glides instead of snapping. Pointer moves are only sampled once per frame.
+ *
+ * `--light` is written only to the elements that draw a rim (each registers itself, see
+ * useLightRim) and is registered as a non-inherited property (style.css), so a turn of the light
+ * restyles those few elements instead of the whole page.
  */
 export const REST_ANGLE = 315 // light from the top left
 const EASE = 0.18 // share of the remaining turn taken per frame
@@ -21,15 +26,41 @@ export function shortestTurn(from: number, to: number): number {
   return d === -180 ? 180 : d
 }
 
-/** Starts following the pointer; returns the stop function. */
-export function followPointerLight(root: HTMLElement = document.documentElement): () => void {
-  let current = REST_ANGLE
-  let target = REST_ANGLE
-  root.style.setProperty('--light', `${REST_ANGLE}deg`)
+const rims = new Set<HTMLElement>()
+let current = REST_ANGLE
+let target = REST_ANGLE
+
+const paint = (el: HTMLElement) => el.style.setProperty('--light', `${current.toFixed(1)}deg`)
+
+/** Draws the rim of `el` at the current light angle until the returned function is called. */
+export function addLightRim(el: HTMLElement): () => void {
+  rims.add(el)
+  paint(el)
+  return () => {
+    rims.delete(el)
+  }
+}
+
+/** A component's own rim element (template ref): lit while it is mounted. */
+export function useLightRim(el: Ref<HTMLElement | null>): void {
+  let remove: (() => void) | null = null
+  watch(
+    el,
+    (node) => {
+      remove?.()
+      remove = node ? addLightRim(node) : null
+    },
+    { immediate: true, flush: 'post' }
+  )
+  onBeforeUnmount(() => remove?.())
+}
+
+/** Starts turning the light toward the pointer; returns the stop function. */
+export function followPointerLight(): () => void {
   const task = addFrameTask(FRAME_ORDER.light, () => {
     const turn = shortestTurn(current, target)
     current = Math.abs(turn) < SETTLE_DEG ? target : (current + turn * EASE + 360) % 360
-    root.style.setProperty('--light', `${current.toFixed(1)}deg`)
+    rims.forEach(paint)
     return current !== target
   })
   const onMove = (event: PointerEvent) => {

@@ -1,14 +1,28 @@
 <template>
-  <canvas
-    ref="canvasRef"
-    class="console-strands"
-    :class="{ 'console-strands-drawer': phone, 'console-strands-open': phone && drawerOpen }"
+  <div
+    v-show="size.w > 0"
+    class="console-field"
+    :class="{ 'console-field-drawer': phone, 'console-field-open': phone && drawerOpen }"
+    :style="{ width: `${size.w}px`, height: `${size.h}px`, '--field-fade': `${(phone ? FADE_FROM.drawer : FADE_FROM.desktop) * 100}%` }"
     aria-hidden="true"
-  ></canvas>
+  >
+    <div
+      v-for="(glow, i) in GLOWS"
+      :key="i"
+      :ref="(el) => (glowEls[i].x = el as HTMLElement | null)"
+      class="console-glow-drift"
+      :style="{ left: `${glow.x * size.w}px`, top: `${glow.y * size.h}px` }"
+    >
+      <div :ref="(el) => (glowEls[i].y = el as HTMLElement | null)" class="console-glow-drift">
+        <div class="console-glow" :style="glowLook(glow)"></div>
+      </div>
+    </div>
+    <canvas ref="canvasRef" class="console-strands"></canvas>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useAppStore } from '@/stores'
 import { useTheme } from '@/composables/useTheme'
 import { createStrands } from '@/components/home/landing/convergence/strands'
@@ -16,6 +30,7 @@ import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
 import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
 import { FieldPainter } from './fieldPainter'
+import { DARK_GLOW_ALPHA, GLOWS, SINE_SWING, driftX, driftY, offsetAt, type Glow } from './fieldGlows'
 import type { GlassScene } from './glassScene'
 import type { GlassRect } from './glassOptics'
 
@@ -26,9 +41,11 @@ import type { GlassRect } from './glassOptics'
  * painted here (FieldPainter), so neither carries a live backdrop filter that the browser would
  * have to recompute every frame the field moves.
  *
- * Runs on the shared console frame loop, capped at 60 fps (FLOW.maxFps); a capsule move redraws
- * at once. Pauses with the hidden tab like any rAF loop; with prefers-reduced-motion it draws
- * still frames only.
+ * Only what moves every frame is painted every frame: the strands and their calls, on the shared
+ * console frame loop, capped at 60 fps (FLOW.maxFps); a capsule move redraws at once. The glows are
+ * elements below the canvas drifting on compositor animations (fieldGlows), and the fade toward the
+ * workspace is the container's mask, so neither costs the main thread anything per frame. Pauses
+ * with the hidden tab like any rAF loop; with prefers-reduced-motion it draws still frames only.
  *
  * Desktop: the field lies beside the sidebar and fades out before the workspace. Phone: the
  * sidebar is a drawer, so the field spans the screen above the drawer's veil only while the
@@ -44,7 +61,7 @@ const props = defineProps<{
 const STRAND_COUNT = 30
 const FIELD_WIDTH = 640 // px of field from the left edge on desktop
 const FADE_FROM = { desktop: 0.45, drawer: 0.7 } // fraction of the width where the fade-out starts
-const DRAWER_FADE_MS = 300 // matches the canvas opacity transition below
+const DRAWER_FADE_MS = 300 // matches the container opacity transition below
 const SIDEBAR_RADIUS = 24 // .sidebar border-radius
 
 /** Deterministic layout so the field does not change between pages. */
@@ -64,15 +81,49 @@ const appStore = useAppStore()
 const { isDark } = useTheme()
 const drawerOpen = computed(() => appStore.mobileOpen)
 const phone = ref(typeof window !== 'undefined' && window.innerWidth < DESKTOP_MIN_WIDTH)
+const size = reactive({ w: 0, h: 0 })
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const glowEls = GLOWS.map(() => ({ x: null as HTMLElement | null, y: null as HTMLElement | null }))
 const painter = new FieldPainter(createStrands(STRAND_COUNT, seeded(20261027)))
 let ctx: CanvasRenderingContext2D | null = null
-let reach = 0
-let height = 0
 let lastTime = 0
 let lensMoved = false
 let drawerFade = 0 // timer while the closed drawer's field fades out
 let sidebarObserver: ResizeObserver | null = null
+let glowAnimations: Animation[] = []
+
+const glowLook = (glow: Glow) => ({
+  width: `${glow.r * 2}px`,
+  height: `${glow.r * 2}px`,
+  background: `radial-gradient(closest-side, rgb(${glow.rgb} / ${isDark.value ? glow.a * DARK_GLOW_ALPHA : glow.a}), rgb(${glow.rgb} / 0))`,
+})
+
+/** Starts each glow's drift where the shared glow clock stands, so a page switch does not reset it. */
+function startGlows() {
+  glowAnimations.forEach((a) => a.cancel())
+  glowAnimations = []
+  GLOWS.forEach((glow, i) => {
+    const { x, y } = glowEls[i]
+    if (!x || !y) return
+    if (reducedMotion || typeof x.animate !== 'function') {
+      const at = offsetAt(glow, consoleFlow.glowTime)
+      x.style.transform = `translateX(${at.x}px)`
+      y.style.transform = `translateY(${at.y}px)`
+      return
+    }
+    for (const [el, axis, d] of [
+      [x, 'X', driftX(glow, consoleFlow.glowTime)],
+      [y, 'Y', driftY(glow, consoleFlow.glowTime)],
+    ] as const) {
+      const animation = el.animate(
+        [{ transform: `translate${axis}(${-d.amplitude}px)` }, { transform: `translate${axis}(${d.amplitude}px)` }],
+        { duration: d.swingMs, iterations: Infinity, direction: 'alternate', easing: SINE_SWING }
+      )
+      animation.currentTime = d.currentTimeMs
+      glowAnimations.push(animation)
+    }
+  })
+}
 
 /** Desktop: beside the sidebar. Phone: the full width while the drawer is open or fading out. */
 function fieldWidth(): number {
@@ -85,13 +136,13 @@ function resize() {
   ctx = canvas?.getContext('2d') ?? null
   if (!canvas || !ctx) return
   phone.value = window.innerWidth < DESKTOP_MIN_WIDTH
-  reach = fieldWidth()
-  height = window.innerHeight
+  size.w = fieldWidth()
+  size.h = window.innerHeight
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  canvas.style.width = `${reach}px`
-  canvas.style.height = `${height}px`
-  canvas.width = Math.round(reach * dpr)
-  canvas.height = Math.round(height * dpr)
+  canvas.style.width = `${size.w}px`
+  canvas.style.height = `${size.h}px`
+  canvas.width = Math.round(size.w * dpr)
+  canvas.height = Math.round(size.h * dpr)
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 }
 
@@ -99,29 +150,27 @@ function resize() {
 function glassRect(): GlassRect | null {
   if (!props.sidebar || reducedTransparency) return null
   const r = props.sidebar.getBoundingClientRect()
-  if (r.right <= 0 || r.left >= reach) return null
+  if (r.right <= 0 || r.left >= size.w) return null
   return { x: r.left, y: r.top, w: r.width, h: r.height, r: SIDEBAR_RADIUS }
 }
 
 function draw() {
-  if (!ctx || !reach || !height) return
+  if (!ctx || !size.w || !size.h) return
   const glass = glassRect()
   painter.paint(ctx, {
-    width: reach,
-    height,
+    width: size.w,
+    height: size.h,
     dark: isDark.value,
     waveTime: consoleFlow.waveTime,
-    glowTime: consoleFlow.glowTime,
     pulses: consoleFlow.pulses.pulses,
     pulseTail: FLOW.pulseTail,
-    fadeFrom: phone.value ? FADE_FROM.drawer : FADE_FROM.desktop,
     glass,
     lens: glass ? props.scene.lens() : null,
   })
 }
 
 const task = addFrameTask(FRAME_ORDER.field, (now) => {
-  if (!reach) {
+  if (!size.w) {
     lastTime = 0
     return false
   }
@@ -134,7 +183,7 @@ const task = addFrameTask(FRAME_ORDER.field, (now) => {
   if (lastTime && !frameDue(now, lastTime) && !lensStep) return true
   const dt = lastTime ? Math.min(0.1, (now - lastTime) / 1000) : 0
   lastTime = now
-  stepFlow(consoleFlow, dt, reach, STRAND_COUNT)
+  stepFlow(consoleFlow, dt, size.w, STRAND_COUNT)
   draw()
   return true
 })
@@ -181,12 +230,14 @@ onMounted(() => {
     task.wake()
   })
   refresh()
+  startGlows()
   window.addEventListener('resize', refresh)
 })
 
 onBeforeUnmount(() => {
   task.remove()
   props.scene.onInvalidate(() => {})
+  glowAnimations.forEach((a) => a.cancel())
   window.clearTimeout(drawerFade)
   window.removeEventListener('resize', refresh)
   sidebarObserver?.disconnect()
@@ -195,22 +246,47 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.console-strands {
+/* The field: glows below, strands above, faded toward the workspace by a mask (not per frame). */
+.console-field {
   position: fixed;
   top: 0;
   left: 0;
-  display: block;
+  overflow: hidden;
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, #000 var(--field-fade), transparent);
+  mask-image: linear-gradient(to right, #000 var(--field-fade), transparent);
+}
+
+.console-glow-drift {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.console-glow-drift .console-glow-drift {
+  position: static;
+}
+
+.console-glow {
+  translate: -50% -50%;
+}
+
+.console-strands {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
 }
 
 /* Phone: above the drawer's veil (z 35) and below the drawer (z 40), fading with the veil. */
-.console-strands-drawer {
+.console-field-drawer {
   z-index: 36;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
-.console-strands-open {
+.console-field-open {
   opacity: 1;
 }
 </style>

@@ -23,7 +23,7 @@
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div ref="toolbarRef" class="console-toolbar flex shrink-0 items-center gap-1 sm:gap-3" v-on="capsule.on">
-        <span v-liquid-glass="TOOLBAR_GLASS" class="console-toolbar-glass" aria-hidden="true"></span>
+        <span ref="toolbarGlassRef" v-liquid-glass="TOOLBAR_GLASS" class="console-toolbar-glass" aria-hidden="true"></span>
         <GlassCapsule :capsule="capsule" />
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" ref="bellRef" :capsule-on="capsule.state.at === 'bell'" />
@@ -263,6 +263,7 @@ import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { TOOLBAR_GLASS } from './consoleGlass'
+import { useLightRim } from './consoleLight'
 import GlassCapsule from './glassCapsule/GlassCapsule.vue'
 import { useGlassCapsule } from './glassCapsule/useGlassCapsule'
 import { siteNavLayout } from './siteNav/siteNavLayout'
@@ -290,6 +291,8 @@ const dropdownRef = ref<HTMLElement | null>(null)
  * components hand theirs over); the language and subscription menus report whether they are open.
  */
 const toolbarRef = ref<HTMLElement | null>(null)
+const toolbarGlassRef = ref<HTMLElement | null>(null)
+useLightRim(toolbarGlassRef)
 const bellRef = ref<InstanceType<typeof AnnouncementBell> | null>(null)
 const docsRef = ref<HTMLElement | null>(null)
 const localeRef = ref<InstanceType<typeof LocaleSwitcher> | null>(null)

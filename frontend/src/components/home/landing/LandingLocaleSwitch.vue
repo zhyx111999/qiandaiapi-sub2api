@@ -1,6 +1,7 @@
 <template>
   <div ref="rootRef" class="locale">
     <button
+      ref="triggerRef"
       v-liquid-glass="{ scale: 18 }"
       type="button"
       class="locale__trigger liquid-glass clear-glass"
@@ -46,9 +47,13 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { useLocaleSwitch } from '@/composables/useLocaleSwitch'
+import { useLightRim } from '@/components/layout/consoleLight'
 
 const { t } = useI18n()
 const rootRef = ref<HTMLElement | null>(null)
+/** The trigger's glass rim follows the light. */
+const triggerRef = ref<HTMLElement | null>(null)
+useLightRim(triggerRef)
 const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, toggle, select } =
   useLocaleSwitch(rootRef)
 </script>

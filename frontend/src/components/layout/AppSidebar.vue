@@ -112,7 +112,7 @@
                         ? 'sidebar-wallet'
                         : undefined
                 "
-                :style="item.path === '/admin/settings' && !sidebarCollapsed ? { paddingRight: '6.5rem' } : undefined"
+                :style="item.path === '/admin/settings' && !sidebarCollapsed && settingsNoticeShown ? { paddingRight: '4.25rem' } : undefined"
                 @click="handleMenuItemClick(item.path)"
               >
                 <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
@@ -239,9 +239,11 @@ import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 import { getCustomMenuLabel } from '@/utils/customMenu'
 import { NEW_FEATURE_NOTICES } from '@/constants/newFeatureNotices'
+import { useNewFeatureNoticeStore } from '@/stores/newFeatureNotices'
 import { useTheme } from '@/composables/useTheme'
 import GlassCapsule from './glassCapsule/GlassCapsule.vue'
 import { useGlassCapsule, useItemRefs } from './glassCapsule/useGlassCapsule'
+import { useLightRim } from './consoleLight'
 import type { GlassScene } from './glassScene'
 
 /** The console layout's glass scene: the field behind the sidebar magnifies under the capsule. */
@@ -291,6 +293,11 @@ const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const newFeatureNotices = useNewFeatureNoticeStore()
+/** The settings link leaves room for its "new" badge only while the badge shows. */
+const settingsNoticeShown = computed(() =>
+  newFeatureNotices.isShown(authStore.user?.id, NEW_FEATURE_NOTICES.protocolFeatureSwitches)
+)
 const onboardingStore = useOnboardingStore()
 const adminSettingsStore = useAdminSettingsStore()
 const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
@@ -303,6 +310,7 @@ const asideRef = ref<HTMLElement | null>(null)
 
 // The console layout reads the aside to draw the field seen through it.
 defineExpose({ aside: asideRef })
+useLightRim(asideRef)
 const { isDark, toggleTheme } = useTheme()
 
 const homePath = computed(() => (

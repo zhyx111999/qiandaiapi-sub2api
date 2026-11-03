@@ -23,8 +23,7 @@
                 :key="tab.key"
                 role="presentation"
                 class="settings-tab-wrapper relative flex min-w-0 flex-1 basis-0"
-                :class="tab.key === 'features' && 'settings-tab-wrapper-new-feature'"
-                :style="tab.key === 'features' ? { flex: '2.2 1 0%', minWidth: '11rem' } : undefined"
+                :class="tab.key === 'features' && featuresNoticeShown && 'settings-tab-wrapper-new-feature'"
               >
                 <button
                   :id="`settings-tab-${tab.key}`"
@@ -36,7 +35,6 @@
                     'settings-tab',
                     activeTab === tab.key && 'settings-tab-active',
                   ]"
-                  :style="tab.key === 'features' ? { paddingRight: '7rem' } : undefined"
                   @click="selectSettingsTab(tab.key)"
                   @keydown="handleSettingsTabKeydown($event, tab.key)"
                 >
@@ -9559,6 +9557,7 @@ import { useAppStore, useAuthStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
 import NewFeatureBadge from "@/components/common/NewFeatureBadge.vue";
 import { NEW_FEATURE_NOTICES } from "@/constants/newFeatureNotices";
+import { useNewFeatureNoticeStore } from "@/stores/newFeatureNotices";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
   isRegistrationEmailSuffixDomainValid,
@@ -9576,6 +9575,11 @@ import {
 const { t, locale } = useI18n();
 const appStore = useAppStore();
 const authStore = useAuthStore();
+const newFeatureNotices = useNewFeatureNoticeStore();
+/** The features tab widens for its "new" badge only while the badge shows. */
+const featuresNoticeShown = computed(() =>
+  newFeatureNotices.isShown(authStore.user?.id, NEW_FEATURE_NOTICES.protocolFeatureSwitches),
+);
 // 关闭 step-up 开关是敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 码重试
 const settingsStepUp = useStepUp();
 const adminSettingsStore = useAdminSettingsStore();
@@ -14091,6 +14095,15 @@ h2[id^="settings-section-"]:target {
 
 .settings-tab-label {
   @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap leading-none;
+}
+
+/* Room for the "new" badge at the tab's right end (only while it shows): the badge plus its inset. */
+.settings-tab-wrapper-new-feature {
+  min-width: 10rem;
+}
+
+.settings-tab-wrapper-new-feature > .settings-tab {
+  padding-right: 4.25rem;
 }
 </style>
 

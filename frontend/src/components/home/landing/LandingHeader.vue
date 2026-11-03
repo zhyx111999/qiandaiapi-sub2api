@@ -13,6 +13,7 @@
         <LandingLocaleSwitch />
         <router-link
           v-if="!isAuthenticated"
+          :ref="setLogin"
           v-liquid-glass="{ scale: 18 }"
           to="/login"
           class="landing-login liquid-glass clear-glass"
@@ -25,7 +26,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref, type ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useLightRim } from '@/components/layout/consoleLight'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import LandingLocaleSwitch from './LandingLocaleSwitch.vue'
 import { BRAND } from './brand'
@@ -36,6 +39,14 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
+
+/** The login button's glass rim follows the light. */
+const loginEl = ref<HTMLElement | null>(null)
+const setLogin = (link: Element | ComponentPublicInstance | null) => {
+  const node = link && '$el' in link ? link.$el : link
+  loginEl.value = node instanceof HTMLElement ? node : null
+}
+useLightRim(loginEl)
 </script>
 
 <style scoped>

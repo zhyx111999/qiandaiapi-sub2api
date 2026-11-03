@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 const notices = useNewFeatureNoticeStore()
 watch(() => props.userId, (userId) => notices.loadUser(userId), { immediate: true })
-const visible = computed(() => props.userId != null && !notices.isDismissed(props.userId, props.noticeId))
+const visible = computed(() => notices.isShown(props.userId, props.noticeId))
 
 function dismiss(): void {
   notices.dismiss(props.userId, props.noticeId)

@@ -4,10 +4,12 @@ import { LENSING, lensInto, type GlassRect } from './glassOptics'
 import type { LensView } from './glassScene'
 
 /**
- * Draws the console field: drifting glows, the landing page's strands and the calls travelling
+ * Draws the console field's moving lines: the landing page's strands and the calls travelling
  * along them. Seen through the sidebar glass the strands are lensed at its edge (with a faint
  * colour fringe), and under the selection capsule they are magnified, so neither the sidebar nor
- * the capsule needs a live backdrop filter. Everything is drawn in one pass per frame.
+ * the capsule needs a live backdrop filter. Everything is drawn in one pass per frame; what does
+ * not change per frame stays out of the canvas (the glows are elements below it, the fade toward
+ * the workspace is the canvas container's mask, see ConsoleBackdrop).
  */
 export const FIELD_STEP = 6 // px between polyline points
 const ACCENT_EVERY = 9
@@ -16,11 +18,6 @@ const COLORS = {
   light: { ink: '31 29 26', accent: '59 146 113', red: '255 96 64', blue: '64 128 255' },
   dark: { ink: '235 236 229', accent: '101 184 150', red: '255 120 96', blue: '96 150 255' },
 } as const
-const GLOWS = [
-  { x: 0.2, y: 0.26, r: 260, rgb: '59 146 113', a: 0.22, sx: 0.13, sy: 0.11, ax: 40, ay: 70, phase: 0 },
-  { x: 0.34, y: 0.72, r: 300, rgb: '214 170 96', a: 0.14, sx: 0.09, sy: 0.15, ax: 50, ay: 60, phase: 2.1 },
-  { x: 0.06, y: 0.96, r: 230, rgb: '101 179 148', a: 0.18, sx: 0.17, sy: 0.07, ax: 30, ay: 40, phase: 4.2 },
-] as const
 const FRINGE_ALPHA = 0.32
 
 type Palette = (typeof COLORS)['light'] | (typeof COLORS)['dark']
@@ -30,11 +27,8 @@ export interface FieldScene {
   height: number
   dark: boolean
   waveTime: number
-  glowTime: number
   pulses: readonly Pulse[]
   pulseTail: number
-  /** Fraction of the width where the fade-out toward the workspace starts. */
-  fadeFrom: number
   /** The sidebar glass, or null to draw the field plainly. */
   glass: GlassRect | null
   /** The selection capsule inside the glass, or null. */
@@ -70,7 +64,6 @@ export class FieldPainter {
     if (!w || !h) return
     this.ensure(w)
     const col = scene.dark ? COLORS.dark : COLORS.light
-    this.glows(c, scene)
 
     const layout: StrandLayout = {
       width: w,
@@ -103,16 +96,6 @@ export class FieldPainter {
       c.restore()
       this.throughGlass(c, g, col, scene)
     }
-
-    // Fade into the workspace so cards and tables stay on clean paper.
-    const fadeStart = w * scene.fadeFrom
-    const fade = c.createLinearGradient(fadeStart, 0, w, 0)
-    fade.addColorStop(0, 'rgb(0 0 0 / 0)')
-    fade.addColorStop(1, 'rgb(0 0 0 / 1)')
-    c.globalCompositeOperation = 'destination-out'
-    c.fillStyle = fade
-    c.fillRect(fadeStart, 0, w - fadeStart, h)
-    c.globalCompositeOperation = 'source-over'
   }
 
   private throughGlass(c: CanvasRenderingContext2D, g: GlassRect, col: Palette, scene: FieldScene) {
@@ -143,7 +126,8 @@ export class FieldPainter {
 
     const lens = scene.lens
     if (lens && lens.bandBottom > lens.bandTop) {
-      // The capsule magnifies what the glass shows under it, instead of sampling the glass again.
+      // The capsule magnifies what the glass shows under it, instead of sampling the glass again;
+      // the glows below the canvas show through unmagnified, as before.
       const cx = lens.x + lens.w / 2
       const cy = lens.y + lens.h / 2
       const m = LENSING.magnify
@@ -155,7 +139,6 @@ export class FieldPainter {
       c.roundRect(lens.x, lens.y, lens.w, lens.h, lens.r)
       c.clip()
       c.clearRect(lens.x, lens.y, lens.w, lens.h)
-      this.glows(c, scene)
       for (let i = 0; i < this.strands.length; i++) {
         const wx = this.wx[i]
         const wy = this.wy[i]
@@ -175,18 +158,6 @@ export class FieldPainter {
 
   private lensAll(g: GlassRect, k: number, outX: Float32Array[], outY: Float32Array[], c0: number, c1: number) {
     for (let i = 0; i < this.strands.length; i++) lensInto(null, this.py[i], FIELD_STEP, g, k, outX[i], outY[i], c0, c1)
-  }
-
-  private glows(c: CanvasRenderingContext2D, scene: FieldScene) {
-    for (const glow of GLOWS) {
-      const x = glow.x * scene.width + Math.sin(scene.glowTime * glow.sx + glow.phase) * glow.ax
-      const y = glow.y * scene.height + Math.cos(scene.glowTime * glow.sy + glow.phase) * glow.ay
-      const gradient = c.createRadialGradient(x, y, 0, x, y, glow.r)
-      gradient.addColorStop(0, `rgb(${glow.rgb} / ${scene.dark ? glow.a * 0.75 : glow.a})`)
-      gradient.addColorStop(1, `rgb(${glow.rgb} / 0)`)
-      c.fillStyle = gradient
-      c.fillRect(x - glow.r, y - glow.r, glow.r * 2, glow.r * 2)
-    }
   }
 
   /** Strokes every strand over columns c0..c1, in its own colour or `tint`. */

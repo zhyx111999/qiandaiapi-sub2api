@@ -35,7 +35,7 @@ import { useI18n } from 'vue-i18n'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { useLandingSite } from '@/components/home/landing/useLandingSite'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
-import { followPointerLight } from '../consoleLight'
+import { followPointerLight, useLightRim } from '../consoleLight'
 import { DESKTOP_MIN_WIDTH } from '../consoleGlass'
 import GlassCapsule from '../glassCapsule/GlassCapsule.vue'
 import { useGlassCapsule, useItemRefs } from '../glassCapsule/useGlassCapsule'
@@ -66,6 +66,7 @@ const route = useRoute()
 const { t } = useI18n()
 const { isAuthenticated, consolePath } = useLandingSite()
 const navRef = ref<HTMLElement | null>(null)
+useLightRim(navRef)
 const compact = ref(false)
 
 const section = computed(() => siteSection(route.path))

@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, onUpdated, reactive, watch, type ComponentPublicInstance, type Ref } from 'vue'
 import { FRAME_ORDER, addFrameTask } from '../consoleFrame'
+import { addLightRim } from '../consoleLight'
 import type { GlassScene, LensView } from '../glassScene'
 import {
   PRESS_DEPTH,
@@ -58,6 +59,7 @@ export function useGlassCapsule(options: GlassCapsuleOptions): CapsuleHandle {
   const radius = options.radius ?? 'pill'
   const state = reactive({ at: null as string | null, shown: false, hot: false })
   let el: HTMLElement | null = null
+  let unlight: (() => void) | null = null // the capsule's rim follows the light
   let motion: LensMotion | null = null
   let lastTime = 0
   let pressedKey: string | null = null
@@ -220,6 +222,7 @@ export function useGlassCapsule(options: GlassCapsuleOptions): CapsuleHandle {
     window.removeEventListener('pointerup', release)
     window.removeEventListener('pointercancel', release)
     sizes?.disconnect()
+    unlight?.()
     options.scene?.setLens(null)
     if (motion) rememberMotion(motion, performance.now(), options.memoryKey)
     task.remove()
@@ -229,7 +232,11 @@ export function useGlassCapsule(options: GlassCapsuleOptions): CapsuleHandle {
     state,
     radius,
     bind(node) {
-      el = node instanceof HTMLElement ? node : null
+      const next = node instanceof HTMLElement ? node : null
+      if (next === el) return
+      unlight?.()
+      el = next
+      unlight = el ? addLightRim(el) : null
     },
     on,
   }

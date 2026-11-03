@@ -4,6 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The glass light angle (consoleLight). Not inherited: turning the light restyles only the rim
+   elements that carry it, not the page under them. */
+@property --light {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 315deg;
+}
+
 @layer base {
   * {
     @apply border-gray-200 dark:border-dark-700;
@@ -700,11 +708,13 @@
   }
 
   /* Specular rim shared by the console glass (sidebar, selection capsule, toolbar): bright where the
-     light comes in and opposite it. The light turns toward the pointer (consoleLight, --light). */
+     light comes in and opposite it. The light turns toward the pointer (consoleLight writes --light
+     on each rim element; the rim takes it from there). */
   .clear-glass::before,
   .sidebar::before,
   .console-toolbar-glass::before,
   .glass-capsule::before {
+    --light: inherit;
     content: '';
     position: absolute;
     inset: 0;

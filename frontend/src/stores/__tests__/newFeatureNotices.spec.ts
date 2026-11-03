@@ -22,6 +22,14 @@ describe('new feature notice preferences', () => {
     expect(useNewFeatureNoticeStore().isDismissed(41, 'protocol-switches')).toBe(true)
   })
 
+  it('shows a notice to a signed-in user until dismissed', () => {
+    const store = useNewFeatureNoticeStore()
+    expect(store.isShown(41, 'protocol-switches')).toBe(true)
+    expect(store.isShown(null, 'protocol-switches')).toBe(false)
+    store.dismiss(41, 'protocol-switches')
+    expect(store.isShown(41, 'protocol-switches')).toBe(false)
+  })
+
   it('ignores malformed stored preferences and does not overwrite other notices', () => {
     localStorage.setItem('sub2api:new-feature-notices:v1:41', '{bad json')
     const store = useNewFeatureNoticeStore()

@@ -37,6 +37,11 @@ export const useNewFeatureNoticeStore = defineStore('newFeatureNotices', () => {
     return dismissedByUser.value[key]?.includes(noticeId) ?? false
   }
 
+  /** Whether the notice's badge shows for this user (signed in and not dismissed yet). */
+  function isShown(userId: number | null | undefined, noticeId: string): boolean {
+    return userId != null && !isDismissed(userId, noticeId)
+  }
+
   function loadUser(userId: number | null | undefined): void {
     if (userId != null) ensureLoaded(userId)
   }
@@ -54,5 +59,5 @@ export const useNewFeatureNoticeStore = defineStore('newFeatureNotices', () => {
     }
   }
 
-  return { isDismissed, loadUser, dismiss }
+  return { isDismissed, isShown, loadUser, dismiss }
 })
