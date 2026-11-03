@@ -1,7 +1,8 @@
-# Real, isolated application for the ivory frontend. No mock API or production data.
-# Build the normal frontend first (pnpm build), then copy .env.example to .env,
-# fill secrets and run docker compose up -d. build:preview is NOT an app build.
-name: laoliapi-ivory
+# QiandaiAPI: the ivory frontend with this repository's backend (NovelAI platform, reference
+# image surcharge), so the backend image is built from the repository Dockerfile.
+# Build the frontend first (pnpm build), copy .env.example to .env, fill secrets, then
+# docker compose build && docker compose up -d.
+name: qiandaiapi
 
 services:
   web:
@@ -16,7 +17,10 @@ services:
         condition: service_healthy
 
   sub2api:
-    image: ghcr.io/ranxi2001/sub2api:2.19.3
+    image: ${QIANDAI_BACKEND_IMAGE:-qiandaiapi-sub2api:local}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
     ports:
       - "127.0.0.1:${IVORY_BACKEND_PORT:-18217}:8080"
     environment:
