@@ -62,8 +62,9 @@ onMounted(refreshSiteState)
   text-rendering: optimizeLegibility;
 }
 
-/* Dark theme: the console's night paper (dark-950), the field's light ink and green, slate glass. */
-:global(.dark) .landing {
+/* Dark theme: the console's night paper (dark-950), the field's light ink and green, slate glass.
+   (`:is(.dark *)`, not `:global(.dark) .landing`: Vue compiles the latter to a bare `.dark`.) */
+.landing:is(.dark *) {
   --landing-paper-rgb: 2 6 23;
   --landing-ink-rgb: 235 236 229;
   --landing-accent-rgb: 101 184 150;

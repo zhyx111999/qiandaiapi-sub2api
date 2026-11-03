@@ -200,17 +200,17 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-/* Dark theme. */
-:global(.dark) .site-nav .site-nav__link {
+/* Dark theme (`:is(.dark *)`: Vue compiles `:global(.dark) .x` to a bare `.dark`). */
+.site-nav__link:is(.dark *) {
   color: rgb(255 255 255 / 0.7);
 }
 
-:global(.dark) .site-nav .site-nav__link:hover,
-:global(.dark) .site-nav .site-nav__link[aria-current='page'] {
+.site-nav__link:is(.dark *):hover,
+.site-nav__link:is(.dark *)[aria-current='page'] {
   color: rgb(255 255 255);
 }
 
-:global(.dark) .site-nav .site-nav__link:not([data-capsule]):hover {
+.site-nav__link:is(.dark *):not([data-capsule]):hover {
   background: rgb(255 255 255 / 0.06);
 }
 </style>
