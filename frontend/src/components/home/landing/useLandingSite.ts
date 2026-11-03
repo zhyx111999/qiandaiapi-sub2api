@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useAppStore, useAuthStore } from '@/stores'
 
-/** Auth state and the console entry used by the Yezi home page. */
+/** Auth state and the console entry used by the home page. */
 export function useLandingSite() {
   const authStore = useAuthStore()
   const appStore = useAppStore()

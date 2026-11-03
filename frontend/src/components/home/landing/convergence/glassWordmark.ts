@@ -31,6 +31,15 @@ const SHEEN_PERIOD = 8 // s between light sweeps
 const SHEEN_DURATION = 1.8 // s
 const FROST = 0.035 // blur radius as a fraction of the font size
 
+/**
+ * The font size, at most `maxSize`, at which text measuring `widthAtSize` px at `size` spans at most
+ * `maxWidth` px. Glyph widths and the em-based tracking both scale with the size.
+ */
+export function fitFontSize(widthAtSize: number, size: number, maxWidth: number, maxSize: number): number {
+  if (widthAtSize <= 0 || size <= 0) return maxSize
+  return Math.min(maxSize, (size * maxWidth) / widthAtSize)
+}
+
 function canvas2d(width: number, height: number): [HTMLCanvasElement, CanvasRenderingContext2D] | null {
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(width))
@@ -70,6 +79,17 @@ export class GlassWordmark {
     ctx.textBaseline = 'alphabetic'
     const metrics = ctx.measureText(this.text)
     return centerY + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2
+  }
+
+  /** The largest size up to `maxSize` at which the wordmark fits in `maxWidth` px (any brand length). */
+  fitSize(maxSize: number, maxWidth: number): number {
+    const probe = canvas2d(1, 1)
+    if (!probe) return maxSize
+    const [, measure] = probe
+    measure.font = this.font(maxSize)
+    measure.letterSpacing = `${this.style.tracking * maxSize}px`
+    const metrics = measure.measureText(this.text)
+    return fitFontSize(metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight, maxSize, maxWidth, maxSize)
   }
 
   /** Rebuilds the cached layers; call on resize and once web fonts have loaded. */

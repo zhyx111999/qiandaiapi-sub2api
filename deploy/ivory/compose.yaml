@@ -55,33 +55,6 @@ services:
       retries: 8
       start_period: 60s
 
-  # Yezi daily check-in sidecar. Talks to sub2api over its public API with the
-  # official Admin API Key and keeps its own data in the yezi_checkin schema.
-  # Removing this service leaves the official backend and console untouched.
-  checkin:
-    build: ../../extensions/checkin
-    image: yezi-checkin:local
-    restart: unless-stopped
-    environment:
-      SUB2API_URL: http://sub2api:8080
-      SUB2API_ADMIN_API_KEY: ${CHECKIN_ADMIN_API_KEY:?Set CHECKIN_ADMIN_API_KEY in .env}
-      PGHOST: postgres
-      PGPORT: "5432"
-      PGUSER: sub2api
-      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      PGDATABASE: sub2api
-      PGSSLMODE: disable
-    depends_on:
-      postgres:
-        condition: service_healthy
-      sub2api:
-        condition: service_healthy
-    healthcheck:
-      test: [CMD, wget, -q, -T, "5", -O, /dev/null, "http://localhost:8080/healthz"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-
   postgres:
     image: postgres:18-alpine
     environment:

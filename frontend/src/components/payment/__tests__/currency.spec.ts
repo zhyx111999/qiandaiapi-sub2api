@@ -11,7 +11,7 @@ describe('formatPaymentAmount', () => {
 
 describe('currencySymbol', () => {
   it('maps common payment currencies and falls back safely', () => {
-    expect(currencySymbol('USD')).toBe('🍃')
+    expect(currencySymbol('USD')).toBe('$')
     expect(currencySymbol('cny')).toBe('¥')
     expect(currencySymbol('EUR')).toBe('€')
     expect(currencySymbol('')).toBe('¥')

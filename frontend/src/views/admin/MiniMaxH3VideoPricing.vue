@@ -45,7 +45,7 @@ const enabled = computed(() => tariffKey.value !== undefined)
 const mode = computed(() => tariffKey.value?.startsWith('request_') ? 'per_request' : 'per_second')
 const seconds = computed(() => Number(tariffKey.value?.match(/^request_(\d+)s$/)?.[1] ?? 1))
 const price = computed(() => tariffKey.value ? tariff.value[tariffKey.value] : null)
-const finalPrice = computed(() => price.value === null || price.value === '' ? t('admin.groups.videoPricing.notConfigured') : `🍃${(Number(price.value) * props.multiplier).toFixed(6)}`)
+const finalPrice = computed(() => price.value === null || price.value === '' ? t('admin.groups.videoPricing.notConfigured') : `$${(Number(price.value) * props.multiplier).toFixed(6)}`)
 
 function update(key?: string, value: number | string | null = null) {
   const next = { ...props.modelValue }

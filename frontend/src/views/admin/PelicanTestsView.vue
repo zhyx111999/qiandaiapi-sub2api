@@ -446,7 +446,7 @@ function accountName(result: PelicanGroupTestResult) {
 
 function costLabel(value: number | null | undefined, incomplete = false) {
   if (value == null) return t('pelicanTests.cost.unknown')
-  const amount = value > 0 && value < 0.000001 ? '<🍃0.000001' : `🍃${value.toFixed(6)}`
+  const amount = value > 0 && value < 0.000001 ? '<$0.000001' : `$${value.toFixed(6)}`
   return incomplete ? t('pelicanTests.cost.partial', { amount }) : amount
 }
 

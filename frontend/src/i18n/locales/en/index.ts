@@ -22,7 +22,6 @@ import tokenGuardV2 from './tokenGuardV2'
 import adminAccessKeys from './adminAccessKeys'
 import landing from './landing'
 import landingHome from './landingHome'
-import checkin from './checkin'
 import common from './common'
 import dashboard from './dashboard'
 import channelMonitorV2 from './channelMonitorV2'
@@ -65,7 +64,6 @@ export default {
   adminAccessKeys,
   ...landing,
   ...landingHome,
-  ...checkin,
   ...common,
   ...dashboard,
   ...channelMonitorV2,

@@ -819,7 +819,7 @@ export default {
       paidPrice: '实付价格(折后)',
       officialPrice: '官方价格',
       rate: '折扣倍率',
-      unitPerMillion: '🍃 / 1M token',
+      unitPerMillion: '$ / 1M token',
       perUnitRequest: '/ 次',
       perUnitImage: '/ 张',
       perRequest: '按次计费',
@@ -925,7 +925,7 @@ export default {
 
   // Profile
   profile: {
-    title: '个人资料与签到',
+    title: '个人设置',
     description: '管理您的账户信息和设置',
     accountBalance: '账户余额',
     concurrencyLimit: '并发限制',

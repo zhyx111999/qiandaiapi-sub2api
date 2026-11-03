@@ -70,7 +70,7 @@ watch(() => props.prizes, () => {
   if (!spinning.value && !rows.value.some(row => row.winner)) reset()
 }, { immediate: true })
 const detail = (p: ReelPrize) => p.kind === 'balance'
-  ? `🍃${new Intl.NumberFormat(locale.value, { maximumFractionDigits: 8 }).format(p.amount)}`
+  ? `$${new Intl.NumberFormat(locale.value, { maximumFractionDigits: 8 }).format(p.amount)}`
   : p.kind === 'subscription' ? t('lottery.days', { days: p.validity_days }) : t('lottery.textPrize')
 
 function showCenteredPrize(index: number) {

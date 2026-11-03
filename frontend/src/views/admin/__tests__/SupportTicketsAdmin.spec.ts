@@ -118,7 +118,7 @@ describe('admin ticket detail', () => {
     const user = wrapper.get('[data-testid="ticket-user"]')
     expect(user.text()).toContain('alice@example.com')
     expect(user.text()).toContain('alice')
-    expect(user.text()).toContain('🍃12.50')
+    expect(user.text()).toContain('$12.50')
     expect(wrapper.findAll('[data-testid="ticket-message-author"]').map((item) => item.text())).toEqual(['supportTickets.detail.user', 'root'])
 
     await wrapper.get('[data-testid="ticket-reply-status"] [data-value="processing"]').trigger('click')

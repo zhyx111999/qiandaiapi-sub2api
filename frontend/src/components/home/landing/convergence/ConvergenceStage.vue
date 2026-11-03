@@ -48,6 +48,7 @@ function stageMetrics(width: number, height: number, dpr: number): StageMetrics 
     gateY: height * (narrow ? 0.4 : 0.47),
     fanTop: height * (narrow ? 0.17 : 0.12),
     fanBottom: height * (narrow ? 0.64 : 0.94),
+    artTop: narrow ? 132 : 148,
   }
 }
 
@@ -89,6 +90,7 @@ function tick(time: number) {
   const step = lastTime ? governor?.record(time - lastTime) : null
   if (step) {
     setFieldQuality(step)
+    if (still()) scene?.settle()
     layout()
     if (still()) return // the cover stays on the frame it shows
   }
@@ -141,6 +143,7 @@ onMounted(() => {
   if (!scene) return
 
   reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  if (still()) scene.settle()
   layout()
   window.addEventListener('resize', layout)
   // The wordmark is measured with the web font; lay out again once it is available.

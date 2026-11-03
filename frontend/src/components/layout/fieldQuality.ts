@@ -61,7 +61,7 @@ export function createGovernor(start: FieldQuality, steps: FieldQuality[], g = G
   }
 }
 
-const STORAGE_KEY = 'yezi:field-quality'
+const STORAGE_KEY = 'qiandai:field-quality'
 
 /** The step this tab settled on earlier, or the full field. */
 export function savedQuality(): FieldQuality {

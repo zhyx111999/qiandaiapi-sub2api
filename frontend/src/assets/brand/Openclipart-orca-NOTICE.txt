@@ -1,0 +1,9 @@
+Orca artwork
+
+"the orca" by cactus_cowboy, uploaded to Openclipart on 2017-10-01.
+Source: https://openclipart.org/detail/287994/the-orca
+License: public domain, Creative Commons Zero 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
+
+Used in:
+- assets/brand/qiandai-orca.svg (brand mark): the paths drawn as strokes on an ivory tile.
+- components/home/landing/convergence/orcaLine.ts (cover): the paths drawn as a line drawing over the strands.

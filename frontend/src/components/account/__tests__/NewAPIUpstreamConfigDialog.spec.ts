@@ -79,7 +79,7 @@ describe('New API shared authorization dialog', () => {
     const wrapper = await open()
     await wrapper.get('[data-testid="new-api-preview"]').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[data-testid="new-api-wallet"]').text()).toContain('🍃12.34 USD')
+    expect(wrapper.get('[data-testid="new-api-wallet"]').text()).toContain('$12.34 USD')
     expect(wrapper.get('[data-testid="new-api-result-7"]').text()).toContain('auto')
     expect(wrapper.get('[data-testid="new-api-result-7"]').text()).toContain('admin.accounts.upstreamBilling.newAPI.noFixedRatio')
     const select = wrapper.get('[data-testid="new-api-token-8"]')

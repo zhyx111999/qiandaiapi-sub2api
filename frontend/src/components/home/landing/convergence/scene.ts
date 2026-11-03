@@ -1,5 +1,6 @@
 import type { StrandDisturbance } from './disturbance'
 import { GlassWordmark } from './glassWordmark'
+import { OrcaLine, orcaPlacement } from './orcaLine'
 import type { PulseTrain } from './pulses'
 import { createStrands, strandY, type Strand, type StrandLayout } from './strands'
 
@@ -22,9 +23,12 @@ export interface StageMetrics {
   height: number
   dpr: number
   gateY: number
+  /** Largest wordmark size; it shrinks to fit the width. */
   fontSize: number
   fanTop: number
   fanBottom: number
+  /** Highest point the orca may reach (clear of the header and the kicker line). */
+  artTop: number
 }
 
 export const PULSE_TAIL = 170
@@ -36,6 +40,7 @@ const LENS = 1.32 // vertical magnification seen through the glass letters
 const RIPPLE_DURATION = 1.2
 const MIN_CONVERGE = 0.22 // strands get at least this fraction of the width to converge
 const EDGE_FADE: readonly [number, number] = [0.12, 0.07] // fraction of the width faded in / out at each side
+const WORDMARK_MAX_WIDTH = 0.74 // fraction of the width the wordmark may span
 
 interface Ripple {
   x: number
@@ -45,12 +50,14 @@ interface Ripple {
 
 /**
  * Canvas 2D renderer of the convergence field: ink strands, travelling call
- * pulses, click ripples and the frosted glass wordmark they pass through.
+ * pulses, click ripples, the frosted glass wordmark they pass through and the
+ * line-drawn orca swimming over them above it.
  * The paper itself is CSS behind the canvas, so frames clear to transparent.
  */
 export class ConvergenceScene {
   readonly strands: Strand[]
   private readonly wordmark: GlassWordmark
+  private readonly orca: OrcaLine
   private layout: SceneLayout | null = null
   private xs = new Float32Array(0)
   private ys: Float32Array[] = []
@@ -72,6 +79,7 @@ export class ConvergenceScene {
       ink: palette.ink,
       frost: palette.frost,
     })
+    this.orca = new OrcaLine(palette.ink, palette.frost)
   }
 
   static create(
@@ -94,13 +102,15 @@ export class ConvergenceScene {
    * wordmark leaves too little room on the sides (phones), the strands keep
    * converging behind the glass letters instead of bending sharply at the edge.
    */
-  resize({ width, height, dpr, gateY, fontSize, fanTop, fanBottom }: StageMetrics): void {
+  resize({ width, height, dpr, gateY, fontSize: maxFontSize, fanTop, fanBottom, artTop }: StageMetrics): void {
     this.canvas.width = Math.round(width * dpr)
     this.canvas.height = Math.round(height * dpr)
 
     const gateX = width / 2
+    const fontSize = this.wordmark.fitSize(maxFontSize, width * WORDMARK_MAX_WIDTH)
     this.wordmark.layout(gateX, gateY, fontSize, dpr)
     const box = this.wordmark.bounds
+    this.orca.place(box ? orcaPlacement(box, fontSize, width, artTop) : null)
     const halfText = box ? (box.width - fontSize * 0.8) / 2 : width * 0.3
     const entryX = Math.max(width * MIN_CONVERGE, gateX - halfText - fontSize * 0.3)
     this.layout = {
@@ -156,6 +166,11 @@ export class ConvergenceScene {
     this.ripples.push({ x, y, age: 0 })
   }
 
+  /** A still cover: the orca shows its finished drawing at rest. */
+  settle(): void {
+    this.orca.settle()
+  }
+
   render(time: number, pulses: PulseTrain): void {
     const { ctx, layout } = this
     if (!layout) return
@@ -168,6 +183,7 @@ export class ConvergenceScene {
     this.drawStrands(ctx, 0, this.xs.length - 1, 1)
     this.drawPulses(ctx, pulses, 1)
     this.fadeEdges(ctx, layout)
+    this.orca.draw(ctx, time)
     this.wordmark.draw(ctx, time, (inside) => {
       const box = this.wordmark.bounds
       if (!box) return

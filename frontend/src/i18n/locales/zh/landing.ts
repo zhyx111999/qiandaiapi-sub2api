@@ -3,7 +3,7 @@ export default {
     title: '图片批量生成',
     description: '一次提交多条提示词，任务完成后可统一下载图片结果'
   },
-  // Shared public-page texts (key usage, legal documents, Yezi home)
+  // Shared public-page texts (key usage, legal documents, home page)
   home: {
     viewDocs: '查看文档',
     docs: '文档',

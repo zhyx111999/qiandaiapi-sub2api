@@ -54,7 +54,7 @@ describe('field quality governor', () => {
       setFieldQuality('still')
       expect(fieldQuality.value).toBe('still')
       expect(savedQuality()).toBe('still')
-      sessionStorage.setItem('yezi:field-quality', 'bogus')
+      sessionStorage.setItem('qiandai:field-quality', 'bogus')
       expect(savedQuality()).toBe('full')
     })
   })

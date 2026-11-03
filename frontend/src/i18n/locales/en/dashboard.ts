@@ -815,7 +815,7 @@ export default {
       paidPrice: 'Your Price (Discounted)',
       officialPrice: 'Official Price',
       rate: 'Rate',
-      unitPerMillion: '🍃 / 1M tokens',
+      unitPerMillion: '$ / 1M tokens',
       perUnitRequest: '/ request',
       perUnitImage: '/ image',
       perRequest: 'Per request',
@@ -921,7 +921,7 @@ export default {
 
   // Profile
   profile: {
-    title: 'Profile & Check-in',
+    title: 'Profile Settings',
     description: 'Manage your account information and settings',
     accountBalance: 'Account Balance',
     concurrencyLimit: 'Concurrency Limit',

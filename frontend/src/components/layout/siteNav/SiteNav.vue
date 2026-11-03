@@ -52,7 +52,7 @@ import { siteNavLayout } from './siteNavLayout'
  *
  * On narrow desktops, where the full labels would reach the console toolbar (whose left edge the
  * top bar publishes), it shows icons; it publishes its own half width for the top bar's title.
- * Icons: Tabler Icons (MIT), as the leaf mark.
+ * Icons: Tabler Icons (MIT).
  */
 const NAV_GLASS = { scale: 26, aberration: 2 } as const
 const ICONS = {

@@ -21,5 +21,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 Source: https://github.com/tabler/tabler-icons
-Icon: icons/outline/leaf.svg, commit a4ce1404bc6d24d3c365afe7b258d6bf6f48d62d.
-The leaf paths in yezi-leaf.svg are reused with an original ivory tile and botanical stroke.
+Icons: icons/outline/home.svg, layout-dashboard.svg and sparkles.svg (site nav, SiteNav.vue).

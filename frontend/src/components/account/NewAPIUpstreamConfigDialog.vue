@@ -208,7 +208,7 @@ const remove = async () => {
   }
 }
 const isFixedRate = (value?: number) => typeof value === 'number' && Number.isFinite(value) && value >= 0
-const formatWallet = (amount: number) => Number.isFinite(amount) ? `🍃${amount.toFixed(2)} USD` : '-'
+const formatWallet = (amount: number) => Number.isFinite(amount) ? `$${amount.toFixed(2)} USD` : '-'
 const rowError = (value: string) => {
   switch (value) {
     case 'ambiguous_token':

@@ -92,7 +92,7 @@ describe('home → original Sub2API model plaza', () => {
   it('leaves navigation and the model plaza entry to the site nav, keeping only the brand, language and sign-in', async () => {
     const app = await openHome()
     wrapper = app.wrapper
-    expect(wrapper.get('.landing-brand__text strong').text()).toBe('Yezi')
+    expect(wrapper.get('.landing-brand__text strong').text()).toBe('QiandaiAPI')
     expect(wrapper.find('nav').exists()).toBe(false)
     expect(wrapper.find('a[href="/model-plaza"]').exists()).toBe(false)
   })
