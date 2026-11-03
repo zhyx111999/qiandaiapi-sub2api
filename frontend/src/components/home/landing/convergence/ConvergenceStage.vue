@@ -4,6 +4,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { createGovernor, fieldQuality, qualitySteps, setFieldQuality } from '@/components/layout/fieldQuality'
 import { StrandDisturbance } from './disturbance'
 import { PulseTrain } from './pulses'
 import { ConvergenceScene, PULSE_TAIL, type Palette, type StageMetrics } from './scene'
@@ -29,6 +30,9 @@ let lastTime = 0
 let clock = 0
 let nextAmbient = 0.4
 let reducedMotion = false
+/** The same device steps as the console field (fieldQuality): a lighter canvas, then a still cover. */
+let governor: ReturnType<typeof createGovernor> | null = null
+const still = () => reducedMotion || fieldQuality.value === 'still'
 
 /**
  * Wordmark: clamp(64px, 14.5vw, 232px), centred at 47% of the height (40% on phones).
@@ -63,7 +67,8 @@ function layout() {
   const width = canvas.clientWidth
   const height = canvas.clientHeight
   if (!width || !height) return
-  const dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(PIXEL_BUDGET / (width * height)))
+  const density = fieldQuality.value === 'full' ? Math.min(window.devicePixelRatio || 1, 2) : 1
+  const dpr = Math.min(density, Math.sqrt(PIXEL_BUDGET / (width * height)))
   scene.resize(stageMetrics(width, height, dpr))
   scene.update(clock, 0, disturbance)
   scene.render(clock, pulses)
@@ -81,6 +86,12 @@ function spawnAmbient() {
 }
 
 function tick(time: number) {
+  const step = lastTime ? governor?.record(time - lastTime) : null
+  if (step) {
+    setFieldQuality(step)
+    layout()
+    if (still()) return // the cover stays on the frame it shows
+  }
   const dt = lastTime ? Math.min(MAX_DT, (time - lastTime) / 1000) : 1 / 60
   lastTime = time
   clock += dt
@@ -135,7 +146,8 @@ onMounted(() => {
   // The wordmark is measured with the web font; lay out again once it is available.
   document.fonts?.load(`800 100px ${WORDMARK_FONT}`).then(layout, () => undefined)
 
-  if (reducedMotion) return
+  if (still()) return
+  governor = createGovernor(fieldQuality.value, qualitySteps(window.devicePixelRatio || 1))
   window.addEventListener('pointermove', onPointerMove, { passive: true })
   document.documentElement.addEventListener('pointerleave', onPointerLeave)
   window.addEventListener('pointerdown', onPointerDown)
