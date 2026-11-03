@@ -452,6 +452,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		upstreamModel := ""
 		if result != nil {
 			upstreamModel = result.UpstreamModel
+			result.ReferenceImageCount = parsed.InputImageCount()
 		}
 		sessionID := service.ExtractClientSessionID(c)
 		h.submitMandatoryUsageRecordTask(c.Request.Context(), func(ctx context.Context) {

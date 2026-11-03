@@ -615,6 +615,8 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		VideoPrice720P:                  videoPrice720P,
 		VideoPrice1080P:                 videoPrice1080P,
 		VideoModelPrices:                NormalizeVideoModelPrices(input.VideoModelPrices),
+		ImageReferencePrice:             normalizePrice(input.ImageReferencePrice),
+		ImageReferenceModelPrices:       NormalizeImageReferenceModelPrices(input.ImageReferenceModelPrices),
 		WebSearchPricePerCall:           webSearchPricePerCall,
 		SearchPricePer1k:                searchPricePer1k,
 		AudioRealtimePricePerMin:        audioRealtimePricePerMin,
@@ -951,6 +953,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	// nil = leave unchanged; empty map = clear per-model prices.
 	if input.VideoModelPrices != nil {
 		group.VideoModelPrices = NormalizeVideoModelPrices(input.VideoModelPrices)
+	}
+	if input.ImageReferencePrice != nil {
+		group.ImageReferencePrice = normalizePrice(input.ImageReferencePrice)
+	}
+	if input.ImageReferenceModelPrices != nil {
+		group.ImageReferenceModelPrices = NormalizeImageReferenceModelPrices(input.ImageReferenceModelPrices)
 	}
 	if input.WebSearchPricePerCall != nil {
 		group.WebSearchPricePerCall = normalizePrice(input.WebSearchPricePerCall)

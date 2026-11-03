@@ -30,6 +30,8 @@ type ProviderProfileInfo struct {
 	ResponsesPath string          `json:"responses_path,omitempty"`
 	// ModelCatalog 表示模型支持的协议由上游 /models 自动获取（账号规则仍优先）。
 	ModelCatalog bool `json:"model_catalog,omitempty"`
+	// DefaultModels 是供应商精选的默认模型（账号表单与 /models 兜底）。
+	DefaultModels []string `json:"default_models,omitempty"`
 	// Modes 以默认模式开头，其余按模式名排序。
 	Modes []ProviderModeInfo `json:"modes"`
 }
@@ -80,6 +82,7 @@ func providerProfileInfo(profile *ProviderProfile) *ProviderProfileInfo {
 		Routing:       routing,
 		ResponsesPath: profile.ResponsesPath,
 		ModelCatalog:  profile.ModelCatalog,
+		DefaultModels: append([]string(nil), profile.DefaultModels...),
 		Modes:         make([]ProviderModeInfo, 0, len(modes)),
 	}
 	for _, mode := range modes {

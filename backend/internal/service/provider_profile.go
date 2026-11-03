@@ -45,6 +45,9 @@ type ProviderProfile struct {
 	// ModelCatalog 表示上游 {Chat Completions 基址}/models 为每个模型给出
 	// supported_endpoints；按模型分流时据此判断模型支持哪些协议（见 model_protocol_catalog.go）。
 	ModelCatalog bool
+	// DefaultModels 是该供应商精选的默认模型，用于账号表单与 /models 兜底列表；
+	// 不覆盖账号映射或分组模型白名单。
+	DefaultModels []string
 }
 
 // providerDefaultTestModel 返回账号连接测试未指定模型时的默认模型；非多协议供应商或
@@ -216,6 +219,29 @@ var providerProfiles = map[string]*ProviderProfile{
 		Modes: map[string]ProviderEndpoints{
 			AccountModePayG: {
 				BaseURLs: map[string]string{APIProtocolChatCompletions: DefaultMistralBaseURL},
+			},
+		},
+	},
+	PlatformNovelAI: {
+		Platform:         PlatformNovelAI,
+		DefaultMode:      AccountModePayG,
+		Routing:          ProviderRoutingByInbound,
+		DefaultTestModel: "nai-diffusion-4-5-full",
+		DefaultModels: []string{
+			"nai-diffusion-4-5-curated",
+			"nai-diffusion-4-5-curated-inpainting",
+			"nai-diffusion-4-5-full",
+			"nai-diffusion-4-5-full-inpainting",
+			"nai-diffusion-4-full",
+			"nai-diffusion-4-full-inpainting",
+			"nai-diffusion-5-curated",
+			"nai-diffusion-5-full",
+			"nai-diffusion-5-full-inpainting",
+		},
+		// 默认指向同一 Compose 网络里的 nai-station 网关；账号可按需改 base_url。
+		Modes: map[string]ProviderEndpoints{
+			AccountModePayG: {
+				BaseURLs: map[string]string{APIProtocolChatCompletions: DefaultNovelAIBaseURL},
 			},
 		},
 	},

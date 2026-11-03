@@ -54,6 +54,7 @@ const (
 	PlatformCommandCode = domain.PlatformCommandCode
 	PlatformCline       = domain.PlatformCline
 	PlatformMistral     = domain.PlatformMistral
+	PlatformNovelAI     = domain.PlatformNovelAI
 	PlatformComposite   = domain.PlatformComposite
 	// PlatformKiro is retained for unsupported-platform threshold tests and legacy
 	// account rows. Scheduling-threshold evaluation never pauses kiro accounts.
@@ -96,6 +97,8 @@ const (
 	DefaultClineBaseURL     = "https://api.cline.bot/api/v1"
 	DefaultMistralBaseURL   = "https://api.mistral.ai/v1"
 	DefaultMistralTestModel = "mistral-small-latest"
+	// NovelAI 网关（nai-station）：OpenAI 兼容 Chat / Images 与 NovelAI 原生 /ai/* 接口。
+	DefaultNovelAIBaseURL = "http://nai-station:8300/v1"
 )
 
 // 国产供应商 Anthropic 协议端点的默认 base_url（上游路径为 {base}/v1/messages）。

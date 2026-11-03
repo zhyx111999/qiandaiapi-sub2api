@@ -122,6 +122,8 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		SetNillableVideoPrice720p(groupIn.VideoPrice720P).
 		SetNillableVideoPrice1080p(groupIn.VideoPrice1080P).
 		SetVideoModelPrices(service.NormalizeVideoModelPrices(groupIn.VideoModelPrices)).
+		SetNillableImageReferencePrice(groupIn.ImageReferencePrice).
+		SetImageReferenceModelPrices(service.NormalizeImageReferenceModelPrices(groupIn.ImageReferenceModelPrices)).
 		SetNillableWebSearchPricePerCall(groupIn.WebSearchPricePerCall).
 		SetNillableSearchPricePer1k(groupIn.SearchPricePer1k).
 		SetNillableAudioRealtimePricePerMin(groupIn.AudioRealtimePricePerMin).
@@ -318,6 +320,8 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetNillableVideoPrice720p(groupIn.VideoPrice720P).
 		SetNillableVideoPrice1080p(groupIn.VideoPrice1080P).
 		SetVideoModelPrices(service.NormalizeVideoModelPrices(groupIn.VideoModelPrices)).
+		SetNillableImageReferencePrice(groupIn.ImageReferencePrice).
+		SetImageReferenceModelPrices(service.NormalizeImageReferenceModelPrices(groupIn.ImageReferenceModelPrices)).
 		SetLongContextPricingEnabled(groupIn.LongContextPricingEnabled).
 		SetModelPricing(modelPricing).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
@@ -379,6 +383,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		builder = builder.SetImagePrice4k(*groupIn.ImagePrice4K)
 	} else {
 		builder = builder.ClearImagePrice4k()
+	}
+	if groupIn.ImageReferencePrice != nil {
+		builder = builder.SetImageReferencePrice(*groupIn.ImageReferencePrice)
+	} else {
+		builder = builder.ClearImageReferencePrice()
 	}
 	if groupIn.VideoPrice480P != nil {
 		builder = builder.SetVideoPrice480p(*groupIn.VideoPrice480P)

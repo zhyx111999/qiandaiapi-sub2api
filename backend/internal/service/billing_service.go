@@ -2360,6 +2360,9 @@ func (s *BillingService) getDefaultImagePrice(model string, imageSize string) fl
 	if price, ok := getDefaultGrokImagineImagePrice(model, imageSize); ok {
 		return price
 	}
+	if price, ok := getDefaultNovelAIImagePrice(model, imageSize); ok {
+		return price
+	}
 
 	basePrice := 0.0
 

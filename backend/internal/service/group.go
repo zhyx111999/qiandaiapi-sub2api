@@ -63,6 +63,10 @@ type Group struct {
 	// MiniMax-H3 instead stores one per_second (USD/s) or request_<1..15>s
 	// (USD/request) tariff; absence disables H3 creation. See QuoteMiniMaxH3Video.
 	VideoModelPrices map[string]map[string]float64
+	// ImageReferencePrice is the per-reference-image surcharge (USD) on image generation;
+	// ImageReferenceModelPrices overrides it per model family. See ReferenceImageUnitPrice.
+	ImageReferencePrice       *float64
+	ImageReferenceModelPrices map[string]float64
 	// Codex alpha/search 网页搜索单次价格（USD/次，仅 openai 平台使用）；
 	// nil 表示使用默认价 defaultWebSearchPricePerCall（官方 $10/1000 次）。
 	WebSearchPricePerCall *float64

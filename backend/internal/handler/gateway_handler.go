@@ -1222,6 +1222,10 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		writeModelsList(c, platform, []string{typesafe.JevLatestModel})
 		return
 	}
+	if profile := service.LookupProviderProfile(platform); profile != nil && len(profile.DefaultModels) > 0 {
+		writeOpenAIModelsList(c, profile.DefaultModels)
+		return
+	}
 
 	writeModelsListResponse(c, claude.DefaultModels)
 }

@@ -695,7 +695,9 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 		// count billing is enabled for image fallback. Mixed requests also retain
 		// their token path; the switch cannot replace text usage with image fees.
 		if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved == nil || resolved.Mode != BillingModeToken {
-			return s.calculateOpenAIImageCost(ctx, billingModel, apiKey, result, imageMultiplier), nil
+			cost := s.calculateOpenAIImageCost(ctx, billingModel, apiKey, result, imageMultiplier)
+			unitPrice := ReferenceImageUnitPrice(referenceImageGroup(apiKey), billingModel)
+			return AddReferenceImageCost(cost, unitPrice, result.ReferenceImageCount, imageMultiplier), nil
 		}
 	}
 

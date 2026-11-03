@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 31 // v31: group image_count_billing; preserve configured groups and local epochs
+const apiKeyAuthSnapshotVersion = 32 // v32: group image reference prices; v31: group image_count_billing
 
 // Local-only generation wrapper. Old entries remain bounded by existing TTL
 // and capacity, but cannot authorize after a subscription recovery checkpoint.
@@ -440,6 +440,8 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			VideoPrice720P:                  apiKey.Group.VideoPrice720P,
 			VideoPrice1080P:                 apiKey.Group.VideoPrice1080P,
 			VideoModelPrices:                NormalizeVideoModelPrices(apiKey.Group.VideoModelPrices),
+			ImageReferencePrice:             apiKey.Group.ImageReferencePrice,
+			ImageReferenceModelPrices:       NormalizeImageReferenceModelPrices(apiKey.Group.ImageReferenceModelPrices),
 			WebSearchPricePerCall:           apiKey.Group.WebSearchPricePerCall,
 			SearchPricePer1k:                apiKey.Group.SearchPricePer1k,
 			AudioRealtimePricePerMin:        apiKey.Group.AudioRealtimePricePerMin,
@@ -549,6 +551,8 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			VideoPrice720P:                  snapshot.Group.VideoPrice720P,
 			VideoPrice1080P:                 snapshot.Group.VideoPrice1080P,
 			VideoModelPrices:                NormalizeVideoModelPrices(snapshot.Group.VideoModelPrices),
+			ImageReferencePrice:             snapshot.Group.ImageReferencePrice,
+			ImageReferenceModelPrices:       NormalizeImageReferenceModelPrices(snapshot.Group.ImageReferenceModelPrices),
 			WebSearchPricePerCall:           snapshot.Group.WebSearchPricePerCall,
 			SearchPricePer1k:                snapshot.Group.SearchPricePer1k,
 			AudioRealtimePricePerMin:        snapshot.Group.AudioRealtimePricePerMin,

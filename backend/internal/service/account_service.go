@@ -243,7 +243,7 @@ func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (
 	if err := ValidateModelMappingMode(req.Credentials); err != nil {
 		return nil, err
 	}
-	if (req.Platform == PlatformTypeSafe || req.Platform == PlatformMistral) && req.Type != AccountTypeAPIKey {
+	if (req.Platform == PlatformTypeSafe || req.Platform == PlatformMistral || req.Platform == PlatformNovelAI) && req.Type != AccountTypeAPIKey {
 		return nil, fmt.Errorf("%s accounts only support apikey credentials", req.Platform)
 	}
 	// 验证分组是否存在（如果指定了分组）

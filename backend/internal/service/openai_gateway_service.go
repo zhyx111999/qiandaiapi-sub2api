@@ -308,6 +308,9 @@ type OpenAIForwardResult struct {
 	HeaderTimeoutRetries int
 	ClientDisconnect     bool
 	ImageCount           int
+	// ReferenceImageCount is the number of reference images sent with an image request; each
+	// carries the group's reference surcharge (see ReferenceImageUnitPrice).
+	ReferenceImageCount int
 	// ImageEndpoint 标记请求来自专用图片端点；分组 image_count_billing 开关
 	// 只对这类请求生效，混合 Responses/Chat/WS 请求仍按 token 计费。
 	ImageEndpoint      bool

@@ -133,12 +133,30 @@ func RegisterGatewayRoutes(
 			h.OpenAIGateway.Images(c)
 		case service.PlatformGrok:
 			h.OpenAIGateway.GrokImages(c)
+		case service.PlatformNovelAI:
+			h.OpenAIGateway.NovelAI(c)
 		default:
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": gin.H{
 					"type":    "not_found_error",
 					"message": "Images API is not supported for this platform",
+				},
+			})
+		}
+	}
+	// NovelAI native image endpoints (/ai/generate-image, /ai/generate-image-stream, /ai/encode-vibe):
+	// NovelAI groups, and composite groups whose model routes to NovelAI.
+	novelAINativeHandler := func(c *gin.Context) {
+		switch getGroupPlatform(c) {
+		case service.PlatformNovelAI, service.PlatformComposite:
+			h.OpenAIGateway.NovelAI(c)
+		default:
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": gin.H{
+					"type":    "not_found_error",
+					"message": "NovelAI endpoints are not supported for this platform",
 				},
 			})
 		}
@@ -323,6 +341,9 @@ func RegisterGatewayRoutes(
 		})
 		gateway.POST("/images/generations", imagesHandler)
 		gateway.POST("/images/edits", imagesHandler)
+		gateway.POST("/ai/generate-image", novelAINativeHandler)
+		gateway.POST("/ai/generate-image-stream", novelAINativeHandler)
+		gateway.POST("/ai/encode-vibe", novelAINativeHandler)
 		gateway.POST("/images/generations/async", h.AsyncImage.Submit)
 		gateway.POST("/images/edits/async", h.AsyncImage.Submit)
 		gateway.GET("/images/tasks/:task_id", h.AsyncImage.Get)
@@ -503,6 +524,9 @@ func RegisterGatewayRoutes(
 	})
 	rootRoute(http.MethodPost, "/images/generations", bodyLimit, imagesHandler)
 	rootRoute(http.MethodPost, "/images/edits", bodyLimit, imagesHandler)
+	rootRoute(http.MethodPost, "/ai/generate-image", bodyLimit, novelAINativeHandler)
+	rootRoute(http.MethodPost, "/ai/generate-image-stream", bodyLimit, novelAINativeHandler)
+	rootRoute(http.MethodPost, "/ai/encode-vibe", bodyLimit, novelAINativeHandler)
 	rootRoute(http.MethodPost, "/images/generations/async", bodyLimit, h.AsyncImage.Submit)
 	rootRoute(http.MethodPost, "/images/edits/async", bodyLimit, h.AsyncImage.Submit)
 	rootRoute(http.MethodGet, "/images/tasks/:task_id", bodyLimit, h.AsyncImage.Get)

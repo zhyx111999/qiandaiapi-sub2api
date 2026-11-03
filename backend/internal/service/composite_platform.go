@@ -117,6 +117,8 @@ func DetectModelPlatform(model string) (string, bool) {
 			return PlatformMiniMax, true
 		case "mistral":
 			return PlatformMistral, true
+		case "novelai", "nai":
+			return PlatformNovelAI, true
 		case "typesafe", "jev":
 			return PlatformTypeSafe, true
 		}
@@ -165,6 +167,8 @@ func DetectModelPlatform(model string) (string, bool) {
 		strings.HasPrefix(normalized, "voxtral-"),
 		strings.HasPrefix(normalized, "mathstral-"):
 		return PlatformMistral, true
+	case strings.HasPrefix(normalized, "nai-diffusion-"):
+		return PlatformNovelAI, true
 	case strings.HasPrefix(normalized, "deepseek-"):
 		return PlatformDeepseek, true
 	case strings.HasPrefix(normalized, "minimax-"),
