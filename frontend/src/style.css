@@ -715,6 +715,8 @@
   .console-toolbar-glass::before,
   .glass-capsule::before {
     --light: inherit;
+    /* Its own layer: turning the light repaints the rim alone, not the glass's content. */
+    will-change: transform;
     content: '';
     position: absolute;
     inset: 0;

@@ -31,7 +31,7 @@ import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
 import { FieldPainter } from './fieldPainter'
 import { DARK_GLOW_ALPHA, GLOWS, SINE_SWING, driftX, driftY, offsetAt, type Glow } from './fieldGlows'
-import { createGovernor, qualitySteps, saveQuality, savedQuality, type FieldQuality } from './fieldQuality'
+import { createGovernor, fieldQuality, qualitySteps, setFieldQuality, type FieldQuality } from './fieldQuality'
 import type { GlassScene } from './glassScene'
 import type { GlassRect } from './glassOptics'
 
@@ -87,11 +87,9 @@ const phone = ref(typeof window !== 'undefined' && window.innerWidth < DESKTOP_M
 const size = reactive({ w: 0, h: 0 })
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const glowEls = GLOWS.map(() => ({ x: null as HTMLElement | null, y: null as HTMLElement | null }))
-const steps = qualitySteps(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1)
-const quality = ref<FieldQuality>(savedQuality(steps))
-const governor = createGovernor(quality.value, steps)
+const governor = createGovernor(fieldQuality.value, qualitySteps(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1))
 /** The field stands still: reduced motion, or a device that could not keep it moving smoothly. */
-const still = () => reducedMotion || quality.value === 'still'
+const still = () => reducedMotion || fieldQuality.value === 'still'
 const painter = new FieldPainter(createStrands(STRAND_COUNT, seeded(20261027)))
 let ctx: CanvasRenderingContext2D | null = null
 let lastTime = 0
@@ -147,7 +145,7 @@ function resize() {
   phone.value = window.innerWidth < DESKTOP_MIN_WIDTH
   size.w = fieldWidth()
   size.h = window.innerHeight
-  const dpr = quality.value === 'full' ? Math.min(window.devicePixelRatio || 1, 2) : 1
+  const dpr = fieldQuality.value === 'full' ? Math.min(window.devicePixelRatio || 1, 2) : 1
   canvas.style.width = `${size.w}px`
   canvas.style.height = `${size.h}px`
   canvas.width = Math.round(size.w * dpr)
@@ -179,9 +177,8 @@ function draw() {
 }
 
 /** Steps down to a lighter field (see fieldQuality) and remembers it for the tab. */
-function setQuality(next: FieldQuality) {
-  quality.value = next
-  saveQuality(next)
+function stepDown(next: FieldQuality) {
+  setFieldQuality(next)
   if (still()) startGlows()
   refresh()
 }
@@ -201,7 +198,7 @@ const task = addFrameTask(FRAME_ORDER.field, (now) => {
   }
   if (lastFrame) {
     const next = governor.record(now - lastFrame)
-    if (next) setQuality(next)
+    if (next) stepDown(next)
   }
   lastFrame = now
   if (lastTime && !frameDue(now, lastTime) && !lensStep) return true

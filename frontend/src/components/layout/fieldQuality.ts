@@ -1,12 +1,17 @@
-/**
+import { ref } from 'vue'
+
+/*
  * How much of the console field a device can afford, decided from the frames it actually delivers
  * (as iOS scales Liquid Glass back on devices and modes that cannot keep up). Every device starts
  * with the full field; one whose frames stay slow while the field runs steps down, first to a
  * lower-resolution canvas (on high-density screens), then to a still field. The glass, the capsules
- * and the light stay in every step; only the backdrop stops moving. A step down holds for the tab's
- * session, so later pages start where the device settled instead of stuttering again.
+ * and the rim light stay in every step; on the still step nothing moves on its own (the rims keep
+ * their resting light instead of following the pointer). A step down holds for the tab's session,
+ * so later pages start where the device settled instead of stuttering again.
  */
 export type FieldQuality = 'full' | 'lowres' | 'still'
+
+const QUALITIES: readonly FieldQuality[] = ['full', 'lowres', 'still']
 
 /** The steps a device can take: the low-resolution one only exists on high-density screens. */
 export const qualitySteps = (dpr: number): FieldQuality[] => (dpr > 1 ? ['full', 'lowres', 'still'] : ['full', 'still'])
@@ -59,16 +64,21 @@ export function createGovernor(start: FieldQuality, steps: FieldQuality[], g = G
 const STORAGE_KEY = 'yezi:field-quality'
 
 /** The step this tab settled on earlier, or the full field. */
-export function savedQuality(steps: FieldQuality[]): FieldQuality {
+export function savedQuality(): FieldQuality {
   try {
     const saved = sessionStorage.getItem(STORAGE_KEY) as FieldQuality | null
-    return saved && steps.includes(saved) ? saved : 'full'
+    return saved && QUALITIES.includes(saved) ? saved : 'full'
   } catch {
     return 'full'
   }
 }
 
-export function saveQuality(quality: FieldQuality): void {
+/** The step this tab is on, shared by the field (which judges it) and the light (which follows it). */
+export const fieldQuality = ref<FieldQuality>(typeof window === 'undefined' ? 'full' : savedQuality())
+
+/** Moves the tab to `quality` and remembers it for its later pages. */
+export function setFieldQuality(quality: FieldQuality): void {
+  fieldQuality.value = quality
   try {
     sessionStorage.setItem(STORAGE_KEY, quality)
   } catch {

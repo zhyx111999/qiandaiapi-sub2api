@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { GOVERNOR, createGovernor, qualitySteps, saveQuality, savedQuality, type FieldQuality } from '../fieldQuality'
+import { GOVERNOR, createGovernor, fieldQuality, qualitySteps, savedQuality, setFieldQuality, type FieldQuality } from '../fieldQuality'
 
 /** Feeds `count` frames of `ms` each and returns the steps the governor asked for. */
 function feed(gov: ReturnType<typeof createGovernor>, ms: number, count: number): FieldQuality[] {
@@ -49,13 +49,13 @@ describe('field quality governor', () => {
   describe('session memory', () => {
     beforeEach(() => sessionStorage.clear())
 
-    it('starts where the tab settled, and only on a step the screen has', () => {
-      expect(savedQuality(qualitySteps(2))).toBe('full')
-      saveQuality('lowres')
-      expect(savedQuality(qualitySteps(2))).toBe('lowres')
-      expect(savedQuality(qualitySteps(1))).toBe('full')
-      saveQuality('still')
-      expect(savedQuality(qualitySteps(1))).toBe('still')
+    it('starts where the tab settled, and shares the step with the light', () => {
+      expect(savedQuality()).toBe('full')
+      setFieldQuality('still')
+      expect(fieldQuality.value).toBe('still')
+      expect(savedQuality()).toBe('still')
+      sessionStorage.setItem('yezi:field-quality', 'bogus')
+      expect(savedQuality()).toBe('full')
     })
   })
 })

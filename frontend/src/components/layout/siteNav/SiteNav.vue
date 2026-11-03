@@ -36,6 +36,7 @@ import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { useLandingSite } from '@/components/home/landing/useLandingSite'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { followPointerLight, useLightRim } from '../consoleLight'
+import { fieldQuality } from '../fieldQuality'
 import { DESKTOP_MIN_WIDTH } from '../consoleGlass'
 import GlassCapsule from '../glassCapsule/GlassCapsule.vue'
 import { useGlassCapsule, useItemRefs } from '../glassCapsule/useGlassCapsule'
@@ -117,12 +118,20 @@ async function layout() {
 watch(visible, () => nextTick(layout), { immediate: true })
 watch([() => siteNavLayout.toolbarLeft, consoleLayouts, items], () => nextTick(layout))
 
+// The light follows the pointer, unless motion is reduced or the device settled on a still field.
+const reducedMotion = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 let stopLight: (() => void) | null = null
+watch(
+  () => !reducedMotion && fieldQuality.value !== 'still',
+  (follow) => {
+    stopLight?.()
+    stopLight = follow ? followPointerLight() : null
+  },
+  { immediate: true }
+)
+
 const onResize = () => void layout()
-onMounted(() => {
-  window.addEventListener('resize', onResize)
-  if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) stopLight = followPointerLight()
-})
+onMounted(() => window.addEventListener('resize', onResize))
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   stopLight?.()
