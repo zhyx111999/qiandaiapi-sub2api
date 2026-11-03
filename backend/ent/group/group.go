@@ -88,6 +88,10 @@ const (
 	FieldVideoPrice1080p = "video_price_1080p"
 	// FieldVideoModelPrices holds the string denoting the video_model_prices field in the database.
 	FieldVideoModelPrices = "video_model_prices"
+	// FieldImageReferencePrice holds the string denoting the image_reference_price field in the database.
+	FieldImageReferencePrice = "image_reference_price"
+	// FieldImageReferenceModelPrices holds the string denoting the image_reference_model_prices field in the database.
+	FieldImageReferenceModelPrices = "image_reference_model_prices"
 	// FieldWebSearchPricePerCall holds the string denoting the web_search_price_per_call field in the database.
 	FieldWebSearchPricePerCall = "web_search_price_per_call"
 	// FieldSearchPricePer1k holds the string denoting the search_price_per_1k field in the database.
@@ -269,6 +273,8 @@ var Columns = []string{
 	FieldVideoPrice720p,
 	FieldVideoPrice1080p,
 	FieldVideoModelPrices,
+	FieldImageReferencePrice,
+	FieldImageReferenceModelPrices,
 	FieldWebSearchPricePerCall,
 	FieldSearchPricePer1k,
 	FieldAudioRealtimePricePerMin,
@@ -637,6 +643,11 @@ func ByVideoPrice720p(opts ...sql.OrderTermOption) OrderOption {
 // ByVideoPrice1080p orders the results by the video_price_1080p field.
 func ByVideoPrice1080p(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldVideoPrice1080p, opts...).ToFunc()
+}
+
+// ByImageReferencePrice orders the results by the image_reference_price field.
+func ByImageReferencePrice(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageReferencePrice, opts...).ToFunc()
 }
 
 // ByWebSearchPricePerCall orders the results by the web_search_price_per_call field.

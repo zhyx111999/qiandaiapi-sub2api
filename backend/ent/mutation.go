@@ -22397,6 +22397,9 @@ type GroupMutation struct {
 	video_price_1080p                       *float64
 	addvideo_price_1080p                    *float64
 	video_model_prices                      *map[string]map[string]float64
+	image_reference_price                   *float64
+	addimage_reference_price                *float64
+	image_reference_model_prices            *map[string]float64
 	web_search_price_per_call               *float64
 	addweb_search_price_per_call            *float64
 	search_price_per_1k                     *float64
@@ -24360,6 +24363,125 @@ func (m *GroupMutation) VideoModelPricesCleared() bool {
 func (m *GroupMutation) ResetVideoModelPrices() {
 	m.video_model_prices = nil
 	delete(m.clearedFields, group.FieldVideoModelPrices)
+}
+
+// SetImageReferencePrice sets the "image_reference_price" field.
+func (m *GroupMutation) SetImageReferencePrice(f float64) {
+	m.image_reference_price = &f
+	m.addimage_reference_price = nil
+}
+
+// ImageReferencePrice returns the value of the "image_reference_price" field in the mutation.
+func (m *GroupMutation) ImageReferencePrice() (r float64, exists bool) {
+	v := m.image_reference_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageReferencePrice returns the old "image_reference_price" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldImageReferencePrice(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageReferencePrice is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageReferencePrice requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageReferencePrice: %w", err)
+	}
+	return oldValue.ImageReferencePrice, nil
+}
+
+// AddImageReferencePrice adds f to the "image_reference_price" field.
+func (m *GroupMutation) AddImageReferencePrice(f float64) {
+	if m.addimage_reference_price != nil {
+		*m.addimage_reference_price += f
+	} else {
+		m.addimage_reference_price = &f
+	}
+}
+
+// AddedImageReferencePrice returns the value that was added to the "image_reference_price" field in this mutation.
+func (m *GroupMutation) AddedImageReferencePrice() (r float64, exists bool) {
+	v := m.addimage_reference_price
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearImageReferencePrice clears the value of the "image_reference_price" field.
+func (m *GroupMutation) ClearImageReferencePrice() {
+	m.image_reference_price = nil
+	m.addimage_reference_price = nil
+	m.clearedFields[group.FieldImageReferencePrice] = struct{}{}
+}
+
+// ImageReferencePriceCleared returns if the "image_reference_price" field was cleared in this mutation.
+func (m *GroupMutation) ImageReferencePriceCleared() bool {
+	_, ok := m.clearedFields[group.FieldImageReferencePrice]
+	return ok
+}
+
+// ResetImageReferencePrice resets all changes to the "image_reference_price" field.
+func (m *GroupMutation) ResetImageReferencePrice() {
+	m.image_reference_price = nil
+	m.addimage_reference_price = nil
+	delete(m.clearedFields, group.FieldImageReferencePrice)
+}
+
+// SetImageReferenceModelPrices sets the "image_reference_model_prices" field.
+func (m *GroupMutation) SetImageReferenceModelPrices(value map[string]float64) {
+	m.image_reference_model_prices = &value
+}
+
+// ImageReferenceModelPrices returns the value of the "image_reference_model_prices" field in the mutation.
+func (m *GroupMutation) ImageReferenceModelPrices() (r map[string]float64, exists bool) {
+	v := m.image_reference_model_prices
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageReferenceModelPrices returns the old "image_reference_model_prices" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldImageReferenceModelPrices(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageReferenceModelPrices is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageReferenceModelPrices requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageReferenceModelPrices: %w", err)
+	}
+	return oldValue.ImageReferenceModelPrices, nil
+}
+
+// ClearImageReferenceModelPrices clears the value of the "image_reference_model_prices" field.
+func (m *GroupMutation) ClearImageReferenceModelPrices() {
+	m.image_reference_model_prices = nil
+	m.clearedFields[group.FieldImageReferenceModelPrices] = struct{}{}
+}
+
+// ImageReferenceModelPricesCleared returns if the "image_reference_model_prices" field was cleared in this mutation.
+func (m *GroupMutation) ImageReferenceModelPricesCleared() bool {
+	_, ok := m.clearedFields[group.FieldImageReferenceModelPrices]
+	return ok
+}
+
+// ResetImageReferenceModelPrices resets all changes to the "image_reference_model_prices" field.
+func (m *GroupMutation) ResetImageReferenceModelPrices() {
+	m.image_reference_model_prices = nil
+	delete(m.clearedFields, group.FieldImageReferenceModelPrices)
 }
 
 // SetWebSearchPricePerCall sets the "web_search_price_per_call" field.
@@ -26370,7 +26492,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 71)
+	fields := make([]string, 0, 73)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26478,6 +26600,12 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.video_model_prices != nil {
 		fields = append(fields, group.FieldVideoModelPrices)
+	}
+	if m.image_reference_price != nil {
+		fields = append(fields, group.FieldImageReferencePrice)
+	}
+	if m.image_reference_model_prices != nil {
+		fields = append(fields, group.FieldImageReferenceModelPrices)
 	}
 	if m.web_search_price_per_call != nil {
 		fields = append(fields, group.FieldWebSearchPricePerCall)
@@ -26664,6 +26792,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.VideoPrice1080p()
 	case group.FieldVideoModelPrices:
 		return m.VideoModelPrices()
+	case group.FieldImageReferencePrice:
+		return m.ImageReferencePrice()
+	case group.FieldImageReferenceModelPrices:
+		return m.ImageReferenceModelPrices()
 	case group.FieldWebSearchPricePerCall:
 		return m.WebSearchPricePerCall()
 	case group.FieldSearchPricePer1k:
@@ -26815,6 +26947,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldVideoPrice1080p(ctx)
 	case group.FieldVideoModelPrices:
 		return m.OldVideoModelPrices(ctx)
+	case group.FieldImageReferencePrice:
+		return m.OldImageReferencePrice(ctx)
+	case group.FieldImageReferenceModelPrices:
+		return m.OldImageReferenceModelPrices(ctx)
 	case group.FieldWebSearchPricePerCall:
 		return m.OldWebSearchPricePerCall(ctx)
 	case group.FieldSearchPricePer1k:
@@ -27146,6 +27282,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetVideoModelPrices(v)
 		return nil
+	case group.FieldImageReferencePrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageReferencePrice(v)
+		return nil
+	case group.FieldImageReferenceModelPrices:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageReferenceModelPrices(v)
+		return nil
 	case group.FieldWebSearchPricePerCall:
 		v, ok := value.(float64)
 		if !ok {
@@ -27447,6 +27597,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addvideo_price_1080p != nil {
 		fields = append(fields, group.FieldVideoPrice1080p)
 	}
+	if m.addimage_reference_price != nil {
+		fields = append(fields, group.FieldImageReferencePrice)
+	}
 	if m.addweb_search_price_per_call != nil {
 		fields = append(fields, group.FieldWebSearchPricePerCall)
 	}
@@ -27520,6 +27673,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedVideoPrice720p()
 	case group.FieldVideoPrice1080p:
 		return m.AddedVideoPrice1080p()
+	case group.FieldImageReferencePrice:
+		return m.AddedImageReferencePrice()
 	case group.FieldWebSearchPricePerCall:
 		return m.AddedWebSearchPricePerCall()
 	case group.FieldSearchPricePer1k:
@@ -27663,6 +27818,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddVideoPrice1080p(v)
 		return nil
+	case group.FieldImageReferencePrice:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddImageReferencePrice(v)
+		return nil
 	case group.FieldWebSearchPricePerCall:
 		v, ok := value.(float64)
 		if !ok {
@@ -27787,6 +27949,12 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldVideoModelPrices) {
 		fields = append(fields, group.FieldVideoModelPrices)
 	}
+	if m.FieldCleared(group.FieldImageReferencePrice) {
+		fields = append(fields, group.FieldImageReferencePrice)
+	}
+	if m.FieldCleared(group.FieldImageReferenceModelPrices) {
+		fields = append(fields, group.FieldImageReferenceModelPrices)
+	}
 	if m.FieldCleared(group.FieldWebSearchPricePerCall) {
 		fields = append(fields, group.FieldWebSearchPricePerCall)
 	}
@@ -27866,6 +28034,12 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldVideoModelPrices:
 		m.ClearVideoModelPrices()
+		return nil
+	case group.FieldImageReferencePrice:
+		m.ClearImageReferencePrice()
+		return nil
+	case group.FieldImageReferenceModelPrices:
+		m.ClearImageReferenceModelPrices()
 		return nil
 	case group.FieldWebSearchPricePerCall:
 		m.ClearWebSearchPricePerCall()
@@ -28009,6 +28183,12 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldVideoModelPrices:
 		m.ResetVideoModelPrices()
+		return nil
+	case group.FieldImageReferencePrice:
+		m.ResetImageReferencePrice()
+		return nil
+	case group.FieldImageReferenceModelPrices:
+		m.ResetImageReferenceModelPrices()
 		return nil
 	case group.FieldWebSearchPricePerCall:
 		m.ResetWebSearchPricePerCall()

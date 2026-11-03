@@ -673,6 +673,45 @@ func (_u *GroupUpdate) ClearVideoModelPrices() *GroupUpdate {
 	return _u
 }
 
+// SetImageReferencePrice sets the "image_reference_price" field.
+func (_u *GroupUpdate) SetImageReferencePrice(v float64) *GroupUpdate {
+	_u.mutation.ResetImageReferencePrice()
+	_u.mutation.SetImageReferencePrice(v)
+	return _u
+}
+
+// SetNillableImageReferencePrice sets the "image_reference_price" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableImageReferencePrice(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetImageReferencePrice(*v)
+	}
+	return _u
+}
+
+// AddImageReferencePrice adds value to the "image_reference_price" field.
+func (_u *GroupUpdate) AddImageReferencePrice(v float64) *GroupUpdate {
+	_u.mutation.AddImageReferencePrice(v)
+	return _u
+}
+
+// ClearImageReferencePrice clears the value of the "image_reference_price" field.
+func (_u *GroupUpdate) ClearImageReferencePrice() *GroupUpdate {
+	_u.mutation.ClearImageReferencePrice()
+	return _u
+}
+
+// SetImageReferenceModelPrices sets the "image_reference_model_prices" field.
+func (_u *GroupUpdate) SetImageReferenceModelPrices(v map[string]float64) *GroupUpdate {
+	_u.mutation.SetImageReferenceModelPrices(v)
+	return _u
+}
+
+// ClearImageReferenceModelPrices clears the value of the "image_reference_model_prices" field.
+func (_u *GroupUpdate) ClearImageReferenceModelPrices() *GroupUpdate {
+	_u.mutation.ClearImageReferenceModelPrices()
+	return _u
+}
+
 // SetWebSearchPricePerCall sets the "web_search_price_per_call" field.
 func (_u *GroupUpdate) SetWebSearchPricePerCall(v float64) *GroupUpdate {
 	_u.mutation.ResetWebSearchPricePerCall()
@@ -1814,6 +1853,21 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.VideoModelPricesCleared() {
 		_spec.ClearField(group.FieldVideoModelPrices, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.ImageReferencePrice(); ok {
+		_spec.SetField(group.FieldImageReferencePrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedImageReferencePrice(); ok {
+		_spec.AddField(group.FieldImageReferencePrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.ImageReferencePriceCleared() {
+		_spec.ClearField(group.FieldImageReferencePrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.ImageReferenceModelPrices(); ok {
+		_spec.SetField(group.FieldImageReferenceModelPrices, field.TypeJSON, value)
+	}
+	if _u.mutation.ImageReferenceModelPricesCleared() {
+		_spec.ClearField(group.FieldImageReferenceModelPrices, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.WebSearchPricePerCall(); ok {
 		_spec.SetField(group.FieldWebSearchPricePerCall, field.TypeFloat64, value)
 	}
@@ -2941,6 +2995,45 @@ func (_u *GroupUpdateOne) SetVideoModelPrices(v map[string]map[string]float64) *
 // ClearVideoModelPrices clears the value of the "video_model_prices" field.
 func (_u *GroupUpdateOne) ClearVideoModelPrices() *GroupUpdateOne {
 	_u.mutation.ClearVideoModelPrices()
+	return _u
+}
+
+// SetImageReferencePrice sets the "image_reference_price" field.
+func (_u *GroupUpdateOne) SetImageReferencePrice(v float64) *GroupUpdateOne {
+	_u.mutation.ResetImageReferencePrice()
+	_u.mutation.SetImageReferencePrice(v)
+	return _u
+}
+
+// SetNillableImageReferencePrice sets the "image_reference_price" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableImageReferencePrice(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetImageReferencePrice(*v)
+	}
+	return _u
+}
+
+// AddImageReferencePrice adds value to the "image_reference_price" field.
+func (_u *GroupUpdateOne) AddImageReferencePrice(v float64) *GroupUpdateOne {
+	_u.mutation.AddImageReferencePrice(v)
+	return _u
+}
+
+// ClearImageReferencePrice clears the value of the "image_reference_price" field.
+func (_u *GroupUpdateOne) ClearImageReferencePrice() *GroupUpdateOne {
+	_u.mutation.ClearImageReferencePrice()
+	return _u
+}
+
+// SetImageReferenceModelPrices sets the "image_reference_model_prices" field.
+func (_u *GroupUpdateOne) SetImageReferenceModelPrices(v map[string]float64) *GroupUpdateOne {
+	_u.mutation.SetImageReferenceModelPrices(v)
+	return _u
+}
+
+// ClearImageReferenceModelPrices clears the value of the "image_reference_model_prices" field.
+func (_u *GroupUpdateOne) ClearImageReferenceModelPrices() *GroupUpdateOne {
+	_u.mutation.ClearImageReferenceModelPrices()
 	return _u
 }
 
@@ -4114,6 +4207,21 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.VideoModelPricesCleared() {
 		_spec.ClearField(group.FieldVideoModelPrices, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ImageReferencePrice(); ok {
+		_spec.SetField(group.FieldImageReferencePrice, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedImageReferencePrice(); ok {
+		_spec.AddField(group.FieldImageReferencePrice, field.TypeFloat64, value)
+	}
+	if _u.mutation.ImageReferencePriceCleared() {
+		_spec.ClearField(group.FieldImageReferencePrice, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.ImageReferenceModelPrices(); ok {
+		_spec.SetField(group.FieldImageReferenceModelPrices, field.TypeJSON, value)
+	}
+	if _u.mutation.ImageReferenceModelPricesCleared() {
+		_spec.ClearField(group.FieldImageReferenceModelPrices, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.WebSearchPricePerCall(); ok {
 		_spec.SetField(group.FieldWebSearchPricePerCall, field.TypeFloat64, value)

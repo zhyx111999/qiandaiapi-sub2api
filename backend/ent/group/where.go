@@ -225,6 +225,11 @@ func VideoPrice1080p(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldVideoPrice1080p, v))
 }
 
+// ImageReferencePrice applies equality check predicate on the "image_reference_price" field. It's identical to ImageReferencePriceEQ.
+func ImageReferencePrice(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldImageReferencePrice, v))
+}
+
 // WebSearchPricePerCall applies equality check predicate on the "web_search_price_per_call" field. It's identical to WebSearchPricePerCallEQ.
 func WebSearchPricePerCall(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldWebSearchPricePerCall, v))
@@ -1843,6 +1848,66 @@ func VideoModelPricesIsNil() predicate.Group {
 // VideoModelPricesNotNil applies the NotNil predicate on the "video_model_prices" field.
 func VideoModelPricesNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldVideoModelPrices))
+}
+
+// ImageReferencePriceEQ applies the EQ predicate on the "image_reference_price" field.
+func ImageReferencePriceEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldImageReferencePrice, v))
+}
+
+// ImageReferencePriceNEQ applies the NEQ predicate on the "image_reference_price" field.
+func ImageReferencePriceNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldImageReferencePrice, v))
+}
+
+// ImageReferencePriceIn applies the In predicate on the "image_reference_price" field.
+func ImageReferencePriceIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldImageReferencePrice, vs...))
+}
+
+// ImageReferencePriceNotIn applies the NotIn predicate on the "image_reference_price" field.
+func ImageReferencePriceNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldImageReferencePrice, vs...))
+}
+
+// ImageReferencePriceGT applies the GT predicate on the "image_reference_price" field.
+func ImageReferencePriceGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldImageReferencePrice, v))
+}
+
+// ImageReferencePriceGTE applies the GTE predicate on the "image_reference_price" field.
+func ImageReferencePriceGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldImageReferencePrice, v))
+}
+
+// ImageReferencePriceLT applies the LT predicate on the "image_reference_price" field.
+func ImageReferencePriceLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldImageReferencePrice, v))
+}
+
+// ImageReferencePriceLTE applies the LTE predicate on the "image_reference_price" field.
+func ImageReferencePriceLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldImageReferencePrice, v))
+}
+
+// ImageReferencePriceIsNil applies the IsNil predicate on the "image_reference_price" field.
+func ImageReferencePriceIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldImageReferencePrice))
+}
+
+// ImageReferencePriceNotNil applies the NotNil predicate on the "image_reference_price" field.
+func ImageReferencePriceNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldImageReferencePrice))
+}
+
+// ImageReferenceModelPricesIsNil applies the IsNil predicate on the "image_reference_model_prices" field.
+func ImageReferenceModelPricesIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldImageReferenceModelPrices))
+}
+
+// ImageReferenceModelPricesNotNil applies the NotNil predicate on the "image_reference_model_prices" field.
+func ImageReferenceModelPricesNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldImageReferenceModelPrices))
 }
 
 // WebSearchPricePerCallEQ applies the EQ predicate on the "web_search_price_per_call" field.

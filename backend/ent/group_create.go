@@ -510,6 +510,26 @@ func (_c *GroupCreate) SetVideoModelPrices(v map[string]map[string]float64) *Gro
 	return _c
 }
 
+// SetImageReferencePrice sets the "image_reference_price" field.
+func (_c *GroupCreate) SetImageReferencePrice(v float64) *GroupCreate {
+	_c.mutation.SetImageReferencePrice(v)
+	return _c
+}
+
+// SetNillableImageReferencePrice sets the "image_reference_price" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableImageReferencePrice(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetImageReferencePrice(*v)
+	}
+	return _c
+}
+
+// SetImageReferenceModelPrices sets the "image_reference_model_prices" field.
+func (_c *GroupCreate) SetImageReferenceModelPrices(v map[string]float64) *GroupCreate {
+	_c.mutation.SetImageReferenceModelPrices(v)
+	return _c
+}
+
 // SetWebSearchPricePerCall sets the "web_search_price_per_call" field.
 func (_c *GroupCreate) SetWebSearchPricePerCall(v float64) *GroupCreate {
 	_c.mutation.SetWebSearchPricePerCall(v)
@@ -1686,6 +1706,14 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldVideoModelPrices, field.TypeJSON, value)
 		_node.VideoModelPrices = value
 	}
+	if value, ok := _c.mutation.ImageReferencePrice(); ok {
+		_spec.SetField(group.FieldImageReferencePrice, field.TypeFloat64, value)
+		_node.ImageReferencePrice = &value
+	}
+	if value, ok := _c.mutation.ImageReferenceModelPrices(); ok {
+		_spec.SetField(group.FieldImageReferenceModelPrices, field.TypeJSON, value)
+		_node.ImageReferenceModelPrices = value
+	}
 	if value, ok := _c.mutation.WebSearchPricePerCall(); ok {
 		_spec.SetField(group.FieldWebSearchPricePerCall, field.TypeFloat64, value)
 		_node.WebSearchPricePerCall = &value
@@ -2555,6 +2583,48 @@ func (u *GroupUpsert) UpdateVideoModelPrices() *GroupUpsert {
 // ClearVideoModelPrices clears the value of the "video_model_prices" field.
 func (u *GroupUpsert) ClearVideoModelPrices() *GroupUpsert {
 	u.SetNull(group.FieldVideoModelPrices)
+	return u
+}
+
+// SetImageReferencePrice sets the "image_reference_price" field.
+func (u *GroupUpsert) SetImageReferencePrice(v float64) *GroupUpsert {
+	u.Set(group.FieldImageReferencePrice, v)
+	return u
+}
+
+// UpdateImageReferencePrice sets the "image_reference_price" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateImageReferencePrice() *GroupUpsert {
+	u.SetExcluded(group.FieldImageReferencePrice)
+	return u
+}
+
+// AddImageReferencePrice adds v to the "image_reference_price" field.
+func (u *GroupUpsert) AddImageReferencePrice(v float64) *GroupUpsert {
+	u.Add(group.FieldImageReferencePrice, v)
+	return u
+}
+
+// ClearImageReferencePrice clears the value of the "image_reference_price" field.
+func (u *GroupUpsert) ClearImageReferencePrice() *GroupUpsert {
+	u.SetNull(group.FieldImageReferencePrice)
+	return u
+}
+
+// SetImageReferenceModelPrices sets the "image_reference_model_prices" field.
+func (u *GroupUpsert) SetImageReferenceModelPrices(v map[string]float64) *GroupUpsert {
+	u.Set(group.FieldImageReferenceModelPrices, v)
+	return u
+}
+
+// UpdateImageReferenceModelPrices sets the "image_reference_model_prices" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateImageReferenceModelPrices() *GroupUpsert {
+	u.SetExcluded(group.FieldImageReferenceModelPrices)
+	return u
+}
+
+// ClearImageReferenceModelPrices clears the value of the "image_reference_model_prices" field.
+func (u *GroupUpsert) ClearImageReferenceModelPrices() *GroupUpsert {
+	u.SetNull(group.FieldImageReferenceModelPrices)
 	return u
 }
 
@@ -3815,6 +3885,55 @@ func (u *GroupUpsertOne) UpdateVideoModelPrices() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearVideoModelPrices() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearVideoModelPrices()
+	})
+}
+
+// SetImageReferencePrice sets the "image_reference_price" field.
+func (u *GroupUpsertOne) SetImageReferencePrice(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageReferencePrice(v)
+	})
+}
+
+// AddImageReferencePrice adds v to the "image_reference_price" field.
+func (u *GroupUpsertOne) AddImageReferencePrice(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddImageReferencePrice(v)
+	})
+}
+
+// UpdateImageReferencePrice sets the "image_reference_price" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateImageReferencePrice() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageReferencePrice()
+	})
+}
+
+// ClearImageReferencePrice clears the value of the "image_reference_price" field.
+func (u *GroupUpsertOne) ClearImageReferencePrice() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearImageReferencePrice()
+	})
+}
+
+// SetImageReferenceModelPrices sets the "image_reference_model_prices" field.
+func (u *GroupUpsertOne) SetImageReferenceModelPrices(v map[string]float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageReferenceModelPrices(v)
+	})
+}
+
+// UpdateImageReferenceModelPrices sets the "image_reference_model_prices" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateImageReferenceModelPrices() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageReferenceModelPrices()
+	})
+}
+
+// ClearImageReferenceModelPrices clears the value of the "image_reference_model_prices" field.
+func (u *GroupUpsertOne) ClearImageReferenceModelPrices() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearImageReferenceModelPrices()
 	})
 }
 
@@ -5331,6 +5450,55 @@ func (u *GroupUpsertBulk) UpdateVideoModelPrices() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearVideoModelPrices() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearVideoModelPrices()
+	})
+}
+
+// SetImageReferencePrice sets the "image_reference_price" field.
+func (u *GroupUpsertBulk) SetImageReferencePrice(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageReferencePrice(v)
+	})
+}
+
+// AddImageReferencePrice adds v to the "image_reference_price" field.
+func (u *GroupUpsertBulk) AddImageReferencePrice(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddImageReferencePrice(v)
+	})
+}
+
+// UpdateImageReferencePrice sets the "image_reference_price" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateImageReferencePrice() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageReferencePrice()
+	})
+}
+
+// ClearImageReferencePrice clears the value of the "image_reference_price" field.
+func (u *GroupUpsertBulk) ClearImageReferencePrice() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearImageReferencePrice()
+	})
+}
+
+// SetImageReferenceModelPrices sets the "image_reference_model_prices" field.
+func (u *GroupUpsertBulk) SetImageReferenceModelPrices(v map[string]float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageReferenceModelPrices(v)
+	})
+}
+
+// UpdateImageReferenceModelPrices sets the "image_reference_model_prices" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateImageReferenceModelPrices() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageReferenceModelPrices()
+	})
+}
+
+// ClearImageReferenceModelPrices clears the value of the "image_reference_model_prices" field.
+func (u *GroupUpsertBulk) ClearImageReferenceModelPrices() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearImageReferenceModelPrices()
 	})
 }
 
