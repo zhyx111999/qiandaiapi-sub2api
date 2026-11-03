@@ -48,8 +48,8 @@ async function openHome() {
   const wrapper = mount({ template: '<RouterView />' }, {
     global: {
       plugins: [router],
-      // The canvas stage has no jsdom implementation; its logic is covered by the convergence unit tests.
-      stubs: { ConvergenceStage: true, LandingLocaleSwitch: true, LocaleSwitcher: true, Icon: true },
+      // The canvas stage has no jsdom implementation; its logic is covered by the orca stage unit tests.
+      stubs: { OrcaStage: true, LandingLocaleSwitch: true, LocaleSwitcher: true, Icon: true },
     },
   })
   await flushPromises()

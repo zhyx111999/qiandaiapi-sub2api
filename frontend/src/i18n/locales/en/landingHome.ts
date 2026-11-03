@@ -1,4 +1,4 @@
-/** Home page (many threads, one gateway) */
+/** Home page (the orca leaving the sea) */
 export default {
   landingHome: {
     nav: {
@@ -7,12 +7,11 @@ export default {
       platform: 'Platform'
     },
     language: 'Switch language',
-    stageLabel: 'Flow animation: fine threads standing for different models converge into one gateway and leave it as a calm, steady stream. Click anywhere to send a call.',
+    stageLabel: 'Animation: a line-drawn orca leaps out of a breaking wave at the lower right of the title, the sea running on beneath it.',
     headline: {
       lead: 'Quality ',
       highlight: 'speaks for itself'
     },
-    description: 'One gateway to your AI universe. Unified model access, key and usage management — every call, steady in orbit.',
-    hint: 'Tap anywhere · Send a call'
+    description: 'One gateway to your AI universe. Unified model access, key and usage management — every call, steady in orbit.'
   }
 }

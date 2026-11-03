@@ -30,38 +30,11 @@ describe('console backdrop frame cap', () => {
 })
 
 describe('console backdrop flow', () => {
-  it('advances both clocks at their configured speeds', () => {
+  it('advances the orca clock in real time and the glow clock at its configured speed', () => {
     const state = createFlowState()
-    stepFlow(state, 0.5, 640, 30, () => 0.5)
-    expect(state.waveTime).toBeCloseTo(0.5 * FLOW.waveSpeed)
-    expect(state.glowTime).toBeCloseTo(0.5 * FLOW.glowSpeed)
-  })
-
-  it('spawns pulses at the configured rate on valid strands', () => {
-    const state = createFlowState()
-    let seed = 0
-    const random = () => (seed = (seed * 9301 + 49297) % 233280) / 233280
-    // 10 s in 60 fps frames on a field wide enough that nothing leaves it.
-    for (let i = 0; i < 600; i++) stepFlow(state, 1 / 60, 1e9, 30, random)
-    const pulses = state.pulses.pulses
-    // 10 s x rate; float accumulation over 600 frames may defer the last spawn by one frame.
-    expect(pulses.length).toBeGreaterThanOrEqual(Math.floor(10 * FLOW.pulseRate) - 1)
-    expect(pulses.length).toBeLessThanOrEqual(Math.floor(10 * FLOW.pulseRate))
-    for (const pulse of pulses) {
-      expect(Number.isInteger(pulse.strand)).toBe(true)
-      expect(pulse.strand).toBeGreaterThanOrEqual(0)
-      expect(pulse.strand).toBeLessThan(30)
-      expect(pulse.speed).toBeGreaterThanOrEqual(FLOW.pulseSpeed * 0.85)
-      expect(pulse.speed).toBeLessThanOrEqual(FLOW.pulseSpeed * 1.15)
-    }
-  })
-
-  it('drops a pulse once its tail has left the field', () => {
-    const state = createFlowState()
-    state.pulses.spawn(3, 640 + FLOW.pulseTail - 1, 100)
-    stepFlow(state, 0, 640, 30, () => 0.99)
-    expect(state.pulses.pulses).toHaveLength(1)
-    stepFlow(state, 0.05, 640, 30, () => 0.99)
-    expect(state.pulses.pulses).toHaveLength(0)
+    stepFlow(state, 0.5)
+    stepFlow(state, 0.25)
+    expect(state.orcaTime).toBeCloseTo(0.75)
+    expect(state.glowTime).toBeCloseTo(0.75 * FLOW.glowSpeed)
   })
 })

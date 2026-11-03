@@ -1,7 +1,7 @@
 <template>
   <div class="landing site-page" data-testid="landing-home">
     <PaperBackdrop />
-    <ConvergenceStage :label="t('landingHome.stageLabel')" :wordmark="BRAND.wordmark" />
+    <OrcaStage :label="t('landingHome.stageLabel')" :wordmark="BRAND.wordmark" />
     <LandingHeader :is-authenticated="isAuthenticated" />
     <main>
       <LandingHero :console-path="consolePath" />
@@ -16,7 +16,7 @@ import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLandingSite } from './useLandingSite'
 import { BRAND } from './brand'
-import ConvergenceStage from './convergence/ConvergenceStage.vue'
+import OrcaStage from './orcaStage/OrcaStage.vue'
 import LandingHeader from './LandingHeader.vue'
 import LandingHero from './LandingHero.vue'
 import PaperBackdrop from './PaperBackdrop.vue'

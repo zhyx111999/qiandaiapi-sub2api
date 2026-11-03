@@ -17,7 +17,7 @@
         <div class="console-glow" :style="glowLook(glow)"></div>
       </div>
     </div>
-    <canvas ref="canvasRef" class="console-strands"></canvas>
+    <canvas ref="canvasRef" class="console-orca"></canvas>
   </div>
 </template>
 
@@ -25,8 +25,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useAppStore } from '@/stores'
 import { useTheme } from '@/composables/useTheme'
-import { createStrands } from '@/components/home/landing/convergence/strands'
-import { FLOW, consoleFlow, frameDue, stepFlow } from './consoleFlow'
+import { consoleFlow, frameDue, stepFlow } from './consoleFlow'
 import { DESKTOP_MIN_WIDTH } from './consoleGlass'
 import { FRAME_ORDER, addFrameTask } from './consoleFrame'
 import { FieldPainter } from './fieldPainter'
@@ -42,11 +41,12 @@ import type { GlassRect } from './glassOptics'
  * painted here (FieldPainter), so neither carries a live backdrop filter that the browser would
  * have to recompute every frame the field moves.
  *
- * Only what moves every frame is painted every frame: the strands and their calls, on the shared
- * console frame loop, capped at 60 fps (FLOW.maxFps); a capsule move redraws at once. The glows are
+ * Only what moves every frame is painted every frame: the cover's line-drawn orca, drawn on once
+ * per tab and then swimming in place, on the shared console frame loop, capped at 60 fps
+ * (FLOW.maxFps); a capsule move redraws at once. The glows are
  * elements below the canvas drifting on compositor animations (fieldGlows), and the fade toward the
  * workspace is the container's mask, so neither costs the main thread anything per frame. Pauses
- * with the hidden tab like any rAF loop; with prefers-reduced-motion it draws still frames only.
+ * with the hidden tab like any rAF loop; with prefers-reduced-motion it shows the finished drawing, still.
  * A device whose frames stay slow while the field moves steps down (fieldQuality): a lower-resolution
  * canvas, then a still field, so the console stays smooth on any machine.
  *
@@ -61,20 +61,10 @@ const props = defineProps<{
   scene: GlassScene
 }>()
 
-const STRAND_COUNT = 30
 const FIELD_WIDTH = 640 // px of field from the left edge on desktop
 const FADE_FROM = { desktop: 0.45, drawer: 0.7 } // fraction of the width where the fade-out starts
 const DRAWER_FADE_MS = 300 // matches the container opacity transition below
 const SIDEBAR_RADIUS = 24 // .sidebar border-radius
-
-/** Deterministic layout so the field does not change between pages. */
-function seeded(seed: number) {
-  let state = seed
-  return () => {
-    state = (state * 1664525 + 1013904223) % 4294967296
-    return state / 4294967296
-  }
-}
 
 const media = (query: string) => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches
 const reducedMotion = media('(prefers-reduced-motion: reduce)')
@@ -90,7 +80,7 @@ const glowEls = GLOWS.map(() => ({ x: null as HTMLElement | null, y: null as HTM
 const governor = createGovernor(fieldQuality.value, qualitySteps(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1))
 /** The field stands still: reduced motion, or a device that could not keep it moving smoothly. */
 const still = () => reducedMotion || fieldQuality.value === 'still'
-const painter = new FieldPainter(createStrands(STRAND_COUNT, seeded(20261027)))
+const painter = new FieldPainter()
 let ctx: CanvasRenderingContext2D | null = null
 let lastTime = 0
 let lastFrame = 0 // rAF time of the previous frame, for the governor
@@ -168,9 +158,8 @@ function draw() {
     width: size.w,
     height: size.h,
     dark: isDark.value,
-    waveTime: consoleFlow.waveTime,
-    pulses: consoleFlow.pulses.pulses,
-    pulseTail: FLOW.pulseTail,
+    time: consoleFlow.orcaTime,
+    elapsed: still() ? Infinity : consoleFlow.orcaTime,
     glass,
     lens: glass ? props.scene.lens() : null,
   })
@@ -204,7 +193,7 @@ const task = addFrameTask(FRAME_ORDER.field, (now) => {
   if (lastTime && !frameDue(now, lastTime) && !lensStep) return true
   const dt = lastTime ? Math.min(0.1, (now - lastTime) / 1000) : 0
   lastTime = now
-  stepFlow(consoleFlow, dt, size.w, STRAND_COUNT)
+  stepFlow(consoleFlow, dt)
   draw()
   return true
 })
@@ -267,7 +256,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* The field: glows below, strands above, faded toward the workspace by a mask (not per frame). */
+/* The field: glows below, the orca above, faded toward the workspace by a mask (not per frame). */
 .console-field {
   position: fixed;
   top: 0;
@@ -293,7 +282,7 @@ onBeforeUnmount(() => {
   translate: -50% -50%;
 }
 
-.console-strands {
+.console-orca {
   position: absolute;
   top: 0;
   left: 0;

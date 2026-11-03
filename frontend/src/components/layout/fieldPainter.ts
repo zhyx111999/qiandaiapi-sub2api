@@ -1,24 +1,28 @@
-import { strandY, type Strand, type StrandLayout } from '@/components/home/landing/convergence/strands'
-import type { Pulse } from '@/components/home/landing/convergence/pulses'
+import { PosedLines, placementMatrix, traceLines, type Placement, type Point } from '@/components/common/lineArt/lineFigure'
+import { ORCA_VIEWBOX, orcaStrokes } from '@/components/common/lineArt/orcaArt'
+import { orcaDrawn, orcaSwim } from '@/components/common/lineArt/orcaMotion'
 import { LENSING, lensInto, type GlassRect } from './glassOptics'
 import type { LensView } from './glassScene'
 
 /**
- * Draws the console field's moving lines: the landing page's strands and the calls travelling
- * along them. Seen through the sidebar glass the strands are lensed at its edge (with a faint
- * colour fringe), and under the selection capsule they are magnified, so neither the sidebar nor
- * the capsule needs a live backdrop filter. Everything is drawn in one pass per frame; what does
- * not change per frame stays out of the canvas (the glows are elements below it, the fade toward
- * the workspace is the canvas container's mask, see ConsoleBackdrop).
+ * Draws the console field's orca: the cover's line drawing, drawn on once and then swimming in
+ * place, its head behind the sidebar glass and its tail reaching toward the workspace. Seen
+ * through the glass it is lensed at the edge (with a faint colour fringe), and under the selection
+ * capsule it is magnified, so neither the sidebar nor the capsule needs a live backdrop filter.
+ * Everything is drawn in one pass per frame; what does not change per frame stays out of the
+ * canvas (the glows are elements below it, the fade toward the workspace is the canvas container's
+ * mask, see ConsoleBackdrop).
  */
-export const FIELD_STEP = 6 // px between polyline points
-const ACCENT_EVERY = 9
-const DENSITY = 1.6
 const COLORS = {
-  light: { ink: '31 29 26', accent: '59 146 113', red: '255 96 64', blue: '64 128 255' },
-  dark: { ink: '235 236 229', accent: '101 184 150', red: '255 120 96', blue: '96 150 255' },
+  light: { ink: '31 29 26', red: '255 96 64', blue: '64 128 255' },
+  dark: { ink: '235 236 229', red: '255 120 96', blue: '96 150 255' },
 } as const
+const LOOK = { alpha: { light: 0.52, dark: 0.42 }, width: 1.8 } as const
 const FRINGE_ALPHA = 0.32
+
+/** The orca across the sidebar's edge: its width (px, at most a share of the field), left inset and height. */
+const ORCA_PLACE = { width: 440, widthShare: 0.72, left: 24, y: 0.68, angle: 4 } as const
+const ORCA_CENTRE: Point = [ORCA_VIEWBOX.width / 2, ORCA_VIEWBOX.height / 2]
 
 type Palette = (typeof COLORS)['light'] | (typeof COLORS)['dark']
 
@@ -26,90 +30,81 @@ export interface FieldScene {
   width: number
   height: number
   dark: boolean
-  waveTime: number
-  pulses: readonly Pulse[]
-  pulseTail: number
+  /** Orca clock, s: its swim. */
+  time: number
+  /** s since the orca started being drawn (Infinity shows it finished). */
+  elapsed: number
   /** The sidebar glass, or null to draw the field plainly. */
   glass: GlassRect | null
   /** The selection capsule inside the glass, or null. */
   lens: LensView | null
 }
 
-export class FieldPainter {
-  private cols = 0
-  private py: Float32Array[] = [] // backdrop y per strand and column
-  private wx: Float32Array[] = [] // lensed through the glass edge
-  private wy: Float32Array[] = []
-  private ax: Float32Array[] = [] // scratch for the colour fringes
-  private ay: Float32Array[] = []
-  private mx: Float32Array[] = [] // magnified under the capsule
-  private my: Float32Array[] = []
-  private readonly look: { accent: boolean; alpha: number; width: number }[]
+/** Where the orca rests in a field `width` × `height` px: facing left, head up a little. */
+export function fieldOrcaPlacement(width: number, height: number): Placement {
+  const size = Math.min(ORCA_PLACE.width, width * ORCA_PLACE.widthShare)
+  return {
+    x: ORCA_PLACE.left + size / 2,
+    y: height * ORCA_PLACE.y,
+    anchor: ORCA_CENTRE,
+    scale: size / ORCA_VIEWBOX.width,
+    angle: ORCA_PLACE.angle,
+    mirror: true,
+  }
+}
 
-  constructor(private readonly strands: Strand[]) {
-    const widen = 1 + (DENSITY - 1) * 0.25
-    this.look = strands.map((strand, index) => {
-      const accent = index % ACCENT_EVERY === ACCENT_EVERY >> 1
-      return {
-        accent,
-        alpha: Math.min(1, (accent ? 0.5 : 0.14 + strand.weight * 0.3) * DENSITY),
-        width: (0.7 + strand.weight * 0.9) * widen,
-      }
-    })
+export class FieldPainter {
+  private readonly strokes = orcaStrokes()
+  private readonly posed = new PosedLines(this.strokes)
+  private readonly wx = this.buffers() // lensed through the glass edge
+  private readonly wy = this.buffers()
+  private readonly ax = this.buffers() // scratch for the colour fringes
+  private readonly ay = this.buffers()
+  private readonly mx = this.buffers() // magnified under the capsule
+  private readonly my = this.buffers()
+
+  private buffers(): Float32Array[] {
+    return this.strokes.map((s) => new Float32Array(s.xs.length))
   }
 
   paint(c: CanvasRenderingContext2D, scene: FieldScene): void {
     const { width: w, height: h } = scene
     c.clearRect(0, 0, w, h)
     if (!w || !h) return
-    this.ensure(w)
     const col = scene.dark ? COLORS.dark : COLORS.light
+    const alpha = scene.dark ? LOOK.alpha.dark : LOOK.alpha.light
 
-    const layout: StrandLayout = {
-      width: w,
-      height: h,
-      fanTop: -h * 0.04,
-      fanBottom: h * 1.04,
-      gateY: h * 0.56,
-      entryX: w * 0.7,
-      exitX: w * 0.7,
-      waist: h * 0.14,
-    }
-    for (let i = 0; i < this.strands.length; i++) {
-      const ys = this.py[i]
-      for (let k = 0; k < this.cols; k++) ys[k] = strandY(this.strands[i], k * FIELD_STEP, layout, scene.waveTime)
-    }
+    const rest = fieldOrcaPlacement(w, h)
+    const { rise, tilt } = orcaSwim(scene.time, ORCA_VIEWBOX.height)
+    const m = placementMatrix({ ...rest, y: rest.y + rise * rest.scale, angle: rest.angle + tilt })
+    this.posed.update(this.strokes, m, (i) => orcaDrawn(i, scene.elapsed))
 
+    c.lineCap = 'round'
+    c.lineJoin = 'round'
+    c.lineWidth = LOOK.width
     const g = scene.glass
     if (!g) {
-      this.strokeStrands(c, null, this.py, col)
-      this.strokePulses(c, null, this.py, col, scene)
-    } else {
-      // Outside the glass: the field as it is.
-      c.save()
-      c.beginPath()
-      c.rect(0, 0, w, h)
-      c.roundRect(g.x, g.y, g.w, g.h, g.r)
-      c.clip('evenodd')
-      this.strokeStrands(c, null, this.py, col)
-      this.strokePulses(c, null, this.py, col, scene)
-      c.restore()
-      this.throughGlass(c, g, col, scene)
+      this.stroke(c, this.posed.xs, this.posed.ys, col.ink, alpha)
+      return
     }
+    // Outside the glass: the orca as it is.
+    c.save()
+    c.beginPath()
+    c.rect(0, 0, w, h)
+    c.roundRect(g.x, g.y, g.w, g.h, g.r)
+    c.clip('evenodd')
+    this.stroke(c, this.posed.xs, this.posed.ys, col.ink, alpha)
+    c.restore()
+    this.throughGlass(c, g, col, alpha, scene.lens)
   }
 
-  private throughGlass(c: CanvasRenderingContext2D, g: GlassRect, col: Palette, scene: FieldScene) {
-    const reach = LENSING.edge + LENSING.spread + 2
-    const c0 = Math.max(0, Math.floor((g.x - reach) / FIELD_STEP))
-    const c1 = Math.min(this.cols - 1, Math.ceil((g.x + g.w + reach) / FIELD_STEP))
-    if (c0 > c1) return
+  private throughGlass(c: CanvasRenderingContext2D, g: GlassRect, col: Palette, alpha: number, lens: LensView | null) {
     c.save()
     c.beginPath()
     c.roundRect(g.x, g.y, g.w, g.h, g.r)
     c.clip()
-    this.lensAll(g, LENSING.edge, this.wx, this.wy, c0, c1)
-    this.strokeStrands(c, this.wx, this.wy, col, 1, null, c0, c1)
-    this.strokePulses(c, this.wx, this.wy, col, scene, c0, c1)
+    this.lensAll(g, LENSING.edge, this.wx, this.wy)
+    this.stroke(c, this.wx, this.wy, col.ink, alpha)
 
     // Colour fringes, only in the bending band: red bends a little more, blue a little less.
     const band = LENSING.band
@@ -118,19 +113,18 @@ export class FieldPainter {
     c.roundRect(g.x, g.y, g.w, g.h, g.r)
     c.roundRect(g.x + band, g.y + band, Math.max(0, g.w - 2 * band), Math.max(0, g.h - 2 * band), Math.max(0, g.r - band))
     c.clip('evenodd')
-    this.lensAll(g, LENSING.edge + LENSING.spread, this.ax, this.ay, c0, c1)
-    this.strokeStrands(c, this.ax, this.ay, col, FRINGE_ALPHA, col.red, c0, c1)
-    this.lensAll(g, LENSING.edge - LENSING.spread, this.ax, this.ay, c0, c1)
-    this.strokeStrands(c, this.ax, this.ay, col, FRINGE_ALPHA, col.blue, c0, c1)
+    this.lensAll(g, LENSING.edge + LENSING.spread, this.ax, this.ay)
+    this.stroke(c, this.ax, this.ay, col.red, alpha * FRINGE_ALPHA)
+    this.lensAll(g, LENSING.edge - LENSING.spread, this.ax, this.ay)
+    this.stroke(c, this.ax, this.ay, col.blue, alpha * FRINGE_ALPHA)
     c.restore()
 
-    const lens = scene.lens
     if (lens && lens.bandBottom > lens.bandTop) {
       // The capsule magnifies what the glass shows under it, instead of sampling the glass again;
-      // the glows below the canvas show through unmagnified, as before.
+      // the glows below the canvas show through unmagnified.
       const cx = lens.x + lens.w / 2
       const cy = lens.y + lens.h / 2
-      const m = LENSING.magnify
+      const k = LENSING.magnify
       c.save()
       c.beginPath()
       c.rect(lens.x - 1, lens.bandTop, lens.w + 2, lens.bandBottom - lens.bandTop)
@@ -139,113 +133,30 @@ export class FieldPainter {
       c.roundRect(lens.x, lens.y, lens.w, lens.h, lens.r)
       c.clip()
       c.clearRect(lens.x, lens.y, lens.w, lens.h)
-      for (let i = 0; i < this.strands.length; i++) {
-        const wx = this.wx[i]
-        const wy = this.wy[i]
-        const mx = this.mx[i]
-        const my = this.my[i]
-        for (let k = c0; k <= c1; k++) {
-          mx[k] = cx + (wx[k] - cx) * m
-          my[k] = cy + (wy[k] - cy) * m
+      const { counts } = this.posed
+      for (let i = 0; i < counts.length; i++) {
+        for (let p = 0; p < counts[i]; p++) {
+          this.mx[i][p] = cx + (this.wx[i][p] - cx) * k
+          this.my[i][p] = cy + (this.wy[i][p] - cy) * k
         }
       }
-      this.strokeStrands(c, this.mx, this.my, col, 1, null, c0, c1)
-      this.strokePulses(c, this.mx, this.my, col, scene, c0, c1)
+      this.stroke(c, this.mx, this.my, col.ink, alpha)
       c.restore()
     }
     c.restore()
   }
 
-  private lensAll(g: GlassRect, k: number, outX: Float32Array[], outY: Float32Array[], c0: number, c1: number) {
-    for (let i = 0; i < this.strands.length; i++) lensInto(null, this.py[i], FIELD_STEP, g, k, outX[i], outY[i], c0, c1)
-  }
-
-  /** Strokes every strand over columns c0..c1, in its own colour or `tint`. */
-  private strokeStrands(
-    c: CanvasRenderingContext2D,
-    xs: Float32Array[] | null,
-    ys: Float32Array[],
-    col: Palette,
-    alphaScale = 1,
-    tint: string | null = null,
-    c0 = 0,
-    c1 = this.cols - 1,
-  ) {
-    c.lineCap = 'round'
-    c.lineJoin = 'round'
-    for (let i = 0; i < this.strands.length; i++) {
-      const look = this.look[i]
-      const x = xs ? xs[i] : null
-      const y = ys[i]
-      c.strokeStyle = `rgb(${tint ?? (look.accent ? col.accent : col.ink)} / ${look.alpha * alphaScale})`
-      c.lineWidth = look.width
-      c.beginPath()
-      c.moveTo(x ? x[c0] : c0 * FIELD_STEP, y[c0])
-      for (let k = c0 + 1; k <= c1; k++) c.lineTo(x ? x[k] : k * FIELD_STEP, y[k])
-      c.stroke()
+  private lensAll(g: GlassRect, k: number, outX: Float32Array[], outY: Float32Array[]) {
+    const { xs, ys, counts } = this.posed
+    for (let i = 0; i < counts.length; i++) {
+      if (counts[i] > 0) lensInto(xs[i], ys[i], 0, g, k, outX[i], outY[i], 0, counts[i] - 1)
     }
   }
 
-  /**
-   * Same look as the landing page calls: a fading trail, a soft glow and a bright head. Only
-   * columns c0..c1 are drawn (lensed arrays are only filled there).
-   */
-  private strokePulses(
-    c: CanvasRenderingContext2D,
-    xs: Float32Array[] | null,
-    ys: Float32Array[],
-    col: Palette,
-    scene: FieldScene,
-    c0 = 0,
-    c1 = this.cols - 1,
-  ) {
-    const last = this.cols - 1
-    const column = (x: number) => Math.max(0, Math.min(last, Math.round(x / FIELD_STEP)))
-    for (const pulse of scene.pulses) {
-      const y = ys[pulse.strand]
-      if (!y) continue
-      const x = xs ? xs[pulse.strand] : null
-      const at = (k: number) => (x ? x[k] : k * FIELD_STEP)
-      const headColumn = column(pulse.x)
-      const head = Math.min(c1, headColumn)
-      const tail = Math.max(c0, column(pulse.x - scene.pulseTail))
-      if (head <= tail) continue
-      const trail = c.createLinearGradient(at(tail), y[tail], at(head), y[head])
-      trail.addColorStop(0, `rgb(${col.accent} / 0)`)
-      trail.addColorStop(1, `rgb(${col.accent} / 0.95)`)
-      c.strokeStyle = trail
-      c.lineWidth = 1.8
-      c.beginPath()
-      c.moveTo(at(tail), y[tail])
-      for (let k = tail + 1; k <= head; k++) c.lineTo(at(k), y[k])
-      c.stroke()
-      // The head has left the field (or this range); only the tail remains.
-      if (pulse.x > last * FIELD_STEP || headColumn !== head) continue
-      const hx = at(head)
-      const hy = y[head]
-      const glow = c.createRadialGradient(hx, hy, 0, hx, hy, 14)
-      glow.addColorStop(0, `rgb(${col.accent} / 0.42)`)
-      glow.addColorStop(1, `rgb(${col.accent} / 0)`)
-      c.fillStyle = glow
-      c.fillRect(hx - 14, hy - 14, 28, 28)
-      c.fillStyle = `rgb(${col.accent})`
-      c.beginPath()
-      c.arc(hx, hy, 2.4, 0, Math.PI * 2)
-      c.fill()
-    }
-  }
-
-  private ensure(width: number) {
-    const cols = Math.floor(width / FIELD_STEP) + 1
-    if (cols === this.cols) return
-    this.cols = cols
-    const make = () => this.strands.map(() => new Float32Array(cols))
-    this.py = make()
-    this.wx = make()
-    this.wy = make()
-    this.ax = make()
-    this.ay = make()
-    this.mx = make()
-    this.my = make()
+  private stroke(c: CanvasRenderingContext2D, xs: Float32Array[], ys: Float32Array[], rgb: string, alpha: number) {
+    c.strokeStyle = `rgb(${rgb} / ${alpha})`
+    c.beginPath()
+    traceLines(c, xs, ys, this.posed.counts)
+    c.stroke()
   }
 }

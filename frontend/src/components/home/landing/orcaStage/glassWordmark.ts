@@ -1,5 +1,5 @@
 /**
- * The wordmark as frosted glass letters lying over the strands.
+ * The wordmark as frosted glass letters lying over the cover's picture (the orca and the wave).
  *
  * Inside the letters the scene is re-painted magnified (lens) onto a scratch
  * layer, blurred once onto the glass layer (frost), then clipped to the glyphs
@@ -12,7 +12,9 @@ export interface WordmarkBox {
   y: number
   width: number
   height: number
-  /** Letter band (ascender top to descender bottom) in page coordinates. */
+  /** Glyph extents in page coordinates: left and right edges, and the letter band (ascender top to descender bottom). */
+  left: number
+  right: number
   top: number
   bottom: number
 }
@@ -107,7 +109,7 @@ export class GlassWordmark {
     const right = centerX + metrics.actualBoundingBoxRight
     const top = baseline - metrics.actualBoundingBoxAscent
     const bottom = baseline + metrics.actualBoundingBoxDescent
-    const box = { x: left - pad, y: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2, top, bottom }
+    const box = { x: left - pad, y: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2, left, right, top, bottom }
     this.box = box
 
     const make = () => {
@@ -181,7 +183,7 @@ export class GlassWordmark {
     g.fillStyle = `rgb(${this.style.frost} / 0.6)`
     g.fillRect(0, 0, canvas.width, canvas.height)
     // Frost: one blur pass over the whole interior. Engines without canvas filters
-    // ignore it and keep the softened strands painted by the caller.
+    // ignore it and keep the softened lines painted by the caller.
     g.filter = `blur(${this.fontSize * FROST * dpr}px)`
     g.drawImage(innerCanvas, 0, 0)
     g.filter = 'none'

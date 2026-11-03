@@ -3,7 +3,7 @@
     <div class="landing-hero__inner">
       <p class="landing-kicker" aria-hidden="true"><i></i>{{ BRAND.kicker }}<i></i></p>
 
-      <!-- The wordmark is drawn as frosted glass by the convergence stage, centred in the gap below. -->
+      <!-- The wordmark is drawn as frosted glass by the orca stage, centred in the gap below. -->
 
       <div class="landing-hero__bottom">
         <div class="landing-hero__copy">
@@ -28,7 +28,6 @@
       </div>
     </div>
 
-    <p class="landing-hint" :class="{ 'landing-hint--still': fieldQuality === 'still' }" aria-hidden="true"><i></i>{{ t('landingHome.hint') }}</p>
   </section>
 </template>
 
@@ -36,8 +35,6 @@
 import { useI18n } from 'vue-i18n'
 import { vLiquidGlass } from '@/components/common/liquidGlass'
 import { BRAND } from './brand'
-// A device that settled on a still field (fieldQuality) stops the hint's pulse too.
-import { fieldQuality } from '@/components/layout/fieldQuality'
 
 defineProps<{
   consolePath: string
@@ -224,35 +221,6 @@ const { t } = useI18n()
   transform: translateX(2px) rotate(-45deg);
 }
 
-.landing-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  white-space: nowrap;
-  color: var(--landing-ink-3);
-  animation: landing-fade 1.2s var(--landing-ease) 1.4s backwards;
-}
-
-.landing-hint i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--landing-accent);
-  animation: landing-pulse 2.2s ease-in-out infinite;
-}
-
-.landing-hint--still i {
-  animation-play-state: paused;
-}
-
 @keyframes landing-fade {
   from {
     opacity: 0;
@@ -280,13 +248,6 @@ const { t } = useI18n()
   }
 }
 
-/* Below desktop the site nav floats at the bottom centre, where the hint would be. */
-@media (max-width: 1023.98px) {
-  .landing-hint {
-    display: none;
-  }
-}
-
 @media (max-width: 760px) {
   /* One header row (brand, language, login); the site nav is at the bottom. */
   .landing-hero__inner {
@@ -307,9 +268,7 @@ const { t } = useI18n()
 @media (prefers-reduced-motion: reduce) {
   .landing-kicker,
   .landing-hero__copy,
-  .landing-hero__actions,
-  .landing-hint,
-  .landing-hint i {
+  .landing-hero__actions {
     animation: none;
   }
 }
