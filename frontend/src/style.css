@@ -230,20 +230,6 @@
      light from the top left (border plus inset highlights), a soft sheen and a floating shadow.
      Cards are content, not navigation, so they carry no backdrop filter (Apple keeps Liquid Glass
      off the content layer) and any number of them costs nothing per frame. */
-  .glass-card {
-    @apply bg-white/70 dark:bg-dark-800/70;
-    @apply backdrop-blur-xl;
-    @apply rounded-2xl;
-    @apply transition-all duration-300;
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.42), rgb(255 255 255 / 0) 38%);
-    border: 1px solid rgb(255 255 255 / 0.6);
-    box-shadow:
-      inset 1px 1px 0 rgb(255 255 255 / 0.7),
-      inset -1px -1px 0 rgb(255 255 255 / 0.25),
-      0 12px 36px -20px rgb(71 64 53 / 0.26);
-  }
-
-  /* ============ 卡片样式 ============ */
   .card {
     @apply rounded-2xl;
     @apply transition-all duration-300;
@@ -259,18 +245,13 @@
   }
 
   /* Dark: theme('colors.dark.800') (#1e293b) at 50%, as before, with a dim rim light. */
-  .dark .card,
-  .dark .glass-card {
+  .dark .card {
     background-color: rgb(30 41 59 / 0.5);
     background-image: linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0) 38%);
     border-color: rgb(255 255 255 / 0.08);
     box-shadow:
       inset 1px 1px 0 rgb(255 255 255 / 0.08),
       0 10px 28px -18px rgb(0 0 0 / 0.6);
-  }
-
-  .dark .glass-card {
-    background-color: rgb(30 41 59 / 0.7);
   }
 
   .card-hover {
@@ -1211,9 +1192,9 @@
 }
 
 @layer utilities {
-  /* 文字渐变 */
+  /* 文字渐变：植物绿由深到浅（登录页标题） */
   .text-gradient {
-    @apply bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent;
   }
 
   /* 玻璃效果 */

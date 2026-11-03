@@ -58,19 +58,6 @@ export default {
         // Warm neutrals retheme existing gray utilities without replacing business components.
         gray: warmGray,
         ...Object.fromEntries(THEMED_GRAYS.map((name) => [name, themedGray(name)])),
-        accent: {
-          50: '#f5f5ef',
-          100: '#eaece3',
-          200: '#d5dbcd',
-          300: '#b8c3ad',
-          400: '#97a88b',
-          500: '#7c8f70',
-          600: '#617258',
-          700: '#4c5a45',
-          800: '#3f4939',
-          900: '#343d30',
-          950: '#1d231b'
-        },
         // 深色模式背景
         dark: {
           50: '#f8fafc',
