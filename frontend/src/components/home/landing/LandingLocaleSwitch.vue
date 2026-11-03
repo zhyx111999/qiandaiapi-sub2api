@@ -104,6 +104,7 @@ const { availableLocales, currentLocale, currentLocaleCode, isOpen, switching, t
 
 /* Denser frost than the controls: the menu holds text over a busy backdrop. */
 .locale__menu {
+  --glass-tint: var(--landing-frost-rgb);
   --glass-tint-alpha: 0.78;
   --glass-blur: 20px;
   position: absolute;

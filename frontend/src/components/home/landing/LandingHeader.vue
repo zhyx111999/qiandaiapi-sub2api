@@ -86,8 +86,8 @@ useLightRim(loginEl)
   height: 40px;
   border-radius: 11px;
   box-shadow:
-    0 0 0 1px rgb(var(--landing-ink-rgb) / 0.06),
-    0 8px 22px -10px rgb(var(--landing-ink-rgb) / 0.45);
+    0 0 0 1px rgb(var(--landing-shade-rgb) / 0.06),
+    0 8px 22px -10px rgb(var(--landing-shade-rgb) / 0.45);
 }
 
 .landing-brand__text {

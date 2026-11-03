@@ -29,14 +29,19 @@ onMounted(refreshSiteState)
 
 <style scoped>
 /*
- * Palette: ivory paper (primary), warm ink (secondary), plant green (accent, used sparingly).
- * Channels are exposed as 'r g b' so the canvas stage can read the same values.
+ * Palette: ivory paper (primary), warm ink (secondary), plant green (accent, used sparingly);
+ * shade is the colour of shadows, daylight the light over the paper, sheen the strength of the
+ * glass highlights. Channels are exposed as 'r g b' so the canvas stage can read the same values.
+ * The dark theme (chosen in the console) swaps in the console's night palette below.
  */
 .landing {
   --landing-paper-rgb: 246 242 234;
   --landing-ink-rgb: 31 29 26;
   --landing-accent-rgb: 59 146 113;
   --landing-frost-rgb: 253 251 247;
+  --landing-shade-rgb: 31 29 26;
+  --landing-daylight: rgb(255 255 255 / 0.9);
+  --landing-sheen: 1;
   --landing-ink: rgb(var(--landing-ink-rgb));
   --landing-ink-2: rgb(var(--landing-ink-rgb) / 0.7);
   --landing-ink-3: rgb(var(--landing-ink-rgb) / 0.46);
@@ -55,6 +60,18 @@ onMounted(refreshSiteState)
   font-family: var(--landing-font);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Dark theme: the console's night paper (dark-950), the field's light ink and green, slate glass. */
+:global(.dark) .landing {
+  --landing-paper-rgb: 2 6 23;
+  --landing-ink-rgb: 235 236 229;
+  --landing-accent-rgb: 101 184 150;
+  --landing-frost-rgb: 30 41 59;
+  --landing-shade-rgb: 0 0 0;
+  --landing-daylight: rgb(148 163 184 / 0.1);
+  --landing-sheen: 0.35;
+  color-scheme: dark;
 }
 
 .landing :deep(:focus-visible) {

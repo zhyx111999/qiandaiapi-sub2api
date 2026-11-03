@@ -4,7 +4,7 @@
     ref="navRef"
     v-liquid-glass="NAV_GLASS"
     class="site-nav liquid-glass clear-glass"
-    :class="{ 'site-nav--cover': section === 'home', 'site-nav--compact': compact }"
+    :class="{ 'site-nav--compact': compact }"
     :aria-label="t('landingHome.nav.label')"
     v-on="capsule.on"
   >
@@ -200,17 +200,17 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-/* In the dark console (the cover keeps its ivory palette). */
-:global(.dark) .site-nav:not(.site-nav--cover) .site-nav__link {
+/* Dark theme. */
+:global(.dark) .site-nav .site-nav__link {
   color: rgb(255 255 255 / 0.7);
 }
 
-:global(.dark) .site-nav:not(.site-nav--cover) .site-nav__link:hover,
-:global(.dark) .site-nav:not(.site-nav--cover) .site-nav__link[aria-current='page'] {
+:global(.dark) .site-nav .site-nav__link:hover,
+:global(.dark) .site-nav .site-nav__link[aria-current='page'] {
   color: rgb(255 255 255);
 }
 
-:global(.dark) .site-nav:not(.site-nav--cover) .site-nav__link:not([data-capsule]):hover {
+:global(.dark) .site-nav .site-nav__link:not([data-capsule]):hover {
   background: rgb(255 255 255 / 0.06);
 }
 </style>

@@ -169,7 +169,7 @@ const { t } = useI18n()
   transform: scale(0.97);
 }
 
-/* Primary: smoked ink glass, the one dark surface on the page, with a green orb. */
+/* Primary: smoked ink glass, the one ink surface on the page (light on the dark cover), with a green orb. */
 .landing-btn--primary {
   --glass-tint: var(--landing-ink-rgb);
   --glass-tint-alpha: 0.86;
@@ -181,8 +181,8 @@ const { t } = useI18n()
   --glass-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.22),
     inset 0 0 18px -8px rgb(255 255 255 / 0.4),
-    0 2px 4px rgb(var(--landing-ink-rgb) / 0.12),
-    0 20px 40px -18px rgb(var(--landing-ink-rgb) / 0.55);
+    0 2px 4px rgb(var(--landing-shade-rgb) / 0.12),
+    0 20px 40px -18px rgb(var(--landing-shade-rgb) / 0.55);
   padding: 0 9px 0 30px;
   color: rgb(var(--landing-paper-rgb));
 }
@@ -191,8 +191,8 @@ const { t } = useI18n()
   --glass-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.26),
     inset 0 0 20px -6px rgb(255 255 255 / 0.45),
-    0 2px 4px rgb(var(--landing-ink-rgb) / 0.12),
-    0 26px 50px -18px rgb(var(--landing-ink-rgb) / 0.6);
+    0 2px 4px rgb(var(--landing-shade-rgb) / 0.12),
+    0 26px 50px -18px rgb(var(--landing-shade-rgb) / 0.6);
 }
 
 .landing-btn--primary i {

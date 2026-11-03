@@ -10,6 +10,8 @@ import { waveLines } from './waveArt'
 export interface Palette {
   ink: string
   frost: string
+  shade: string
+  sheen: number
 }
 
 /** Where the stage wants the wordmark, in CSS px. */
@@ -43,7 +45,7 @@ const FAR = 1e5 // px: the water's surface runs on this far beyond its ends
  * CSS behind the canvas, so frames clear to transparent.
  */
 export class CoverScene {
-  private readonly wordmark: GlassWordmark
+  private wordmark: GlassWordmark
   private readonly orca = orcaStrokes()
   private readonly wave = waveLines()
   private readonly waveStrokes = this.wave.map((line) => line.stroke)
@@ -64,11 +66,11 @@ export class CoverScene {
   private constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly ctx: CanvasRenderingContext2D,
-    private readonly palette: Palette,
-    wordmarkText: string,
-    fontFamily: string,
+    private palette: Palette,
+    private readonly wordmarkText: string,
+    private readonly fontFamily: string,
   ) {
-    this.wordmark = new GlassWordmark(wordmarkText, { family: fontFamily, weight: 800, tracking: -0.045, ink: palette.ink, frost: palette.frost })
+    this.wordmark = this.makeWordmark()
     const kinds = this.wave.map((line) => line.kind)
     this.reaches = kinds.flatMap((kind, i) => (kind === 'reach' ? [i] : []))
     this.crestAndSea = kinds.flatMap((kind, i) => (kind === 'reach' ? [] : [i]))
@@ -81,6 +83,17 @@ export class CoverScene {
   static create(canvas: HTMLCanvasElement, palette: Palette, wordmarkText: string, fontFamily: string): CoverScene | null {
     const ctx = canvas.getContext('2d')
     return ctx ? new CoverScene(canvas, ctx, palette, wordmarkText, fontFamily) : null
+  }
+
+  private makeWordmark(): GlassWordmark {
+    const { ink, frost, shade, sheen } = this.palette
+    return new GlassWordmark(this.wordmarkText, { family: this.fontFamily, weight: 800, tracking: -0.045, ink, frost, shade, sheen })
+  }
+
+  /** Takes a new palette (the theme changed); lay out again to rebuild the wordmark. */
+  setPalette(palette: Palette): void {
+    this.palette = palette
+    this.wordmark = this.makeWordmark()
   }
 
   /** Lays the wordmark out centred at `gateY` and the picture around it. */

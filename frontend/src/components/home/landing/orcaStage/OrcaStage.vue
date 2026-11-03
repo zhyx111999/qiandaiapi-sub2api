@@ -3,7 +3,8 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useTheme } from '@/composables/useTheme'
 import { createGovernor, fieldQuality, qualitySteps, setFieldQuality } from '@/components/layout/fieldQuality'
 import { CoverScene, type Palette, type StageMetrics } from './coverScene'
 
@@ -46,6 +47,8 @@ function readPalette(el: HTMLElement): Palette {
   return {
     ink: read('--landing-ink-rgb', '31 29 26'),
     frost: read('--landing-frost-rgb', '253 251 247'),
+    shade: read('--landing-shade-rgb', '31 29 26'),
+    sheen: Number(read('--landing-sheen', '1')) || 0,
   }
 }
 
@@ -91,6 +94,15 @@ onMounted(() => {
   if (still()) return
   governor = createGovernor(fieldQuality.value, qualitySteps(window.devicePixelRatio || 1))
   frame = requestAnimationFrame(tick)
+})
+
+// The theme is chosen in the console; follow it if it changes while the cover is open.
+const { isDark } = useTheme()
+watch(isDark, () => {
+  const canvas = canvasRef.value
+  if (!canvas || !scene) return
+  scene.setPalette(readPalette(canvas))
+  layout()
 })
 
 onBeforeUnmount(() => {

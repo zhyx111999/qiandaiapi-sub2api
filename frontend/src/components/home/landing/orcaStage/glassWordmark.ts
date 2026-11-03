@@ -24,9 +24,12 @@ export interface WordmarkStyle {
   weight: number
   /** Letter spacing in em. */
   tracking: number
-  /** 'r g b' channels. */
+  /** 'r g b' channels: letter edge, frost, and the shadows' colour. */
   ink: string
   frost: string
+  shade: string
+  /** Strength of the highlights (body light and light sweep), 1 on ivory paper. */
+  sheen: number
 }
 
 const SHEEN_PERIOD = 8 // s between light sweeps
@@ -138,14 +141,14 @@ export class GlassWordmark {
     r.strokeStyle = 'rgb(255 255 255 / 0.95)'
     r.strokeText(this.text, centerX - 0.6, baseline - 0.8)
     r.lineWidth = 1
-    r.strokeStyle = `rgb(${this.style.ink} / 0.2)`
+    r.strokeStyle = `rgb(${this.style.shade} / 0.2)`
     r.strokeText(this.text, centerX + 0.5, baseline + 0.9)
     this.rim = rim[0]
 
     // Cast shadow only: fill with a shadow, then cut the glyphs back out. Shadow
     // offsets ignore the transform, so they are given in device pixels.
     const [, s] = shadow
-    s.shadowColor = `rgb(${this.style.ink} / 0.14)`
+    s.shadowColor = `rgb(${this.style.shade} / 0.14)`
     s.shadowBlur = fontSize * 0.16 * dpr
     s.shadowOffsetY = fontSize * 0.09 * dpr
     s.fillText(this.text, centerX, baseline)
@@ -191,9 +194,9 @@ export class GlassWordmark {
 
     // Body light: brighter at the top of the letters, a breath of ink at the foot.
     const body = g.createLinearGradient(0, box.top, 0, box.bottom)
-    body.addColorStop(0, 'rgb(255 255 255 / 0.5)')
+    body.addColorStop(0, `rgb(255 255 255 / ${0.5 * this.style.sheen})`)
     body.addColorStop(0.45, 'rgb(255 255 255 / 0)')
-    body.addColorStop(1, `rgb(${this.style.ink} / 0.06)`)
+    body.addColorStop(1, `rgb(${this.style.shade} / 0.06)`)
     g.fillStyle = body
     g.fillRect(box.x, box.top, box.width, box.bottom - box.top)
 
@@ -217,7 +220,7 @@ export class GlassWordmark {
     g.transform(1, 0, -0.35, 1, 0, 0)
     const light = g.createLinearGradient(-band / 2, 0, band / 2, 0)
     light.addColorStop(0, 'rgb(255 255 255 / 0)')
-    light.addColorStop(0.5, 'rgb(255 255 255 / 0.7)')
+    light.addColorStop(0.5, `rgb(255 255 255 / ${0.7 * this.style.sheen})`)
     light.addColorStop(1, 'rgb(255 255 255 / 0)')
     g.fillStyle = light
     g.fillRect(-band / 2, 0, band, box.bottom - box.top)

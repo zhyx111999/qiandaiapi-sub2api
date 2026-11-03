@@ -637,10 +637,10 @@
       0 0 2px rgb(251 248 242 / 0.9);
   }
 
-  /* Dark console (the cover keeps its ivory palette, and so does the site nav while on it). */
+  /* Dark theme: every clear glass (sidebar, toolbar, site nav, cover controls). */
+  .dark .clear-glass,
   .dark .sidebar,
-  .dark .console-toolbar-glass,
-  .dark .site-nav:not(.site-nav--cover) {
+  .dark .console-toolbar-glass {
     --glass-tint: 12 16 26;
     --glass-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.22),
@@ -725,9 +725,9 @@
       linear-gradient(#000 0 0);
   }
 
+  .dark .clear-glass::before,
   .dark .sidebar::before,
-  .dark .console-toolbar-glass::before,
-  .dark .site-nav:not(.site-nav--cover)::before {
+  .dark .console-toolbar-glass::before {
     opacity: 0.45;
   }
 
@@ -860,10 +860,10 @@
     background-color: var(--capsule-tint-hot, rgb(255 255 255 / 0.42));
   }
 
-  /* Dark console: the capsules dim with the glass they sit in (the cover's site nav stays ivory). */
+  /* Dark theme: the capsules dim with the glass they sit in. */
   .dark .sidebar,
   .dark .console-toolbar,
-  .dark .site-nav:not(.site-nav--cover) {
+  .dark .site-nav {
     --capsule-tint: rgb(255 255 255 / 0.1);
     --capsule-tint-hot: rgb(255 255 255 / 0.16);
     --capsule-shadow: inset 0 1px 0.5px rgb(255 255 255 / 0.35), 0 6px 14px -8px rgb(0 0 0 / 0.6);

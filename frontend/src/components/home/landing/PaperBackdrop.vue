@@ -20,14 +20,14 @@ import { fieldQuality } from '@/components/layout/fieldQuality'
   pointer-events: none;
   background:
     radial-gradient(60% 55% at 86% 80%, rgb(var(--landing-accent-rgb) / 0.07), transparent 72%),
-    radial-gradient(130% 95% at 50% 42%, transparent 58%, rgb(var(--landing-ink-rgb) / 0.07) 100%),
+    radial-gradient(130% 95% at 50% 42%, transparent 58%, rgb(var(--landing-shade-rgb) / 0.07) 100%),
     rgb(var(--landing-paper-rgb));
 }
 
 .paper__daylight {
   position: absolute;
   inset: -25%;
-  background: radial-gradient(38% 34% at 26% 18%, rgb(255 255 255 / 0.9), transparent 72%);
+  background: radial-gradient(38% 34% at 26% 18%, var(--landing-daylight), transparent 72%);
   animation: paper-daylight 70s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
 }
 

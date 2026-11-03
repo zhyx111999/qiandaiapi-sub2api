@@ -87,7 +87,6 @@ describe('site nav', () => {
     wrapper = (await openAt('/home')).wrapper
     expect(links(wrapper)).toEqual(['/home', '/login', '/model-plaza'])
     expect(current(wrapper)).toBe('/home')
-    expect(wrapper.get('nav').classes()).toContain('site-nav--cover')
     expect(spacer(wrapper)).toBe(true)
   })
 
