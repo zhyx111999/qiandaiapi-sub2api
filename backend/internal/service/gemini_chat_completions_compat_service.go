@@ -313,6 +313,7 @@ func (s *GeminiMessagesCompatService) forwardClaudeBodyAsChatCompletions(
 		ReasoningEffort:  reasoningEffort,
 		ImageEndpoint:    imageCount > 0,
 		ImageCount:       imageCount,
+		ReferenceImageCount: imageReferenceCount(imageCount, claudeBody),
 		ImageSize:        imageSize,
 		ImageInputSize:   imageInputSize,
 		ClientDisconnect: clientDisconnect,

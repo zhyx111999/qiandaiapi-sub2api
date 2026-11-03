@@ -798,6 +798,7 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 		Duration:             time.Since(startTime),
 		ImageEndpoint:        usage.ImageCount > 0,
 		ImageCount:           usage.ImageCount,
+		ReferenceImageCount:  usage.ReferenceImageCount,
 		ImageSize:            usage.ImageSize,
 		ImageInputSize:       usage.ImageInputSize,
 		ImageOutputSizes:     usage.ImageOutputSizes,
@@ -1257,6 +1258,7 @@ type grokMediaUsageMetadata struct {
 	Model                string
 	BillingModel         string
 	ImageCount           int
+	ReferenceImageCount  int
 	ImageSize            string
 	ImageInputSize       string
 	ImageOutputSizes     []string
@@ -1271,6 +1273,7 @@ func grokMediaUsageFromResponse(endpoint GrokMediaEndpoint, requestInfo GrokMedi
 	switch endpoint {
 	case GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits:
 		meta.ImageCount = countOpenAIResponseImageOutputsFromJSONBytes(responseBody)
+		meta.ReferenceImageCount = len(requestInfo.InputImageURLs) + len(requestInfo.Uploads)
 		meta.ImageSize = requestInfo.SizeTier
 		meta.ImageInputSize = requestInfo.Size
 		meta.ImageOutputSizes = collectOpenAIResponseImageOutputSizesFromJSONBytes(responseBody)

@@ -1057,6 +1057,12 @@
               </div>
             </div>
           </div>
+          <ImageReferencePricing
+            v-model:price="createForm.image_reference_price"
+            v-model:model-prices="createForm.image_reference_model_prices"
+            :platform="createForm.platform"
+            :multiplier="imagePreviewMultiplier(createForm)"
+          />
           <div v-if="createForm.platform === 'gemini' && createForm.allow_image_generation" class="mt-4 border-t border-dashed border-gray-200 pt-4 dark:border-dark-700">
             <label
               class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -2749,6 +2755,12 @@
               </div>
             </div>
           </div>
+          <ImageReferencePricing
+            v-model:price="editForm.image_reference_price"
+            v-model:model-prices="editForm.image_reference_model_prices"
+            :platform="editForm.platform"
+            :multiplier="imagePreviewMultiplier(editForm)"
+          />
           <div v-if="editForm.platform === 'gemini' && editForm.allow_image_generation" class="mt-4 border-t border-dashed border-gray-200 pt-4 dark:border-dark-700">
             <label
               class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -4425,6 +4437,7 @@ import {
 import type { Column } from "@/components/common/types";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import MiniMaxH3VideoPricing from "./MiniMaxH3VideoPricing.vue";
+import ImageReferencePricing from "./ImageReferencePricing.vue";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import DataTable from "@/components/common/DataTable.vue";
 import Pagination from "@/components/common/Pagination.vue";
@@ -4502,7 +4515,7 @@ import {
 } from "./groupsReasoningEffort";
 import {
   defaultAllowImageGenerationForPlatform,
-  getDefaultImagePreviewPrice,
+  getDefaultImagePreviewPrices,
   getDefaultVideoPreviewPrice,
   getImagePricePlaceholder,
   getVideoPricePlaceholder,
@@ -4517,6 +4530,10 @@ import {
   serializeVideoModelPrices,
   videoModelPriceFamilyRows,
 } from "./groupsVideoModelPricing";
+import {
+  createImageReferenceModelPricesForm,
+  serializeImageReferenceModelPrices,
+} from "./groupsImageReferencePricing";
 
 const supportsLivePlatform = (platform: string): boolean =>
   platform === "openai" || platform === "composite";
@@ -5113,6 +5130,9 @@ const createForm = reactive({
   video_price_720p: null as number | null,
   video_price_1080p: null as number | null,
   video_model_prices: createVideoModelPricesForm(),
+  // 参考图附加费（USD/张）：统一单价 + 按模型族覆盖；留空用模型默认价
+  image_reference_price: null as number | string | null,
+  image_reference_model_prices: createImageReferenceModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
   search_price_per_1k: null as number | null,
@@ -5484,6 +5504,9 @@ const editForm = reactive({
   video_price_720p: null as number | null,
   video_price_1080p: null as number | null,
   video_model_prices: createVideoModelPricesForm(),
+  // 参考图附加费（USD/张）：统一单价 + 按模型族覆盖；留空用模型默认价
+  image_reference_price: null as number | string | null,
+  image_reference_model_prices: createImageReferenceModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
   search_price_per_1k: null as number | null,
@@ -5612,19 +5635,23 @@ const formatVideoPricePreview = (value: number | string | null | undefined) => {
   return `$${price.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")}`;
 };
 
-const buildImageFinalPricePreview = (form: ImagePricingFormState) => {
-  const imageMultiplier = form.image_rate_independent
+// 图片（含参考图附加费）实际结算倍率：开启独立倍率用生图倍率，否则用分组倍率。
+const imagePreviewMultiplier = (form: ImagePricingFormState) =>
+  form.image_rate_independent
     ? normalizePreviewNumber(form.image_rate_multiplier, 1)
     : normalizePreviewNumber(form.rate_multiplier, 1);
-  const multiplier = imageMultiplier;
+
+const buildImageFinalPricePreview = (form: ImagePricingFormState) => {
+  const multiplier = imagePreviewMultiplier(form);
   return imagePricingTiers.map((tier) => {
-    const basePrice =
-      parsePreviewPrice(form[tier.key]) ??
-      getDefaultImagePreviewPrice(form.platform, tier.key);
+    const configured = parsePreviewPrice(form[tier.key]);
+    const basePrices = configured !== null
+      ? [configured]
+      : getDefaultImagePreviewPrices(form.platform, tier.key);
     return {
       label: tier.label,
-      value: basePrice !== null
-        ? formatImagePricePreview(basePrice * multiplier)
+      value: basePrices.length > 0
+        ? basePrices.map((price) => formatImagePricePreview(price * multiplier)).join(" / ")
         : t("admin.groups.imagePricing.notConfigured"),
     };
   });
@@ -5958,6 +5985,8 @@ const closeCreateModal = () => {
   createForm.video_price_720p = null;
   createForm.video_price_1080p = null;
   createForm.video_model_prices = createVideoModelPricesForm();
+  createForm.image_reference_price = null;
+  createForm.image_reference_model_prices = createImageReferenceModelPricesForm();
   createForm.long_context_pricing_enabled = true;
   createForm.force_openai_fast = false;
   createForm.free_openai_fast = false;
@@ -6077,10 +6106,14 @@ const handleCreateGroup = async () => {
   try {
     const {
       video_model_prices: _createFormVideoModelPrices,
+      image_reference_model_prices: _createFormReferenceModelPrices,
       ...createGroupForm
     } = createForm;
     const videoModelPrices = serializeVideoModelPrices(
       createForm.video_model_prices,
+    );
+    const referenceModelPrices = serializeImageReferenceModelPrices(
+      createForm.image_reference_model_prices,
     );
     // 构建请求数据，包含模型路由配置
     const requestData = {
@@ -6108,6 +6141,9 @@ const handleCreateGroup = async () => {
       ),
       ...(Object.keys(videoModelPrices).length > 0
         ? { video_model_prices: videoModelPrices }
+        : {}),
+      ...(Object.keys(referenceModelPrices).length > 0
+        ? { image_reference_model_prices: referenceModelPrices }
         : {}),
       model_routing: convertRoutingRulesToApiFormat(
         createModelRoutingRules.value,
@@ -6166,6 +6202,7 @@ const handleCreateGroup = async () => {
     requestData.image_price_1k = emptyToNull(requestData.image_price_1k);
     requestData.image_price_2k = emptyToNull(requestData.image_price_2k);
     requestData.image_price_4k = emptyToNull(requestData.image_price_4k);
+    requestData.image_reference_price = emptyToNull(requestData.image_reference_price);
     requestData.video_price_480p = emptyToNull(requestData.video_price_480p);
     requestData.video_price_720p = emptyToNull(requestData.video_price_720p);
     requestData.video_price_1080p = emptyToNull(requestData.video_price_1080p);
@@ -6259,6 +6296,10 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.video_price_1080p = group.video_price_1080p;
   editForm.video_model_prices = createVideoModelPricesForm(
     group.video_model_prices,
+  );
+  editForm.image_reference_price = group.image_reference_price ?? null;
+  editForm.image_reference_model_prices = createImageReferenceModelPricesForm(
+    group.image_reference_model_prices,
   );
   editForm.web_search_price_per_call = group.web_search_price_per_call ?? null;
   editForm.search_price_per_1k = group.search_price_per_1k ?? null;
@@ -6374,6 +6415,8 @@ const closeEditModal = () => {
   editForm.video_price_720p = null;
   editForm.video_price_1080p = null;
   editForm.video_model_prices = createVideoModelPricesForm();
+  editForm.image_reference_price = null;
+  editForm.image_reference_model_prices = createImageReferenceModelPricesForm();
   editForm.long_context_pricing_enabled = true;
   editForm.force_openai_fast = false;
   editForm.free_openai_fast = false;
@@ -6456,6 +6499,9 @@ const handleUpdateGroup = async () => {
       video_model_prices: serializeVideoModelPrices(
         editForm.video_model_prices,
       ),
+      image_reference_model_prices: serializeImageReferenceModelPrices(
+        editForm.image_reference_model_prices,
+      ),
       fallback_group_id:
         editForm.fallback_group_id === null ? 0 : editForm.fallback_group_id,
       fallback_group_id_on_invalid_request:
@@ -6528,6 +6574,7 @@ const handleUpdateGroup = async () => {
     payload.image_price_1k = emptyPriceToClear(payload.image_price_1k);
     payload.image_price_2k = emptyPriceToClear(payload.image_price_2k);
     payload.image_price_4k = emptyPriceToClear(payload.image_price_4k);
+    payload.image_reference_price = emptyPriceToClear(payload.image_reference_price);
     payload.video_price_480p = emptyPriceToClear(payload.video_price_480p);
     payload.video_price_720p = emptyPriceToClear(payload.video_price_720p);
     payload.video_price_1080p = emptyPriceToClear(payload.video_price_1080p);

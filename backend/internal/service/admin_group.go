@@ -317,7 +317,7 @@ func defaultModelsListCandidateIDs(platform string) []string {
 // gates OpenAI image generation there.
 func DefaultAllowImageGenerationForPlatform(platform string) bool {
 	switch platform {
-	case PlatformGrok, PlatformGemini, PlatformAntigravity:
+	case PlatformGrok, PlatformGemini, PlatformAntigravity, PlatformNovelAI:
 		return true
 	default:
 		return false

@@ -1089,6 +1089,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		ClientDisconnect:              clientDisconnect,
 		ImageEndpoint:                 imageCount > 0,
 		ImageCount:                    imageCount,
+		ReferenceImageCount:           imageReferenceCount(imageCount, body),
 		ImageSize:                     imageSize,
 		ImageInputSize:                imageInputSize,
 	}, nil
@@ -1627,6 +1628,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		ClientDisconnect:              clientDisconnect,
 		ImageEndpoint:                 imageCount > 0,
 		ImageCount:                    imageCount,
+		ReferenceImageCount:           imageReferenceCount(imageCount, body),
 		ImageSize:                     imageSize,
 		ImageInputSize:                imageInputSize,
 	}, nil

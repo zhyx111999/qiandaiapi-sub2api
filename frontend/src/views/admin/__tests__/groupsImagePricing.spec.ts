@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   defaultAllowImageGenerationForPlatform,
-  getDefaultImagePreviewPrice,
+  getDefaultImagePreviewPrices,
   getDefaultVideoPreviewPrice,
   getImagePricePlaceholder,
   getVideoPricePlaceholder,
@@ -60,7 +60,14 @@ describe("groups image pricing platform support", () => {
 
   it("keeps non-Grok image placeholders on the generic image card", () => {
     expect(getImagePricePlaceholder("openai", "image_price_1k")).toBe("0.134");
-    expect(getDefaultImagePreviewPrice("openai", "image_price_2k")).toBe(0.201);
+    expect(getDefaultImagePreviewPrices("openai", "image_price_2k")).toEqual([0.201]);
     expect(getDefaultVideoPreviewPrice("openai", "video_price_480p")).toBeNull();
+  });
+
+  it("prices NovelAI per model family (V4.5 / V5) and allows its image generation by default", () => {
+    expect(supportsImagePricingPlatform("novelai")).toBe(true);
+    expect(defaultAllowImageGenerationForPlatform("novelai")).toBe(true);
+    expect(getImagePricePlaceholder("novelai", "image_price_1k")).toBe("0.001 / 0.035");
+    expect(getDefaultImagePreviewPrices("novelai", "image_price_2k")).toEqual([0.6, 0.9]);
   });
 });

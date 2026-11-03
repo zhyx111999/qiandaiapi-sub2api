@@ -4449,6 +4449,7 @@ const apiKeyValuePlaceholder = computed(() => {
     case 'typesafe':
       return 'ts-...'
     case 'mistral':
+    case 'novelai':
       return 'API Key'
     default:
       return isMultiProtocolPlatform.value ? 'sk-...' : 'sk-ant-...'

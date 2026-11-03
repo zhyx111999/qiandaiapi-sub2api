@@ -1333,6 +1333,7 @@ function generateRoutedCodexFiles(
     command_code: 'Command Code',
     cline: 'Cline',
     mistral: 'Mistral',
+    novelai: 'NovelAI',
     composite: 'Composite'
   }
   const label = labels[platform]

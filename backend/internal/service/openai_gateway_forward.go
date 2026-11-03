@@ -1691,6 +1691,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 		if imageCount > 0 {
 			forwardResult.ImageCount = imageCount
+			forwardResult.ReferenceImageCount = CountInputImages(body)
 			forwardResult.ImageSize = imageSizeTier
 			forwardResult.ImageInputSize = imageInputSize
 			forwardResult.ImageOutputSizes = imageOutputSizes

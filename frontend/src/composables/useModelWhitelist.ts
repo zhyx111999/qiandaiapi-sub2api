@@ -543,9 +543,9 @@ export function getModelsByPlatform(platform: string): string[] {
     case 'hunyuan': return hunyuanModels
     case 'perplexity': return perplexityModels
     default:
-      // 平台清单中没有内置模型列表的多协议供应商（多为多模型聚合平台，模型多且常变）
-      // 默认不预填白名单：预填 Claude 模型会让新账号只接受这些模型。
-      return getProviderProfile(platform) ? [] : claudeModels
+      // 平台清单中的多协议供应商用清单给出的默认模型（NovelAI 等）；没有给出的多为多模型聚合平台
+      // （模型多且常变），默认不预填白名单：预填 Claude 模型会让新账号只接受这些模型。
+      return getProviderProfile(platform) ? [...(getProviderProfile(platform)?.default_models ?? [])] : claudeModels
   }
 }
 

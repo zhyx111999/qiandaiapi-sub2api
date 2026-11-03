@@ -473,6 +473,7 @@ handleSuccess:
 		ClientDisconnect:              clientDisconnect,
 		ImageEndpoint:                 imageCount > 0,
 		ImageCount:                    imageCount,
+		ReferenceImageCount:           imageReferenceCount(imageCount, body),
 		ImageSize:                     imageSize,
 		ImageInputSize:                imageInputSize,
 	}, nil

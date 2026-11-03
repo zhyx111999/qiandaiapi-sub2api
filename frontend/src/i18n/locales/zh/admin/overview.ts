@@ -1116,7 +1116,13 @@ export default {
         batchGeminiOnlyHint: '批量生图当前仅支持 Gemini 分组。',
         modeHint: '默认关闭独立倍率时，图片费用 = 图片价格 × 当前分组有效倍率；开启独立倍率后，图片费用 = 图片价格 × 生图独立倍率。',
         finalPricePreview: '最终单张价格预览',
-        notConfigured: '未配置'
+        notConfigured: '未配置',
+        referenceTitle: '参考图附加费',
+        referenceHint: '每张随请求发送的参考图（NovelAI 风格/角色参考、图片编辑与对话中上传的图片）在出图价之外按张加收。按模型族的价格优先，其次统一单价；都留空时使用模型默认价（NovelAI V4.5 $0.05、V5 $0.075，其他模型不加收）。',
+        referencePrice: '统一单价（$/张）',
+        referenceModelDefault: '按模型默认',
+        referenceOtherModels: '其他模型',
+        referencePreview: '每张参考图最终加收（× 倍率 {multiplier}）：'
       },
       videoPricing: {
         h3Enable: '开启 MiniMax-H3 视频模型',

@@ -652,6 +652,8 @@ type ForwardResult struct {
 
 	// 图片生成计费字段（图片生成模型使用）
 	ImageCount int // 生成的图片数量
+	// ReferenceImageCount 是随请求发送的参考图张数，每张按分组参考图单价加收（见 ReferenceImageUnitPrice）。
+	ReferenceImageCount int
 	// ImageEndpoint 标记请求来自专用图片端点（/v1/images/*、图片模型端点）。
 	// 分组 image_count_billing 开关只对这类请求生效，混合的 Responses/Chat/WS
 	// 请求带图片工具时仍按 token 计费。

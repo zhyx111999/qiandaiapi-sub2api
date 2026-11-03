@@ -1119,7 +1119,13 @@ export default {
         batchGeminiOnlyHint: 'Batch image generation is currently available only for Gemini groups.',
         modeHint: 'By default, image billing uses image price × current effective group multiplier. Independent mode uses image price × image multiplier.',
         finalPricePreview: 'Final per-image price preview',
-        notConfigured: 'Not configured'
+        notConfigured: 'Not configured',
+        referenceTitle: 'Reference image surcharge',
+        referenceHint: 'Each reference image sent with a request (NovelAI vibe / character references, images uploaded to image edits or chats) is charged per image on top of the image price. A model-family price wins, then the flat price; with both empty the model default applies (NovelAI V4.5 $0.05, V5 $0.075, no surcharge for other models).',
+        referencePrice: 'Flat price ($/image)',
+        referenceModelDefault: 'Model default',
+        referenceOtherModels: 'Other models',
+        referencePreview: 'Final surcharge per reference image (× multiplier {multiplier}):'
       },
       videoPricing: {
         h3Enable: 'Enable MiniMax-H3 video',

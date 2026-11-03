@@ -279,7 +279,7 @@
                     ? 'sk-...'
                     : account.platform === 'grok'
                       ? 'xai-...'
-                      : account.platform === 'mistral'
+                      : account.platform === 'mistral' || account.platform === 'novelai'
                         ? 'API Key'
                         : 'sk-ant-...'
             "

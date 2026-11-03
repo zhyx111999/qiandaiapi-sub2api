@@ -34,6 +34,8 @@ export interface ProviderProfileInfo {
   responses_path?: string
   /** 上游 /models 为每个模型给出 supported_endpoints，按模型分流时未命中规则的模型据此选协议。 */
   model_catalog?: boolean
+  /** 供应商精选的默认模型：账号表单预填与 /models 兜底。 */
+  default_models?: string[]
   /** 默认模式在前。 */
   modes: ProviderModeInfo[]
 }

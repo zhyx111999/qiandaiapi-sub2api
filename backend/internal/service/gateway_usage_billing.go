@@ -1122,7 +1122,9 @@ func (s *GatewayService) calculateRecordUsageCost(
 		if resolved := s.resolveChannelPricing(ctx, billingModel, apiKey); resolved != nil && resolved.Mode == BillingModeToken {
 			return s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, pricingAt)
 		}
-		return s.calculateImageCost(ctx, result, apiKey, billingModel, imageMultiplier)
+		cost := s.calculateImageCost(ctx, result, apiKey, billingModel, imageMultiplier)
+		unitPrice := ReferenceImageUnitPrice(referenceImageGroup(apiKey), billingModel)
+		return AddReferenceImageCost(cost, unitPrice, result.ReferenceImageCount, imageMultiplier)
 	}
 
 	// Voice audio (TTS / STT / realtime) when present on the forward result.
