@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"math/rand/v2"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 32 // v32: group image reference prices; v31: group image_count_billing
+const apiKeyAuthSnapshotVersion = 33 // v33: per-key model mapping and reasoning effort override (upstream v32) with group image reference prices
 
 // Local-only generation wrapper. Old entries remain bounded by existing TTL
 // and capacity, but cannot authorize after a subscription recovery checkpoint.
@@ -377,6 +378,8 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		GroupID:          apiKey.GroupID,
 		Name:             apiKey.Name,
 		Status:           apiKey.Status,
+		ModelMapping:     maps.Clone(apiKey.ModelMapping),
+		ReasoningEffort:  apiKey.ReasoningEffort,
 		IPWhitelist:      apiKey.IPWhitelist,
 		IPBlacklist:      apiKey.IPBlacklist,
 		Quota:            apiKey.Quota,
@@ -495,6 +498,8 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		Key:              key,
 		Name:             snapshot.Name,
 		Status:           snapshot.Status,
+		ModelMapping:     maps.Clone(snapshot.ModelMapping),
+		ReasoningEffort:  snapshot.ReasoningEffort,
 		IPWhitelist:      snapshot.IPWhitelist,
 		IPBlacklist:      snapshot.IPBlacklist,
 		Quota:            snapshot.Quota,
