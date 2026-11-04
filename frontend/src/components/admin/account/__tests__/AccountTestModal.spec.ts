@@ -148,6 +148,29 @@ describe('AccountTestModal', () => {
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
   })
 
+  it('NovelAI 账号按生图测试：提示词输入框、携带提示词并渲染图片', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'nai-diffusion-4-5-full', display_name: 'NAI Diffusion 4.5 Full' },
+      { id: 'nai-diffusion-5-full', display_name: 'NAI Diffusion 5 Full' }
+    ])
+    const wrapper = mountModal({ id: 6, name: 'NovelAI', platform: 'novelai', type: 'apikey', status: 'active' })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    await promptInput.setValue('1girl, orca, ocean')
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toMatchObject({ prompt: '1girl, orca, ocean' })
+    expect(JSON.parse(request.body).model_id).toMatch(/^nai-diffusion-/)
+    expect(wrapper.find('img[alt="test-image-1"]').attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
   it('grok 账号测试默认选择 Grok 模型', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'grok-4.3', display_name: 'Grok 4.3' },

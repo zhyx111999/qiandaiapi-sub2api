@@ -492,8 +492,11 @@ const supportsGrokVideoTest = computed(
   () => isGrokAccount.value && grokTestMode.value === 'video'
 )
 
+// NovelAI only generates images: every model is tested by generating one.
+const supportsNovelAIImageTest = computed(() => props.account?.platform === 'novelai')
+
 const supportsImageTest = computed(
-  () => supportsGeminiImageTest.value || supportsOpenAIImageTest.value || supportsGrokImageTest.value
+  () => supportsGeminiImageTest.value || supportsOpenAIImageTest.value || supportsGrokImageTest.value || supportsNovelAIImageTest.value
 )
 
 // Model select only when the mode needs a model.

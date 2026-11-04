@@ -434,6 +434,11 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return nil
 	}
 
+	// NovelAI 只生图：测试走 Images 生成，图片显示在测试窗口（novelai_test_connection.go）。
+	if account.Platform == PlatformNovelAI {
+		return s.testNovelAIImageConnection(c, account, modelID, prompt)
+	}
+
 	// Route to platform-specific test method
 	// 按入站协议分流的多协议供应商（国产厂商等）：按账号协议选测试路径。
 	if account.RoutesProtocolByInbound() {
@@ -3412,7 +3417,7 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, body io.Reader)
 
 // testOpenAIImageAPIKey tests OpenAI image generation using an API Key account.
 func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.Context, account *Account, modelID, prompt string) error {
-	authToken := account.GetOpenAIApiKey()
+	authToken := account.GetOpenAIProtocolAPIKey()
 	if authToken == "" {
 		return s.sendErrorAndEnd(c, "No API key available")
 	}
