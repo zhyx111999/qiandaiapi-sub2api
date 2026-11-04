@@ -13,7 +13,6 @@ const (
 	channelMonitorV4FirstTokenSamples = 30
 	channelMonitorV4SampleWindow      = 24 * time.Hour
 	channelMonitorV4CacheWindow       = 30 * time.Minute
-	channelMonitorV4MaxGroups         = 200
 )
 
 // ChannelMonitorV4RequestSample is one successful request with a recorded first
@@ -49,8 +48,6 @@ type ChannelMonitorV4InsightReader interface {
 	ChannelMonitorV4CacheTotals(ctx context.Context, groupIDs []int64, since time.Time) (map[int64]ChannelMonitorV4CacheTotals, error)
 }
 
-var errChannelMonitorV4TooManyGroups = infraerrors.BadRequest("CHANNEL_MONITOR_V4_TOO_MANY_GROUPS", "too many groups")
-
 // V4GroupInsights returns insights for the requested groups, limited to the
 // viewer's allowed groups when filter.RestrictGroups is set.
 func (s *ChannelMonitorV2Service) V4GroupInsights(ctx context.Context, filter ChannelMonitorV2Filter) ([]ChannelMonitorV4GroupInsight, error) {
@@ -69,9 +66,6 @@ func (s *ChannelMonitorV2Service) V4GroupInsights(ctx context.Context, filter Ch
 				groupIDs = append(groupIDs, id)
 			}
 		}
-	}
-	if len(groupIDs) > channelMonitorV4MaxGroups {
-		return nil, errChannelMonitorV4TooManyGroups
 	}
 	insights := make([]ChannelMonitorV4GroupInsight, 0, len(groupIDs))
 	if len(groupIDs) == 0 {

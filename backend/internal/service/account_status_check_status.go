@@ -17,9 +17,8 @@ const (
 	AccountStatusCheckStateNormal   = "normal"   // green: the latest answer was 21
 	AccountStatusCheckStateUnknown  = "unknown"  // grey: no check result yet
 
-	accountStatusCheckStatusMaxAccounts = 200
-	accountStatusCheckHistorySize       = 15
-	accountStatusCheckAnswerHintRunes   = 32
+	accountStatusCheckHistorySize     = 15
+	accountStatusCheckAnswerHintRunes = 32
 	// The official runner saves a wrong built-in candy answer as a failed result
 	// with this message (RunPelicanBackground); it is a degraded answer, not an error.
 	accountStatusCheckAnswerMismatch = "answer_mismatch"
@@ -76,9 +75,6 @@ type AccountStatusCheckLatest struct {
 
 // Status 两次批量只读查询覆盖所有 OpenAI 账号；未初始化/无结果仍返回灰色状态，影子复用母账号历史。
 func (s *AccountStatusCheckService) Status(ctx context.Context, accountIDs []int64) ([]AccountStatusCheckStatusItem, error) {
-	if len(accountIDs) > accountStatusCheckStatusMaxAccounts {
-		return nil, accountStatusCheckInvalid("at most %d account_ids", accountStatusCheckStatusMaxAccounts)
-	}
 	items := []AccountStatusCheckStatusItem{}
 	if len(accountIDs) == 0 {
 		return items, nil

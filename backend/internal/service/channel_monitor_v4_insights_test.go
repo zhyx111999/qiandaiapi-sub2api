@@ -73,11 +73,4 @@ func TestChannelMonitorV4InsightsFollowMonitorState(t *testing.T) {
 	require.ErrorIs(t, err, ErrChannelMonitorDisabled)
 	require.Nil(t, repo.asked, "nothing is read while the monitor is off")
 
-	repo.config.Enabled = true
-	many := make([]int64, channelMonitorV4MaxGroups+1)
-	for i := range many {
-		many[i] = int64(i + 1)
-	}
-	_, err = svc.V4GroupInsights(context.Background(), ChannelMonitorV2Filter{GroupIDs: many})
-	require.ErrorIs(t, err, errChannelMonitorV4TooManyGroups)
 }

@@ -56,11 +56,10 @@ func (r *accountStatusCheckRepository) SavePlan(ctx context.Context, cfg *servic
 			return err
 		}
 	} else {
-		// 只更新读到的那个版本；官方计划页若同时编辑过，保留管理员的新版本并让本次保存重试。
 		result, err := tx.ExecContext(ctx, `UPDATE scheduled_test_plans SET model_id=$1,cron_expression=$2,enabled=$3,
  max_results=$4,auto_recover=false,next_run_at=$5,pelican_config=$6,updated_at=clock_timestamp()
- WHERE id=$7 AND account_id=$8 AND updated_at=$9`, plan.ModelID, plan.CronExpression, plan.Enabled, plan.MaxResults,
-			plan.NextRunAt, marshalPelicanConfig(plan.PelicanConfig), plan.ID, plan.AccountID, plan.UpdatedAt)
+ WHERE id=$7 AND account_id=$8`, plan.ModelID, plan.CronExpression, plan.Enabled, plan.MaxResults,
+			plan.NextRunAt, marshalPelicanConfig(plan.PelicanConfig), plan.ID, plan.AccountID)
 		if err != nil {
 			return err
 		}
@@ -69,7 +68,7 @@ func (r *accountStatusCheckRepository) SavePlan(ctx context.Context, cfg *servic
 			return err
 		}
 		if n != 1 {
-			return fmt.Errorf("status check plan changed; reload settings and retry")
+			return fmt.Errorf("status check plan %d no longer exists", plan.ID)
 		}
 	}
 	cfg.PlanID = &plan.ID

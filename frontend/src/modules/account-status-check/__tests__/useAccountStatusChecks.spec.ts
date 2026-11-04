@@ -93,10 +93,10 @@ describe('OpenAI 状态检测批量查询', () => {
     expect(mocks.statuses).toHaveBeenCalledTimes(1)
   })
 
-  it('按接口批量上限分段请求', async () => {
+  it('当前页所有账号一次请求', async () => {
     setup(Array.from({ length: 450 }, (_, index) => oauth(index + 1)))
     await flushPromises()
-    expect(requestedIds().map(ids => ids.length)).toEqual([200, 200, 50])
+    expect(requestedIds().map(ids => ids.length)).toEqual([450])
   })
 
   it('模块关闭时不请求状态接口', async () => {

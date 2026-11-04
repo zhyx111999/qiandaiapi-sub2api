@@ -27,9 +27,6 @@ type statusCheckRouteStore struct {
 	rows  map[int64]service.AccountStatusCheckConfig
 }
 
-func (s *statusCheckRouteStore) WithAccountLock(ctx context.Context, _ int64, fn func(context.Context) error) error {
-	return fn(ctx)
-}
 func (s *statusCheckRouteStore) Get(_ context.Context, id int64) (*service.AccountStatusCheckConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -204,7 +201,6 @@ func TestAccountStatusCheckRoutesFollowTheContract(t *testing.T) {
 		{http.MethodPut, base + "/accounts/1", `{"enabled":true,"interval_minutes":0}`, 400, "ACCOUNT_STATUS_CHECK_INVALID"},
 		{http.MethodPost, base + "/accounts/1/run", "", 409, "ACCOUNT_STATUS_CHECK_DISABLED"},
 		{http.MethodGet, base + "/status?account_ids=1,abc", "", 400, "ACCOUNT_STATUS_CHECK_INVALID"},
-		{http.MethodGet, base + "/status?account_ids=" + strings.Repeat("1,", 201), "", 400, "ACCOUNT_STATUS_CHECK_INVALID"},
 	} {
 		code, reply := env.call(t, tc.method, tc.path, tc.body)
 		require.Equal(t, tc.code, code, tc.method+" "+tc.path)

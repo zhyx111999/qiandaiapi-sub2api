@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
@@ -82,19 +81,12 @@ func statusCheckBool(v bool) *bool { return &v }
 
 type statusCheckStore struct {
 	AccountStatusCheckStore
-	lock    sync.Mutex
 	rows    map[int64]AccountStatusCheckConfig
 	admin   *statusCheckAdmin
 	plans   *statusCheckPlans
 	results map[int64][]AccountStatusCheckResult
 	busy    bool
 	saves   int
-}
-
-func (r *statusCheckStore) WithAccountLock(ctx context.Context, _ int64, fn func(context.Context) error) error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	return fn(ctx)
 }
 
 // withPlan 与真实 SQL 一致：只读地附上本账号计划的实际开关。

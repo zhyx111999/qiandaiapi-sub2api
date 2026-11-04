@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue'
-import { getAccountStatusChecks, STATUS_BATCH_LIMIT } from './api'
+import { getAccountStatusChecks } from './api'
 import { loadAccountStatusCheckCapabilities } from './capabilities'
 import { appliesToAccount } from './model'
 import type { AccountStatusCheckCapabilities, AccountStatusCheckStatusItem } from './types'
@@ -51,11 +51,9 @@ export function useAccountStatusChecks(rows: Ref<readonly AccountRow[]>, busy: (
         items.value = new Map()
         return
       }
-      const batches: number[][] = []
-      for (let start = 0; start < ids.length; start += STATUS_BATCH_LIMIT) batches.push(ids.slice(start, start + STATUS_BATCH_LIMIT))
-      const results = await Promise.all(batches.map(batch => getAccountStatusChecks(batch, current.signal)))
+      const results = await getAccountStatusChecks(ids, current.signal)
       if (current.signal.aborted) return
-      items.value = new Map(results.flat().map(item => [item.account_id, item]))
+      items.value = new Map(results.map(item => [item.account_id, item]))
     } catch {
       // 接口异常只显示未知，不保留可能过期的正常状态。
       if (!current.signal.aborted) items.value = new Map()

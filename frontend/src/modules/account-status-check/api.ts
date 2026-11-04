@@ -3,7 +3,6 @@ import type { AccountStatusCheckCapabilities, AccountStatusCheckConfig, AccountS
 
 const BASE = '/admin/account-status-check'
 
-export const STATUS_BATCH_LIMIT = 200
 
 export const ERROR_DISABLED = 'ACCOUNT_STATUS_CHECK_DISABLED'
 export const ERROR_RUNNING = 'ACCOUNT_STATUS_CHECK_RUNNING'

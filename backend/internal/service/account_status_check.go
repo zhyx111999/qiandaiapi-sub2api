@@ -201,7 +201,6 @@ func AccountStatusCheckCapabilitiesView() AccountStatusCheckCapabilities {
 }
 
 type AccountStatusCheckStore interface {
-	WithAccountLock(context.Context, int64, func(context.Context) error) error
 	Get(context.Context, int64) (*AccountStatusCheckConfig, error)
 	Save(context.Context, *AccountStatusCheckConfig) error
 	SavePlan(context.Context, *AccountStatusCheckConfig, *ScheduledTestPlan) error
@@ -281,31 +280,26 @@ func (s *AccountStatusCheckService) config(ctx context.Context, id int64) (*Acco
 }
 
 func (s *AccountStatusCheckService) Update(ctx context.Context, id int64, in AccountStatusCheckInput) (*AccountStatusCheckView, error) {
-	var view *AccountStatusCheckView
-	err := s.store.WithAccountLock(ctx, id, func(ctx context.Context) error {
-		a, err := s.eligibleAccount(ctx, id)
-		if err != nil {
-			return err
-		}
-		if a.ID != id {
-			return ErrAccountStatusCheckInherited
-		}
-		cur, err := s.config(ctx, id)
-		if err != nil {
-			return err
-		}
-		cfg := defaultAccountStatusCheckConfig(id)
-		if cur != nil {
-			cfg = *cur
-		}
-		next, err := in.merge(cfg)
-		if err != nil {
-			return err
-		}
-		view, err = s.apply(ctx, a, next)
-		return err
-	})
-	return view, err
+	a, err := s.eligibleAccount(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if a.ID != id {
+		return nil, ErrAccountStatusCheckInherited
+	}
+	cur, err := s.config(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	cfg := defaultAccountStatusCheckConfig(id)
+	if cur != nil {
+		cfg = *cur
+	}
+	next, err := in.merge(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return s.apply(ctx, a, next)
 }
 
 // 配置与官方计划一起提交；旧计划直接沿用 ID，历史结果不变。

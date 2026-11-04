@@ -25,21 +25,6 @@ func scanAccountStatusCheckConfig(row interface{ Scan(...any) error }, extra ...
 	err := row.Scan(dest...)
 	return c, err
 }
-func (r *accountStatusCheckRepository) WithAccountLock(ctx context.Context, id int64, fn func(context.Context) error) error {
-	// 复用既有账号配置串行方式，保证手动保存与补齐不会为同一账号并发建计划。
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('account-status-check:' || $1::text,0))`, id); err != nil {
-		return err
-	}
-	if err = fn(ctx); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
 func (r *accountStatusCheckRepository) Get(ctx context.Context, id int64) (*service.AccountStatusCheckConfig, error) {
 	// 以普通（非影子）OpenAI 账号为读取边界；同时读出计划的实际开关（只读），由服务层换算成真实的自动检测状态。
 	var configured bool
