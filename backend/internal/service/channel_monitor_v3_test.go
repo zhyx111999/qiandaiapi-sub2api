@@ -626,7 +626,7 @@ func TestChannelMonitorV3Modes(t *testing.T) {
 	require.Equal(t, ChannelMonitorModeV3, mode)
 	require.Equal(t, ChannelMonitorModeV3, repo.values[SettingKeyChannelMonitorMode])
 	require.Equal(t, 1, notified, "the aggregator wakes up on the flip")
-	_, err = svc.SetChannelMonitorMode(context.Background(), "v4")
+	_, err = svc.SetChannelMonitorMode(context.Background(), "v5")
 	require.ErrorIs(t, err, ErrChannelMonitorInvalidMode)
 	require.Equal(t, ChannelMonitorModeV3, normalizeChannelMonitorMode("v3"))
 
