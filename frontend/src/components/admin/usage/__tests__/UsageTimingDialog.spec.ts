@@ -73,7 +73,7 @@ describe('Usage timing details', () => {
     expect(wrapper.text()).toContain('requestTiming.health.normalClose')
     expect(wrapper.findAll('strong').find(n => n.text() === '40.00s')?.element.parentElement?.className).toContain('text-orange-700')
     const reuse = wrapper.findAll('div').find(n => n.element.children.length === 2 && n.element.children[0]?.textContent === 'requestTiming.fields.reused')
-    expect(reuse?.element.children[1]?.className).toContain('text-slate-600')
+    expect(reuse?.element.children[1]?.className).toContain('text-gray-600')
     wrapper.unmount()
   })
   it('closes when the blank area beside the drawer is clicked', async () => {
