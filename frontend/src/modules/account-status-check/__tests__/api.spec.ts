@@ -8,7 +8,7 @@ describe('状态检测 HTTP 合同', () => {
 
   it('使用独立 capabilities、状态批量、配置及立即运行路径', async () => {
     client.get.mockResolvedValue({ data: { enabled: true } })
-    client.put.mockResolvedValue({ data: { account_id: 9, effective_model: 'gpt-6-astra' } })
+    client.put.mockResolvedValue({ data: { account_id: 9, model: 'gpt-6.1-sol' } })
     client.post.mockResolvedValue({ data: { started: true } })
     vi.resetModules()
     const api = await import('../api')

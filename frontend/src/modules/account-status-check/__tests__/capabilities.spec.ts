@@ -12,13 +12,12 @@ async function load() {
 beforeEach(() => getCapabilities.mockReset())
 
 describe('状态检测能力', () => {
-  it('共享读取结果，并保留 OpenAI 模型与官方 600 秒上限', async () => {
+  it('共享读取结果，并保留官方 600 秒上限', async () => {
     getCapabilities.mockResolvedValue(caps())
     const loadCaps = await load()
     await expect(loadCaps()).resolves.toEqual(caps())
     await expect(loadCaps()).resolves.toEqual(caps())
     expect(getCapabilities).toHaveBeenCalledTimes(1)
-    expect((await loadCaps())?.defaults.models.openai).toBe('gpt-6-astra')
     expect((await loadCaps())?.defaults.timeout_seconds).toBe(600)
     expect((await loadCaps())?.limits.timeout_max).toBe(600)
   })

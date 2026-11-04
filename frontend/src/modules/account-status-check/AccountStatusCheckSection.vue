@@ -9,9 +9,6 @@
     <p v-else-if="loadError" role="alert" class="text-sm text-red-600 dark:text-red-400" data-testid="account-status-check-load-error">
       {{ t('accountStatusCheck.errors.loadFailed', { reason: loadError }) }}
     </p>
-    <p v-else-if="!form?.editing" class="input-hint" data-testid="account-status-check-create-required">
-      {{ t('accountStatusCheck.createHint') }}
-    </p>
     <template v-else-if="draft">
       <p v-if="readOnly" class="input-hint" data-testid="account-status-check-inherited">
         {{ t('accountStatusCheck.inheritedHint') }}
@@ -26,9 +23,6 @@
             :aria-describedby="`${uid}-hint`"
           />
         </div>
-        <p v-if="pendingAuto" class="input-hint" data-testid="account-status-check-pending">
-          {{ t('accountStatusCheck.pendingHint') }}
-        </p>
 
         <div v-if="draft.enabled" class="space-y-3 border-t border-gray-100 pt-3 dark:border-dark-700" data-testid="account-status-check-check">
           <div>
@@ -76,7 +70,6 @@
                 v-model="draft.model"
                 type="text"
                 class="input"
-                :placeholder="defaultModel"
                 autocomplete="off"
                 data-testid="account-status-check-model"
                 @change="form?.normalizeDraft()"
@@ -105,7 +98,7 @@
               <p class="input-hint">{{ t('accountStatusCheck.range', { min: limits.timeout_min, max: limits.timeout_max }) }}</p>
             </div>
           </div>
-          <p v-if="saved?.configured && !saved.effective_model" class="input-hint" data-testid="account-status-check-no-model">
+          <p v-if="!draft.model.trim()" class="input-hint" data-testid="account-status-check-no-model">
             {{ t('accountStatusCheck.noModelHint') }}
           </p>
           <p v-if="form?.canRunNow.value" class="input-hint">{{ t('accountStatusCheck.runSavedHint') }}</p>
@@ -142,8 +135,5 @@ const draft = computed(() => form?.draft.value ?? null)
 const caps = computed(() => form?.capabilities.value ?? null)
 const limits = computed(() => caps.value?.limits ?? { interval_min: 1, interval_max: 1, timeout_min: 1, timeout_max: 1 })
 const efforts = computed(() => caps.value?.efforts ?? [])
-const saved = computed(() => form?.saved.value ?? null)
-const pendingAuto = computed(() => form?.editing === true && saved.value?.configured === false)
-const defaultModel = computed(() => saved.value?.effective_model || t('accountStatusCheck.defaultModel'))
 const readOnly = computed(() => form?.readOnly.value === true)
 </script>

@@ -7,23 +7,10 @@ export function appliesToAccount(platform: string | null | undefined): boolean {
   return platform === 'openai'
 }
 
-export function defaultSettings(caps: AccountStatusCheckCapabilities): AccountStatusCheckSettings {
-  return {
-    enabled: true,
-    check_enabled: true,
-    interval_minutes: caps.defaults.interval_minutes,
-    model: '',
-    reasoning_effort: caps.defaults.reasoning_effort,
-    timeout_seconds: caps.defaults.timeout_seconds,
-    disable_on_degraded: caps.defaults.disable_on_degraded,
-    reopen_on_recovered: caps.defaults.reopen_on_recovered
-  }
-}
-
 export function settingsFromConfig(config: AccountStatusCheckConfig, caps: AccountStatusCheckCapabilities): AccountStatusCheckSettings {
   return normalizeSettings({
-    enabled: config.configured === false ? true : config.enabled === true,
-    check_enabled: config.configured === false || config.check_enabled !== false,
+    enabled: config.enabled === true,
+    check_enabled: config.check_enabled !== false,
     interval_minutes: config.interval_minutes,
     model: typeof config.model === 'string' ? config.model : '',
     reasoning_effort: config.reasoning_effort,

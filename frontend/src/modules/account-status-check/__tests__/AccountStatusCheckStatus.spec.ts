@@ -80,14 +80,12 @@ describe('账号状态检测列表', () => {
   })
 
   it('显示计划实际模型和自动检测关闭历史', () => {
-    expect(text(render(statusItem({ model: '', check_enabled: false })), 'plan')).toBe('按账号模型配置选择 · low · 自动检测已关闭')
+    expect(text(render(statusItem({ model: '', check_enabled: false })), 'plan')).toBe('low · 自动检测已关闭')
   })
 
-  it('没有模块摘要时隐藏，条目关闭时明确显示状态检测已关闭', () => {
+  it('没有摘要或没打开检测时不显示', () => {
     expect(render(null).find('[data-testid="account-status-check"]').exists()).toBe(false)
-    const wrapper = render(statusItem({ enabled: false }))
-    expect(text(wrapper, 'disabled')).toBe('状态检测已关闭')
-    expect(wrapper.find('[data-testid="account-status-check-state"]').exists()).toBe(false)
+    expect(render(statusItem({ enabled: false })).find('[data-testid="account-status-check"]').exists()).toBe(false)
   })
 
   it('自动检测关闭仍显示历史', () => {
@@ -96,8 +94,8 @@ describe('账号状态检测列表', () => {
     expect(text(wrapper, 'plan')).toContain('自动检测已关闭')
   })
 
-  it.each([true, false])('继承提示在 enabled=%s 时仍只读可见', (enabled) => {
-    const wrapper = render(statusItem({ enabled, inherited_from_account_id: 7 }))
+  it('继承提示只读可见', () => {
+    const wrapper = render(statusItem({ inherited_from_account_id: 7 }))
     expect(text(wrapper, 'inherited')).toContain('只读继承母账号')
     expect(wrapper.find('button').exists()).toBe(false)
   })

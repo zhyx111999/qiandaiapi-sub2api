@@ -140,8 +140,7 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	}
 	client := r.client
 	var tx *dbent.Tx
-	if account != nil && (account.InitialQualityPlan != nil || account.InitialAdmissionPlan != nil || service.InitialUpstreamChannel(ctx) > 0 ||
-		service.AccountStatusCheckAppliesOnCreate(account)) {
+	if account != nil && (account.InitialQualityPlan != nil || account.InitialAdmissionPlan != nil || service.InitialUpstreamChannel(ctx) > 0) {
 		var err error
 		tx, err = r.client.Tx(ctx)
 		if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
@@ -296,9 +295,6 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 		if _, err := client.ExecContext(ctx, `UPDATE accounts SET extra=jsonb_set(extra,'{openai_two_fa_admission}',$2::jsonb) WHERE id=$1`, created.ID, string(encoded)); err != nil {
 			return err
 		}
-	}
-	if err := persistStatusCheckCreate(ctx, client, account, created.ID); err != nil {
-		return err
 	}
 	account.ID = created.ID
 	account.CreatedAt = created.CreatedAt

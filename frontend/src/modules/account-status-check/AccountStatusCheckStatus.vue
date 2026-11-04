@@ -1,32 +1,27 @@
 <template>
   <div
-    v-if="status"
+    v-if="status?.enabled"
     class="mt-1.5 flex flex-col items-start gap-1 text-xs leading-4"
     data-testid="account-status-check"
-    :data-state="status.enabled ? state : 'disabled'"
+    :data-state="state"
   >
-    <template v-if="status.enabled">
-      <span :class="['badge', STATE_BADGE_CLASS[state]]" data-testid="account-status-check-state">
-        {{ t(`accountStatusCheck.states.${state}`) }}
-      </span>
-      <span :class="['font-medium', ANSWER_CLASS[answer]]" data-testid="account-status-check-answer" :data-answer="answer">
-        {{ answerText }}
-      </span>
-      <div class="flex items-center gap-0.5" data-testid="account-status-check-history" :aria-label="t('accountStatusCheck.historyLabel')">
-        <span
-          v-for="(cell, index) in cells"
-          :key="index"
-          :class="['h-2.5 w-1.5 rounded-sm', HISTORY_CELL_CLASS[cell]]"
-          :data-cell="cell"
-        />
-      </div>
-      <span class="text-gray-500 dark:text-gray-300" data-testid="account-status-check-rate">{{ rateText }}</span>
-      <span v-if="timingText" class="text-gray-400" data-testid="account-status-check-timing">{{ timingText }}</span>
-      <span class="text-gray-400" data-testid="account-status-check-plan">{{ planText }}</span>
-    </template>
-    <span v-else class="badge badge-gray" data-testid="account-status-check-disabled">
-      {{ t('accountStatusCheck.disabled') }}
+    <span :class="['badge', STATE_BADGE_CLASS[state]]" data-testid="account-status-check-state">
+      {{ t(`accountStatusCheck.states.${state}`) }}
     </span>
+    <span :class="['font-medium', ANSWER_CLASS[answer]]" data-testid="account-status-check-answer" :data-answer="answer">
+      {{ answerText }}
+    </span>
+    <div class="flex items-center gap-0.5" data-testid="account-status-check-history" :aria-label="t('accountStatusCheck.historyLabel')">
+      <span
+        v-for="(cell, index) in cells"
+        :key="index"
+        :class="['h-2.5 w-1.5 rounded-sm', HISTORY_CELL_CLASS[cell]]"
+        :data-cell="cell"
+      />
+    </div>
+    <span class="text-gray-500 dark:text-gray-300" data-testid="account-status-check-rate">{{ rateText }}</span>
+    <span v-if="timingText" class="text-gray-400" data-testid="account-status-check-timing">{{ timingText }}</span>
+    <span class="text-gray-400" data-testid="account-status-check-plan">{{ planText }}</span>
     <span v-if="status.inherited_from_account_id != null" class="text-gray-500 dark:text-gray-400" data-testid="account-status-check-inherited">
       {{ t('accountStatusCheck.inheritedResult') }}
     </span>
@@ -70,7 +65,7 @@ const planText = computed(() => {
   if (!status) return ''
   if (status.model === '' && status.reasoning_effort === '' && status.interval_minutes <= 0 && !status.latest) return ''
   return [
-    status.model || t('accountStatusCheck.defaultModel'),
+    status.model,
     status.reasoning_effort,
     status.check_enabled ? t('accountStatusCheck.everyMinutes', { minutes: status.interval_minutes }) : t('accountStatusCheck.checkOff')
   ].filter(Boolean).join(' · ')

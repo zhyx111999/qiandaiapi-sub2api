@@ -73,12 +73,6 @@ func (s *statusCheckRouteStore) ListStatus(_ context.Context, ids []int64) ([]se
 func (s *statusCheckRouteStore) RecentResults(context.Context, []int64, int) (map[int64][]service.AccountStatusCheckResult, error) {
 	return map[int64][]service.AccountStatusCheckResult{}, nil
 }
-func (s *statusCheckRouteStore) ListReconcileAccountIDs(context.Context, int) ([]int64, error) {
-	return nil, nil
-}
-func (s *statusCheckRouteStore) ListMissingPlanAccountIDs(context.Context, int) ([]int64, error) {
-	return nil, nil
-}
 func (s *statusCheckRouteStore) MarkPlanDue(context.Context, int64) (bool, error) { return true, nil }
 
 type statusCheckRouteAdmin struct {
@@ -189,13 +183,13 @@ func TestAccountStatusCheckRoutesFollowTheContract(t *testing.T) {
 
 	code, reply := env.call(t, http.MethodGet, base+"/capabilities", "")
 	require.Equal(t, http.StatusOK, code)
-	require.JSONEq(t, `{"defaults":{"interval_minutes":5,"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"reopen_on_recovered":false,"models":{"openai":"gpt-6-astra"}},
+	require.JSONEq(t, `{"defaults":{"interval_minutes":5,"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"reopen_on_recovered":false},
 		"limits":{"interval_min":1,"interval_max":1440,"timeout_min":5,"timeout_max":600},"efforts":["none","low","medium","high","xhigh"]}`, string(reply.Data))
 
 	code, reply = env.call(t, http.MethodGet, base+"/accounts/1", "")
 	require.Equal(t, http.StatusOK, code)
-	require.JSONEq(t, `{"account_id":1,"configured":false,"enabled":true,"check_enabled":true,"interval_minutes":5,"model":"",
-		"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"reopen_on_recovered":false,"plan_id":null,"effective_model":"gpt-6-astra","inherited_from_account_id":null}`, string(reply.Data))
+	require.JSONEq(t, `{"account_id":1,"configured":false,"enabled":false,"check_enabled":true,"interval_minutes":5,"model":"gpt-6.1-sol",
+		"reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":false,"reopen_on_recovered":false,"plan_id":null,"inherited_from_account_id":null}`, string(reply.Data))
 
 	for _, tc := range []struct {
 		method, path, body string
@@ -218,7 +212,7 @@ func TestAccountStatusCheckRoutesFollowTheContract(t *testing.T) {
 	}
 
 	code, reply = env.call(t, http.MethodPut, base+"/accounts/1",
-		`{"enabled":true,"check_enabled":true,"interval_minutes":2,"model":"","reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":true,"reopen_on_recovered":true}`)
+		`{"enabled":true,"check_enabled":true,"interval_minutes":2,"model":"gpt-6-astra","reasoning_effort":"low","timeout_seconds":600,"disable_on_degraded":true,"reopen_on_recovered":true}`)
 	require.Equal(t, http.StatusOK, code, string(reply.Data))
 	var view map[string]any
 	require.NoError(t, json.Unmarshal(reply.Data, &view))
@@ -226,6 +220,8 @@ func TestAccountStatusCheckRoutesFollowTheContract(t *testing.T) {
 	require.Equal(t, true, view["enabled"])
 	require.NotContains(t, view, "proxy_id")
 	require.EqualValues(t, 2, view["interval_minutes"])
+	require.Equal(t, "gpt-6-astra", view["model"])
+	require.NotContains(t, view, "effective_model")
 	require.Equal(t, true, view["disable_on_degraded"])
 	require.Equal(t, true, view["reopen_on_recovered"])
 	require.NotNil(t, view["plan_id"])

@@ -43,7 +43,7 @@ func (r *accountStatusCheckRepository) WithAccountLock(ctx context.Context, id i
 func (r *accountStatusCheckRepository) Get(ctx context.Context, id int64) (*service.AccountStatusCheckConfig, error) {
 	// 以普通（非影子）OpenAI 账号为读取边界；同时读出计划的实际开关（只读），由服务层换算成真实的自动检测状态。
 	var configured bool
-	c, err := scanAccountStatusCheckConfig(r.db.QueryRowContext(ctx, `SELECT a.id,COALESCE(p.enabled,true),
+	c, err := scanAccountStatusCheckConfig(r.db.QueryRowContext(ctx, `SELECT a.id,COALESCE(p.enabled,false),
  COALESCE(p.check_enabled,true),COALESCE(p.interval_minutes,5),COALESCE(p.model,''),
  COALESCE(p.reasoning_effort,'low'),COALESCE(p.timeout_seconds,600),COALESCE(p.disable_on_degraded,false),
  COALESCE(p.reopen_on_recovered,false),p.degraded_closed_at,p.plan_id,sp.enabled,
@@ -68,7 +68,7 @@ func (r *accountStatusCheckRepository) Save(ctx context.Context, c *service.Acco
 func (r *accountStatusCheckRepository) ListStatus(ctx context.Context, ids []int64) ([]service.AccountStatusCheckStatusRow, error) {
 	// 左连接保证尚未补齐的 OpenAI 账号也有灰色状态；影子使用母账号的配置/计划，保留自身账号状态。
 	rows, err := r.db.QueryContext(ctx, `SELECT COALESCE(p.account_id,COALESCE(a.parent_account_id,a.id)),
- COALESCE(p.enabled,true),COALESCE(p.check_enabled,true),COALESCE(p.interval_minutes,5),COALESCE(p.model,''),
+ COALESCE(p.enabled,false),COALESCE(p.check_enabled,true),COALESCE(p.interval_minutes,5),COALESCE(p.model,''),
  COALESCE(p.reasoning_effort,'low'),COALESCE(p.timeout_seconds,600),COALESCE(p.disable_on_degraded,false),
  COALESCE(p.reopen_on_recovered,false),p.degraded_closed_at,p.plan_id,sp.enabled,
  a.id,a.parent_account_id,COALESCE(sp.model_id,''),a.platform,a.status,a.expires_at,a.auto_pause_on_expired
@@ -110,28 +110,6 @@ func (r *accountStatusCheckRepository) RecentResults(ctx context.Context, ids []
 		out[row.PlanID] = append(out[row.PlanID], row)
 	}
 	return out, rows.Err()
-}
-func (r *accountStatusCheckRepository) ListReconcileAccountIDs(ctx context.Context, limit int) ([]int64, error) {
-	// 只补缺失的配置或计划，完整计划不重复写入或推迟下次执行。
-	rows, err := r.db.QueryContext(ctx, `SELECT a.id FROM accounts a
- LEFT JOIN account_status_check s ON s.account_id=a.id
- LEFT JOIN scheduled_test_plans p ON p.id=s.plan_id
- WHERE `+statusCheckEligible+` AND a.parent_account_id IS NULL AND (
- s.account_id IS NULL OR (s.enabled AND s.check_enabled AND p.id IS NULL))
- ORDER BY s.updated_at NULLS FIRST,a.id LIMIT $1`, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err = rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
 }
 func (r *accountStatusCheckRepository) MarkPlanDue(ctx context.Context, id int64) (bool, error) {
 	res, err := r.db.ExecContext(ctx, `UPDATE scheduled_test_plans SET next_run_at=NOW(),updated_at=NOW()

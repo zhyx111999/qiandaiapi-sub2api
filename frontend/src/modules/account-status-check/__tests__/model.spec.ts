@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appliesToAccount, defaultSettings, normalizeSettings, statusCheckErrorMessage, sameSettings, settingsFromConfig } from '../model'
+import { appliesToAccount, normalizeSettings, statusCheckErrorMessage, sameSettings, settingsFromConfig } from '../model'
 import { caps, config, defaultBody } from './fixtures'
 
 const t = (key: string) => key
@@ -10,13 +10,10 @@ describe('状态检测配置模型', () => {
     for (const platform of ['anthropic', 'gemini', 'antigravity', 'grok', undefined]) expect(appliesToAccount(platform)).toBe(false)
   })
 
-  it('新账号使用服务端默认的开启状态、模型留空与 600 秒超时', () => {
-    expect(defaultSettings(caps())).toEqual(defaultBody)
-  })
-
-  it('读取已有配置并让缺失配置保持默认开启', () => {
+  it('照服务端的设置读取，没有记录的账号保持关闭、带默认检测模型', () => {
     expect(settingsFromConfig(config({ enabled: false }), caps())).toMatchObject({ enabled: false, interval_minutes: 2 })
-    expect(settingsFromConfig(config({ configured: false, enabled: false, interval_minutes: 5 }), caps())).toMatchObject({ enabled: true, interval_minutes: 5 })
+    expect(settingsFromConfig(config({ configured: false, enabled: false, interval_minutes: 5, model: 'gpt-6.1-sol' }), caps()))
+      .toMatchObject({ enabled: false, check_enabled: true, interval_minutes: 5, model: 'gpt-6.1-sol' })
   })
 
   it('数值和推理强度遵循服务端范围', () => {

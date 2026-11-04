@@ -139,15 +139,6 @@ func (r *statusCheckStore) SavePlan(ctx context.Context, cfg *AccountStatusCheck
 	return r.Save(ctx, cfg)
 }
 
-func (r *statusCheckStore) ListReconcileAccountIDs(context.Context, int) ([]int64, error) {
-	var ids []int64
-	for id, a := range r.admin.accounts {
-		if a.Platform == PlatformOpenAI && !a.IsShadow() && !r.admin.deleted[id] {
-			ids = append(ids, id)
-		}
-	}
-	return ids, nil
-}
 func (r *statusCheckStore) ListStatus(_ context.Context, ids []int64) ([]AccountStatusCheckStatusRow, error) {
 	var out []AccountStatusCheckStatusRow
 	for _, id := range ids {
@@ -192,53 +183,90 @@ func statusCheckHarness(t *testing.T) (*AccountStatusCheckService, *statusCheckS
 	return s, r
 }
 
-// 所有 OpenAI 类型自动配置；默认只观察，不改代理或调度字段。
-func TestAccountStatusCheckAllOpenAITypesDefaultOn(t *testing.T) {
+// statusCheckOn turns the status check of an account on with the given check model.
+func statusCheckOn(t *testing.T, s *AccountStatusCheckService, id int64, model string) *AccountStatusCheckView {
+	t.Helper()
+	view, err := s.Update(context.Background(), id, AccountStatusCheckInput{Enabled: statusCheckBool(true), Model: &model})
+	require.NoError(t, err)
+	return view
+}
+
+// 默认关闭：没有记录的账号不检测；打开后只用填写的模型（填什么用什么），不填不建计划。
+func TestAccountStatusCheckOffUntilTurnedOn(t *testing.T) {
 	s, r := statusCheckHarness(t)
+	ctx := context.Background()
 	for i, kind := range []string{AccountTypeOAuth, AccountTypeAPIKey, AccountTypeSetupToken, "other"} {
 		id := int64(i + 1)
-		r.admin.accounts[id] = &Account{ID: id, Platform: PlatformOpenAI, Type: kind, Status: StatusActive, ProxyID: statusCheckID(8)}
+		r.admin.accounts[id] = &Account{ID: id, Platform: PlatformOpenAI, Type: kind, Status: StatusActive, ProxyID: statusCheckID(8),
+			Credentials: map[string]any{"model_mapping": map[string]any{"gpt-image-2": "gpt-image-2"}}}
 	}
 	r.admin.accounts[8] = &Account{ID: 8, Platform: PlatformGemini, Type: AccountTypeAPIKey}
 	r.admin.accounts[9] = &Account{ID: 9, Platform: PlatformOpenAI, Type: AccountTypeOAuth, ParentAccountID: statusCheckID(1)}
-	s.sweep(context.Background())
-	require.Len(t, r.rows, 4)
-	require.Equal(t, 4, r.plans.creates)
-	require.Empty(t, r.admin.updates)
-	for _, cfg := range r.rows {
-		require.True(t, cfg.Enabled && cfg.CheckEnabled)
-		require.NotNil(t, cfg.PlanID)
-		p := r.plans.plans[*cfg.PlanID]
-		require.Equal(t, "*/5 * * * *", p.CronExpression)
-		require.False(t, p.AutoRecover)
-		require.Nil(t, p.PelicanConfig.Quality)
-		require.True(t, accountStatusCheckObservation(p.PelicanConfig), "默认状态检查必须只观测，不标错或停调")
-		require.Equal(t, CandyPrompt, p.PelicanConfig.Prompt)
+
+	for id := int64(1); id <= 4; id++ {
+		view, err := s.Get(ctx, id)
+		require.NoError(t, err)
+		require.False(t, view.Configured || view.Enabled, "off until an administrator turns it on")
+		require.Equal(t, "gpt-6.1-sol", view.Model, "the default check model")
+		require.Nil(t, view.PlanID)
 	}
-	s.sweep(context.Background())
-	require.Equal(t, 4, r.plans.creates)
-	require.Zero(t, r.plans.updates)
-	// 影子沿用同一计划，不能用子账号编辑或重复发检查。
-	view, err := s.Get(context.Background(), 9)
+	items, err := s.Status(ctx, []int64{1, 2})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.False(t, items[0].Enabled || items[1].Enabled)
+	require.Zero(t, r.saves)
+	require.Zero(t, r.plans.creates)
+	_, err = s.Get(ctx, 8)
+	require.ErrorIs(t, err, ErrAccountStatusCheckOpenAIOnly)
+
+	// Turned on as it stands: the default check model.
+	view, err := s.Update(ctx, 2, AccountStatusCheckInput{Enabled: statusCheckBool(true)})
+	require.NoError(t, err)
+	require.Equal(t, "gpt-6.1-sol", view.Model)
+	require.Equal(t, "gpt-6.1-sol", r.plans.plans[*view.PlanID].ModelID)
+
+	// On with the model cleared: saved, nothing to run.
+	view = statusCheckOn(t, s, 1, "")
+	require.True(t, view.Configured && view.Enabled && view.CheckEnabled)
+	require.Nil(t, view.PlanID)
+	require.Equal(t, 1, r.plans.creates)
+	require.ErrorIs(t, s.Run(ctx, 1), ErrAccountStatusCheckOff)
+
+	// Any model the administrator fills in is used as is, an image model too.
+	view = statusCheckOn(t, s, 1, "gpt-image-2")
+	require.Equal(t, "gpt-image-2", view.Model)
+	require.NotNil(t, view.PlanID)
+	p := r.plans.plans[*view.PlanID]
+	require.Equal(t, "gpt-image-2", p.ModelID)
+	require.True(t, p.Enabled)
+	require.Equal(t, "*/5 * * * *", p.CronExpression)
+	require.False(t, p.AutoRecover)
+	require.Nil(t, p.PelicanConfig.Quality)
+	require.True(t, accountStatusCheckObservation(p.PelicanConfig), "the check itself only observes")
+	require.Equal(t, CandyPrompt, p.PelicanConfig.Prompt)
+	require.Empty(t, r.admin.updates)
+
+	// 影子沿用母账号计划，不能用子账号编辑或重复发检查。
+	view, err = s.Get(ctx, 9)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), *view.InheritedFromAccountID)
-	_, err = s.Update(context.Background(), 9, AccountStatusCheckInput{Enabled: statusCheckBool(true)})
+	_, err = s.Update(ctx, 9, AccountStatusCheckInput{Enabled: statusCheckBool(true)})
 	require.ErrorIs(t, err, ErrAccountStatusCheckInherited)
-	require.ErrorIs(t, s.Run(context.Background(), 9), ErrAccountStatusCheckInherited)
+	require.ErrorIs(t, s.Run(ctx, 9), ErrAccountStatusCheckInherited)
 }
 
 func TestAccountStatusCheckReadOnlyStatusAndHistory(t *testing.T) {
 	s, r := statusCheckHarness(t)
 	r.admin.accounts[1] = &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive}
 	ctx := context.Background()
+	view := statusCheckOn(t, s, 1, "gpt-6-astra")
 	items, err := s.Status(ctx, []int64{1, 1})
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	require.Equal(t, AccountStatusCheckStateUnknown, items[0].State)
 	require.True(t, items[0].Enabled)
-	require.Zero(t, r.saves)
-	s.sweep(ctx)
-	id := *r.rows[1].PlanID
+	require.Equal(t, "gpt-6-astra", items[0].Model)
+	id := *view.PlanID
 	r.results[id] = []AccountStatusCheckResult{{Status: "failed", ResponseText: "20", ErrorMessage: "answer_mismatch: expected 21"}, {Status: "success", ResponseText: "21"}, {Status: "failed", ErrorMessage: "timeout"}}
 	items, err = s.Status(ctx, []int64{1})
 	require.NoError(t, err)
@@ -252,16 +280,14 @@ func TestAccountStatusCheckReadOnlyStatusAndHistory(t *testing.T) {
 	require.Equal(t, AccountStatusCheckStateDead, items[0].State)
 }
 
-// 手动关闭的检测不会被后台补齐重新打开；重新打开沿用原计划。
+// 关闭自动检测后重新打开沿用原计划。
 func TestAccountStatusCheckManualOff(t *testing.T) {
 	s, r := statusCheckHarness(t)
 	ctx := context.Background()
 	r.admin.accounts[1] = &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
-	s.sweep(ctx)
-	id := *r.rows[1].PlanID
+	id := *statusCheckOn(t, s, 1, "gpt-6-astra").PlanID
 	_, err := s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), CheckEnabled: statusCheckBool(false)})
 	require.NoError(t, err)
-	s.sweep(ctx)
 	require.False(t, r.plans.plans[id].Enabled)
 	require.False(t, r.rows[1].CheckEnabled)
 	view, err := s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), CheckEnabled: statusCheckBool(true)})
@@ -273,75 +299,69 @@ func TestAccountStatusCheckManualOff(t *testing.T) {
 }
 
 func TestAccountStatusCheckTimeout(t *testing.T) {
-	a := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
-	cfg, p, err := InitialAccountStatusCheck(a, time.Now())
-	require.NoError(t, err)
-	require.True(t, cfg.Enabled)
-	require.False(t, cfg.DisableOnDegraded, "closing degraded accounts is opt-in")
-	require.True(t, p.NextRunAt.After(time.Now()))
+	cfg := defaultAccountStatusCheckConfig(1)
+	require.False(t, cfg.Enabled, "off by default")
+	require.Equal(t, "gpt-6.1-sol", cfg.Model)
+	require.False(t, cfg.DisableOnDegraded || cfg.ReopenOnRecovered, "the policies are opt-in")
+	cfg.Enabled, cfg.Model = true, "gpt-6-astra"
+	p := accountStatusCheckPlan(&ScheduledTestPlan{AccountID: 1}, cfg)
+	require.True(t, p.Enabled)
 	p.PelicanConfig.StatusCheckTimeoutSeconds = 27
 	require.Equal(t, 27*time.Second, accountStatusCheckPlanTimeout(p, 10*time.Minute))
 	other := *p
 	other.PelicanConfig = &PelicanTestConfig{RuleName: "admin quality rule", Prompt: CandyPrompt}
 	require.Equal(t, 10*time.Minute, accountStatusCheckPlanTimeout(&other, 10*time.Minute), "other plans keep the runner's limit")
 	require.False(t, accountStatusCheckObservation(other.PelicanConfig))
-	require.False(t, AccountStatusCheckAppliesOnCreate(&Account{Platform: PlatformGemini}))
-	require.False(t, AccountStatusCheckAppliesOnCreate(&Account{Platform: PlatformOpenAI, ParentAccountID: statusCheckID(1)}))
 }
 
 func TestAccountStatusCheckModelAndRun(t *testing.T) {
 	s, r := statusCheckHarness(t)
 	ctx := context.Background()
-	a := &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"model_mapping": map[string]any{"deepseek-v4-flash": "deepseek-v4-flash", "gpt-image-2": "gpt-image-2"}}}
-	r.admin.accounts[1] = a
-	cfg, p, err := InitialAccountStatusCheck(a, time.Now())
-	require.NoError(t, err)
-	require.Empty(t, cfg.Model)
-	require.Equal(t, "deepseek-v4-flash", p.ModelID)
-	s.sweep(ctx)
+	r.admin.accounts[1] = &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	view := statusCheckOn(t, s, 1, "deepseek-v4-flash")
+	id := *view.PlanID
+	require.Equal(t, "deepseek-v4-flash", r.plans.plans[id].ModelID)
 	called := make(chan int64, 1)
 	s.runPlan = func(p *ScheduledTestPlan) { called <- p.ID }
 	require.NoError(t, s.Run(ctx, 1))
 	select {
-	case id := <-called:
-		require.Equal(t, *r.rows[1].PlanID, id)
+	case got := <-called:
+		require.Equal(t, id, got)
 	case <-time.After(time.Second):
 		t.Fatal("official runner was not queued")
 	}
 	r.busy = true
 	require.ErrorIs(t, s.Run(ctx, 1), ErrAccountStatusCheckRunning)
-	model := "gpt-image-2"
-	_, err = s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), Model: &model})
-	require.Error(t, err)
+	r.busy = false
 	seconds := 4
-	_, err = s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), TimeoutSeconds: &seconds})
+	_, err := s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), TimeoutSeconds: &seconds})
 	require.Error(t, err)
 	minutes := 90
 	seconds = 30
-	view, err := s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), IntervalMinutes: &minutes, TimeoutSeconds: &seconds})
+	view, err = s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), IntervalMinutes: &minutes, TimeoutSeconds: &seconds})
 	require.NoError(t, err)
 	require.Equal(t, 120, view.IntervalMinutes)
 	require.Equal(t, 30, view.TimeoutSeconds)
-	onlyImage := &Account{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"model_mapping": map[string]any{"gpt-image-2": "gpt-image-2"}}}
-	_, none, err := InitialAccountStatusCheck(onlyImage, time.Now())
+	require.Equal(t, "deepseek-v4-flash", view.Model, "saving other fields keeps the model")
+
+	// Clearing the model stops the check; the plan keeps its old model to pass the official save checks.
+	view = statusCheckOn(t, s, 1, "")
+	require.Equal(t, id, *view.PlanID)
+	require.False(t, view.CheckEnabled)
+	require.False(t, r.plans.plans[id].Enabled)
+	require.Equal(t, "deepseek-v4-flash", r.plans.plans[id].ModelID)
+	_, err = nextPlanRun(r.plans.plans[id], time.Now())
 	require.NoError(t, err)
-	require.Nil(t, none)
-	// 若账号原来有文本计划，后来只剩图片模型，关闭计划仍能通过官方保存校验。
-	disabled := accountStatusCheckPlan(&ScheduledTestPlan{ID: 9, AccountID: 2, ModelID: "old-text-model"}, onlyImage, defaultAccountStatusCheckConfig(2))
-	require.False(t, disabled.Enabled)
-	require.Equal(t, "old-text-model", disabled.ModelID)
-	_, err = nextPlanRun(disabled, time.Now())
-	require.NoError(t, err)
+	require.ErrorIs(t, s.Run(ctx, 1), ErrAccountStatusCheckOff)
 }
 
 // 管理员在官方“定时测试计划”页面直接启停计划：账号管理显示、列表状态、手动检测与之后的保存都以计划实际开关为准，
-// 后台补齐和账号编辑保存都不会把在计划页关掉的检测重新打开。
+// 账号编辑保存不会把在计划页关掉的检测重新打开。
 func TestAccountStatusCheckFollowsOfficialPlanToggle(t *testing.T) {
 	s, r := statusCheckHarness(t)
 	ctx := context.Background()
 	r.admin.accounts[1] = &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive}
-	s.sweep(ctx)
-	id := *r.rows[1].PlanID
+	id := *statusCheckOn(t, s, 1, "gpt-6-astra").PlanID
 	require.True(t, r.plans.plans[id].Enabled)
 
 	// 官方计划页停用。
@@ -354,17 +374,13 @@ func TestAccountStatusCheckFollowsOfficialPlanToggle(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, items[0].CheckEnabled)
 	require.ErrorIs(t, s.Run(ctx, 1), ErrAccountStatusCheckOff)
-	updates := r.plans.updates
-	s.sweep(ctx)
-	require.False(t, r.plans.plans[id].Enabled, "后台补齐不能重新打开")
-	require.Equal(t, updates, r.plans.updates)
-	require.False(t, r.rows[1].CheckEnabled, "保存的设置与计划实际状态对齐")
 	// 账号编辑页只改间隔（表单带回当前显示的关闭状态）时仍保持关闭。
 	minutes := 10
 	view, err = s.Update(ctx, 1, AccountStatusCheckInput{Enabled: statusCheckBool(true), IntervalMinutes: &minutes})
 	require.NoError(t, err)
 	require.False(t, view.CheckEnabled)
 	require.False(t, r.plans.plans[id].Enabled)
+	require.False(t, r.rows[1].CheckEnabled, "保存的设置与计划实际状态对齐")
 	require.Equal(t, "*/10 * * * *", r.plans.plans[id].CronExpression)
 
 	// 官方计划页重新启用：账号管理随之显示开启，可手动检测。
@@ -404,9 +420,9 @@ func statusCheckPolicyHarness(t *testing.T, policies ...[2]bool) (*AccountStatus
 		id := int64(i + 1)
 		r.admin.accounts[id] = &Account{ID: id, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive, Schedulable: true}
 	}
-	s.sweep(ctx)
+	model := "gpt-6-astra"
 	for i, p := range policies {
-		_, err := s.Update(ctx, int64(i+1), AccountStatusCheckInput{Enabled: statusCheckBool(true),
+		_, err := s.Update(ctx, int64(i+1), AccountStatusCheckInput{Enabled: statusCheckBool(true), Model: &model,
 			DisableOnDegraded: statusCheckBool(p[0]), ReopenOnRecovered: statusCheckBool(p[1])})
 		require.NoError(t, err)
 	}

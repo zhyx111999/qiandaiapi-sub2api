@@ -27,15 +27,13 @@ function normalizeCapabilities(raw: unknown): AccountStatusCheckCapabilities | n
   if (interval_min < 1 || interval_min > interval_max || timeout_min < 1 || timeout_min > timeout_max) return null
   const within = (value: unknown, min: number, max: number) => isInt(value) && value >= min && value <= max
   if (!within(defaults.interval_minutes, interval_min, interval_max) || !within(defaults.timeout_seconds, timeout_min, timeout_max)) return null
-  const models = defaults.models && typeof defaults.models === 'object' ? defaults.models : {}
   return {
     defaults: {
       interval_minutes: defaults.interval_minutes,
       timeout_seconds: defaults.timeout_seconds,
       disable_on_degraded: defaults.disable_on_degraded === true,
       reopen_on_recovered: defaults.reopen_on_recovered === true,
-      reasoning_effort: efforts.includes(defaults.reasoning_effort) ? defaults.reasoning_effort : efforts[0],
-      models: Object.fromEntries(Object.entries(models).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+      reasoning_effort: efforts.includes(defaults.reasoning_effort) ? defaults.reasoning_effort : efforts[0]
     },
     limits: { interval_min, interval_max, timeout_min, timeout_max },
     efforts

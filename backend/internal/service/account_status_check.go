@@ -8,19 +8,18 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 )
 
-// 账号状态检测（降智检测）：所有 OpenAI 账号定时答官方内置糖果题，展示答题状态。检测本身只观察，
-// 不改账号代理、处罚或计费；账号开启「降智时关闭调度」后，答错（降智）时关闭该账号的调度。
+// 账号状态检测（降智检测）：管理员给 OpenAI 账号打开后，定时用检测模型答官方内置糖果题、展示答题
+// 状态。默认关闭；检测模型默认 gpt-6.1-sol，不替管理员按账号挑模型：填什么就用什么，清空不检测。
+// 检测本身只观察，不改账号代理、处罚或计费；调度只由账号自己开启的策略改变（account_status_check_policy.go）。
 
 const (
 	accountStatusCheckDefaultInterval = 5
+	accountStatusCheckDefaultModel    = "gpt-6.1-sol"
 	accountStatusCheckDefaultEffort   = "low"
 	accountStatusCheckDefaultTimeout  = 600
 	accountStatusCheckIntervalMin     = 1
@@ -34,7 +33,6 @@ const (
 )
 
 var accountStatusCheckEfforts = []string{"none", "low", "medium", "high", "xhigh"}
-var accountStatusCheckDefaultModels = map[string]string{PlatformOpenAI: "gpt-6-astra"}
 var (
 	ErrAccountStatusCheckOpenAIOnly = infraerrors.BadRequest("ACCOUNT_STATUS_CHECK_OPENAI_ONLY", "status checks require an OpenAI account")
 	ErrAccountStatusCheckOff        = infraerrors.Conflict("ACCOUNT_STATUS_CHECK_DISABLED", "automatic status checking is disabled")
@@ -44,11 +42,6 @@ var (
 
 func accountStatusCheckInvalid(format string, args ...any) error {
 	return infraerrors.BadRequest("ACCOUNT_STATUS_CHECK_INVALID", fmt.Sprintf(format, args...))
-}
-
-// 配置与计划只属于普通账号；影子账号展示母账号结果，内部逐 Key 身份不重复检测。
-func AccountStatusCheckAppliesOnCreate(a *Account) bool {
-	return a != nil && a.Platform == PlatformOpenAI && !a.IsShadow()
 }
 
 type AccountStatusCheckConfig struct {
@@ -80,8 +73,9 @@ func (c AccountStatusCheckConfig) actual() AccountStatusCheckConfig {
 	return c
 }
 
+// 没有记录的账号不检测；管理员打开时自动检测默认随之开启，检测模型默认 gpt-6.1-sol。
 func defaultAccountStatusCheckConfig(id int64) AccountStatusCheckConfig {
-	return AccountStatusCheckConfig{AccountID: id, Enabled: true, CheckEnabled: true,
+	return AccountStatusCheckConfig{AccountID: id, Enabled: false, CheckEnabled: true, Model: accountStatusCheckDefaultModel,
 		IntervalMinutes: accountStatusCheckDefaultInterval, ReasoningEffort: accountStatusCheckDefaultEffort,
 		TimeoutSeconds: accountStatusCheckDefaultTimeout}
 }
@@ -153,39 +147,6 @@ func accountStatusCheckSchedule(minutes int) (string, int) {
 	return fmt.Sprintf("0 */%d * * *", hours), hours * 60
 }
 
-// 自动模型只从账号现有配置选择；优先沿用默认糖果模型，绝不拿图片/语音/嵌入模型做逻辑题。
-func accountStatusCheckModel(a *Account, configured string) string {
-	if configured != "" {
-		return configured
-	}
-	for _, name := range []string{accountStatusCheckDefaultModels[PlatformOpenAI], a.providerDefaultTestModel(), openai.DefaultTestModel} {
-		if name != "" && a.IsModelSupported(name) && accountStatusCheckTextModel(a.GetMappedModel(name)) {
-			return name
-		}
-	}
-	keys := make([]string, 0, len(a.GetModelMapping()))
-	for name := range a.GetModelMapping() {
-		if !strings.Contains(name, "*") && a.IsModelSupported(name) && accountStatusCheckTextModel(name) && accountStatusCheckTextModel(a.GetMappedModel(name)) {
-			keys = append(keys, name)
-		}
-	}
-	slices.Sort(keys)
-	if len(keys) > 0 {
-		return keys[0]
-	}
-	return ""
-}
-
-func accountStatusCheckTextModel(name string) bool {
-	name = strings.ToLower(name)
-	for _, word := range []string{"image", "video", "audio", "realtime", "embedding", "rerank", "whisper", "tts", "transcribe", "moderation", "auto-review"} {
-		if strings.Contains(name, word) {
-			return false
-		}
-	}
-	return name != ""
-}
-
 type AccountStatusCheckView struct {
 	AccountID              int64  `json:"account_id"`
 	Configured             bool   `json:"configured"`
@@ -193,7 +154,6 @@ type AccountStatusCheckView struct {
 	CheckEnabled           bool   `json:"check_enabled"`
 	IntervalMinutes        int    `json:"interval_minutes"`
 	Model                  string `json:"model"`
-	EffectiveModel         string `json:"effective_model"`
 	ReasoningEffort        string `json:"reasoning_effort"`
 	TimeoutSeconds         int    `json:"timeout_seconds"`
 	DisableOnDegraded      bool   `json:"disable_on_degraded"`
@@ -205,7 +165,7 @@ type AccountStatusCheckView struct {
 func accountStatusCheckView(a *Account, cfg AccountStatusCheckConfig, configured bool, requested int64) *AccountStatusCheckView {
 	cfg = cfg.actual()
 	view := &AccountStatusCheckView{AccountID: requested, Configured: configured, Enabled: cfg.Enabled, CheckEnabled: cfg.CheckEnabled,
-		IntervalMinutes: cfg.IntervalMinutes, Model: cfg.Model, EffectiveModel: accountStatusCheckModel(a, cfg.Model),
+		IntervalMinutes: cfg.IntervalMinutes, Model: cfg.Model,
 		ReasoningEffort: cfg.ReasoningEffort, TimeoutSeconds: cfg.TimeoutSeconds, DisableOnDegraded: cfg.DisableOnDegraded,
 		ReopenOnRecovered: cfg.ReopenOnRecovered, PlanID: cfg.PlanID}
 	if requested != a.ID {
@@ -221,12 +181,11 @@ type AccountStatusCheckCapabilities struct {
 	Efforts  []string                   `json:"efforts"`
 }
 type AccountStatusCheckDefaults struct {
-	IntervalMinutes   int               `json:"interval_minutes"`
-	ReasoningEffort   string            `json:"reasoning_effort"`
-	TimeoutSeconds    int               `json:"timeout_seconds"`
-	DisableOnDegraded bool              `json:"disable_on_degraded"`
-	ReopenOnRecovered bool              `json:"reopen_on_recovered"`
-	Models            map[string]string `json:"models"`
+	IntervalMinutes   int    `json:"interval_minutes"`
+	ReasoningEffort   string `json:"reasoning_effort"`
+	TimeoutSeconds    int    `json:"timeout_seconds"`
+	DisableOnDegraded bool   `json:"disable_on_degraded"`
+	ReopenOnRecovered bool   `json:"reopen_on_recovered"`
 }
 type AccountStatusCheckLimits struct {
 	IntervalMin int `json:"interval_min"`
@@ -237,9 +196,8 @@ type AccountStatusCheckLimits struct {
 
 func AccountStatusCheckCapabilitiesView() AccountStatusCheckCapabilities {
 	return AccountStatusCheckCapabilities{
-		Defaults: AccountStatusCheckDefaults{accountStatusCheckDefaultInterval, accountStatusCheckDefaultEffort, accountStatusCheckDefaultTimeout, false, false,
-			map[string]string{PlatformOpenAI: accountStatusCheckDefaultModels[PlatformOpenAI]}},
-		Limits: AccountStatusCheckLimits{1, 1440, 5, 600}, Efforts: slices.Clone(accountStatusCheckEfforts)}
+		Defaults: AccountStatusCheckDefaults{accountStatusCheckDefaultInterval, accountStatusCheckDefaultEffort, accountStatusCheckDefaultTimeout, false, false},
+		Limits:   AccountStatusCheckLimits{1, 1440, 5, 600}, Efforts: slices.Clone(accountStatusCheckEfforts)}
 }
 
 type AccountStatusCheckStore interface {
@@ -249,21 +207,15 @@ type AccountStatusCheckStore interface {
 	SavePlan(context.Context, *AccountStatusCheckConfig, *ScheduledTestPlan) error
 	ListStatus(context.Context, []int64) ([]AccountStatusCheckStatusRow, error)
 	RecentResults(context.Context, []int64, int) (map[int64][]AccountStatusCheckResult, error)
-	ListReconcileAccountIDs(context.Context, int) ([]int64, error)
 	MarkPlanDue(context.Context, int64) (bool, error)
 }
 
 type AccountStatusCheckService struct {
-	store     AccountStatusCheckStore
-	admin     AdminService
-	plans     *ScheduledTestService
-	runPlan   func(*ScheduledTestPlan)
-	now       func() time.Time
-	mu        sync.Mutex
-	cancel    context.CancelFunc
-	done      chan struct{}
-	stopped   bool
-	lastIssue string
+	store   AccountStatusCheckStore
+	admin   AdminService
+	plans   *ScheduledTestService
+	runPlan func(*ScheduledTestPlan)
+	now     func() time.Time
 }
 
 func NewAccountStatusCheckService(store AccountStatusCheckStore, admin AdminService, plans *ScheduledTestService, runner *ScheduledTestRunnerService) *AccountStatusCheckService {
@@ -277,11 +229,6 @@ func NewAccountStatusCheckService(store AccountStatusCheckStore, admin AdminServ
 		// The official runner reports each finished plan; only this module's plans are acted on.
 		runner.statusCheckFinished = s.followStatusCheck
 	}
-	return s
-}
-func ProvideAccountStatusCheckService(store AccountStatusCheckStore, admin AdminService, plans *ScheduledTestService, runner *ScheduledTestRunnerService, cfg *config.Config) *AccountStatusCheckService {
-	s := NewAccountStatusCheckService(store, admin, plans, runner)
-	startBackgroundService(cfg, s)
 	return s
 }
 
@@ -355,9 +302,6 @@ func (s *AccountStatusCheckService) Update(ctx context.Context, id int64, in Acc
 		if err != nil {
 			return err
 		}
-		if next.Enabled && next.CheckEnabled && next.Model != "" && (!a.IsModelSupported(next.Model) || !accountStatusCheckTextModel(a.GetMappedModel(next.Model))) {
-			return accountStatusCheckInvalid("choose a supported text model for this account")
-		}
 		view, err = s.apply(ctx, a, next)
 		return err
 	})
@@ -375,7 +319,7 @@ func (s *AccountStatusCheckService) apply(ctx context.Context, a *Account, cfg A
 		plan = &ScheduledTestPlan{AccountID: a.ID}
 	}
 	previous := *plan
-	accountStatusCheckPlan(plan, a, cfg)
+	accountStatusCheckPlan(plan, cfg)
 	// 返回的视图按本次写入后计划的实际开关显示（例如没有文本模型时仍是关闭）。
 	enabled := plan.Enabled
 	cfg.PlanEnabled = &enabled
@@ -437,9 +381,9 @@ func isAccountStatusCheckPlan(p *ScheduledTestPlan) bool {
 		p.PelicanConfig.RuleName == accountStatusCheckPlanRuleName
 }
 
-func accountStatusCheckPlan(p *ScheduledTestPlan, a *Account, cfg AccountStatusCheckConfig) *ScheduledTestPlan {
-	model := accountStatusCheckModel(a, cfg.Model)
-	// 账号后来不再提供文本模型时停用旧计划，保留原模型字段以满足官方计划的保存格式。
+// 检测模型就是管理员填写的模型；没填时计划停用，保留原模型字段以满足官方计划的保存格式。
+func accountStatusCheckPlan(p *ScheduledTestPlan, cfg AccountStatusCheckConfig) *ScheduledTestPlan {
+	model := cfg.Model
 	if model != "" || p.ID == 0 {
 		p.ModelID = model
 	}
@@ -450,18 +394,6 @@ func accountStatusCheckPlan(p *ScheduledTestPlan, a *Account, cfg AccountStatusC
 	p.PelicanConfig = &PelicanTestConfig{RuleName: accountStatusCheckPlanRuleName, QuestionKind: "candy", Prompt: CandyPrompt,
 		ReasoningEffort: cfg.ReasoningEffort, ParallelCount: 1, ModelID: p.ModelID, StatusCheckTimeoutSeconds: cfg.TimeoutSeconds}
 	return p
-}
-
-// 新建事务与后台补齐共享同一份默认配置和计划，沿用官方 cron 计算。
-func InitialAccountStatusCheck(a *Account, now time.Time) (AccountStatusCheckConfig, *ScheduledTestPlan, error) {
-	cfg := defaultAccountStatusCheckConfig(a.ID)
-	plan := accountStatusCheckPlan(&ScheduledTestPlan{AccountID: a.ID}, a, cfg)
-	if plan.ModelID == "" {
-		return cfg, nil, nil
-	}
-	next, err := nextPlanRun(plan, now)
-	plan.NextRunAt = &next
-	return cfg, plan, err
 }
 
 func (s *AccountStatusCheckService) Run(ctx context.Context, id int64) error {
@@ -499,7 +431,7 @@ func (s *AccountStatusCheckService) Run(ctx context.Context, id int64) error {
 }
 
 // 状态检测的测试请求只观察，复用官方 observeOnly 上下文：请求失败不会连带把账号标错。
-// 降智时关闭调度由 closeIfDegraded 按账号配置单独执行。
+// 调度只由 followStatusCheck 按账号自己开启的策略改变。
 func accountStatusCheckObservation(cfg *PelicanTestConfig) bool {
 	return isAccountStatusCheckPlan(&ScheduledTestPlan{PelicanConfig: cfg})
 }

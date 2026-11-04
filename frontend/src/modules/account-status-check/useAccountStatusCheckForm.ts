@@ -6,7 +6,7 @@ import type { Account } from '@/types'
 import { extractApiErrorCode } from '@/utils/apiError'
 import { ERROR_OPENAI_ONLY, getAccountStatusCheck, runAccountStatusCheck, updateAccountStatusCheck } from './api'
 import { loadAccountStatusCheckCapabilities } from './capabilities'
-import { appliesToAccount, defaultSettings, normalizeSettings, statusCheckErrorMessage, sameSettings, settingsFromConfig } from './model'
+import { appliesToAccount, normalizeSettings, statusCheckErrorMessage, sameSettings, settingsFromConfig } from './model'
 import type { AccountStatusCheckCapabilities, AccountStatusCheckConfig, AccountStatusCheckSettings } from './types'
 import { notifyAccountStatusCheckChanged } from './useAccountStatusChecks'
 
@@ -16,7 +16,7 @@ export interface AccountStatusCheckFormSource {
   platform: () => string | null | undefined
   parentAccountId?: () => number | null | undefined
   /** 编辑弹窗读取已保存账号的配置。 */
-  accountId?: () => number | null | undefined
+  accountId: () => number | null | undefined
 }
 
 export type AccountStatusCheckForm = ReturnType<typeof createForm>
@@ -29,7 +29,6 @@ function createForm(source: AccountStatusCheckFormSource) {
   const { t } = useI18n()
   const appStore = useAppStore()
   const authStore = useAuthStore()
-  const editing = typeof source.accountId === 'function'
 
   const capabilities = shallowRef<AccountStatusCheckCapabilities | null>(null)
   const draft = ref<AccountStatusCheckSettings | null>(null)
@@ -42,14 +41,14 @@ function createForm(source: AccountStatusCheckFormSource) {
   let generation = 0
   let started = false
 
-  // 创建流程由服务端统一初始化；观察员不新增编辑权限。
-  const applicable = computed(() => (!editing || !authStore.isObserver) && appliesToAccount(source.platform()))
+  // 只在编辑已有账号时设置；观察员不新增编辑权限。
+  const applicable = computed(() => !authStore.isObserver && appliesToAccount(source.platform()))
   const visible = computed(() => applicable.value && capabilities.value !== null && !unsupported.value)
   const inheritedFrom = computed(() => saved.value?.inherited_from_account_id ?? source.parentAccountId?.() ?? null)
   const readOnly = computed(() => inheritedFrom.value != null)
-  const canRunNow = computed(() => visible.value && !readOnly.value && editing && !loading.value && !loadError.value &&
+  const canRunNow = computed(() => visible.value && !readOnly.value && !loading.value && !loadError.value &&
     saved.value?.configured !== false && saved.value?.enabled === true && saved.value.check_enabled === true &&
-    saved.value.plan_id != null && saved.value.effective_model !== '' && draft.value?.enabled === true && draft.value.check_enabled === true)
+    saved.value.plan_id != null && saved.value.model !== '' && draft.value?.enabled === true && draft.value.check_enabled === true)
 
   function clear() {
     generation += 1
@@ -68,13 +67,7 @@ function createForm(source: AccountStatusCheckFormSource) {
     started = true
     const run = generation
     const caps = await loadAccountStatusCheckCapabilities()
-    if (run !== generation || !caps) return
-    if (!editing) {
-      capabilities.value = caps
-      draft.value = defaultSettings(caps)
-      return
-    }
-    if (!isAccountId(accountId)) return
+    if (run !== generation || !caps || !isAccountId(accountId)) return
     capabilities.value = caps
     loading.value = true
     try {
@@ -94,7 +87,7 @@ function createForm(source: AccountStatusCheckFormSource) {
 
   // 切换账号或关闭弹窗时使旧请求失效；全部 OpenAI 类型共享同一入口。
   watch(
-    () => [source.open(), source.accountId?.(), applicable.value] as const,
+    () => [source.open(), source.accountId(), applicable.value] as const,
     ([open, accountId, isApplicable], previous) => {
       if (!open || !previous?.[0] || previous[1] !== accountId) clear()
       if (open && isApplicable && !started) void initialize(accountId)
@@ -115,7 +108,7 @@ function createForm(source: AccountStatusCheckFormSource) {
   /** 仅提交变化的检测配置；不读取、不分配、不修改代理。 */
   async function saveEdited(account: Account): Promise<Account> {
     const settings = settingsToSave()
-    if (!editing || account.id !== source.accountId?.() || !settings || !baseline.value || loading.value || loadError.value) return account
+    if (account.id !== source.accountId() || !settings || !baseline.value || loading.value || loadError.value) return account
     if (sameSettings(settings, baseline.value)) return account
     const run = generation
     try {
@@ -134,7 +127,7 @@ function createForm(source: AccountStatusCheckFormSource) {
 
   /** 只调用原计划的立即执行接口，不创建第二套检测器或处罚。 */
   async function runNow(): Promise<void> {
-    const accountId = source.accountId?.()
+    const accountId = source.accountId()
     if (!canRunNow.value || running.value || !isAccountId(accountId)) return
     running.value = true
     const run = generation
@@ -153,7 +146,6 @@ function createForm(source: AccountStatusCheckFormSource) {
   onScopeDispose(clear)
 
   return {
-    editing,
     readOnly,
     inheritedFrom,
     capabilities,

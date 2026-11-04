@@ -107,7 +107,7 @@ describe('OpenAI 状态检测批量查询', () => {
     expect(api().statusFor(1)).toBeNull()
   })
 
-  it('状态接口失败回退到未检测，不能保留旧正常结果', async () => {
+  it('状态接口失败时不显示，不能保留旧正常结果', async () => {
     const { loading, api } = setup([oauth(1)])
     await flushPromises()
     expect(api().statusFor(1)).not.toBeNull()
@@ -116,8 +116,7 @@ describe('OpenAI 状态检测批量查询', () => {
     await flushPromises()
     loading.value = false
     await flushPromises()
-    expect(api().statusFor(1)?.state).toBe('unknown')
-    expect(api().statusFor(1)?.latest).toBeNull()
+    expect(api().statusFor(1)).toBeNull()
   })
 
   it('配置保存后刷新批量结果', async () => {
@@ -128,11 +127,12 @@ describe('OpenAI 状态检测批量查询', () => {
     expect(mocks.statuses).toHaveBeenCalledTimes(2)
   })
 
-  it('缺失摘要保持灰色未知，不使用成功占位', async () => {
-    mocks.statuses.mockResolvedValue([])
-    const { api } = setup([oauth(1)])
+  it('没有摘要或没打开检测的账号不显示，不使用成功占位', async () => {
+    mocks.statuses.mockResolvedValue([statusItem({ account_id: 2, enabled: false })])
+    const { api } = setup([oauth(1), oauth(2)])
     await flushPromises()
-    expect(api().statusFor(1)).toMatchObject({ state: 'unknown', latest: null, history: [], rate: null })
+    expect(api().statusFor(1)).toBeNull()
+    expect(api().statusFor(2)).toBeNull()
   })
 
   it('母账号和多个影子只查询一次母账号结果', async () => {

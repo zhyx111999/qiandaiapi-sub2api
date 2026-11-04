@@ -8,7 +8,6 @@ export interface AccountStatusCheckCapabilities {
     timeout_seconds: number
     disable_on_degraded: boolean
     reopen_on_recovered: boolean
-    models: Record<string, string>
   }
   limits: {
     interval_min: number
@@ -36,7 +35,6 @@ export interface AccountStatusCheckConfig extends AccountStatusCheckSettings {
   account_id: number
   configured?: boolean
   plan_id: number | null
-  effective_model: string
   inherited_from_account_id: number | null
 }
 

@@ -4,13 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
-// 建号事务与配置保存事务复用同一份计划/配置写入，避免两套初始化 SQL。
+// 检测计划与配置的写入；保存设置与策略改动都经过这里。
 type statusCheckQueryer interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
@@ -44,27 +42,6 @@ func saveStatusCheckConfig(ctx context.Context, q statusCheckQueryer, c *service
 		c.AccountID, c.Enabled, c.CheckEnabled, c.IntervalMinutes, c.Model, c.ReasoningEffort, c.TimeoutSeconds, c.DisableOnDegraded,
 		c.ReopenOnRecovered, c.DegradedClosedAt, c.PlanID)
 	return err
-}
-
-// 与账号同一个数据库事务初始化（client 是建号事务的客户端，accountRepository.Create 为此开启事务）；
-// 不依赖前端创建后 PUT，失败时账号/计划/配置一起回滚。
-func persistStatusCheckCreate(ctx context.Context, client *dbent.Client, a *service.Account, id int64) error {
-	if !service.AccountStatusCheckAppliesOnCreate(a) {
-		return nil
-	}
-	copy := *a
-	copy.ID = id
-	cfg, plan, err := service.InitialAccountStatusCheck(&copy, time.Now())
-	if err != nil {
-		return err
-	}
-	if plan != nil {
-		if err := insertStatusCheckPlan(ctx, client, plan); err != nil {
-			return err
-		}
-		cfg.PlanID = &plan.ID
-	}
-	return saveStatusCheckConfig(ctx, client, &cfg)
 }
 
 // 修改检测设置也用单事务，不会出现开关已保存但官方计划没更新的半成品状态。

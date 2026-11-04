@@ -17,24 +17,6 @@ interface AccountRow {
   parent_account_id?: number | null
 }
 
-function unknownStatus(accountId: number): AccountStatusCheckStatusItem {
-  return {
-    account_id: accountId,
-    enabled: true,
-    state: 'unknown',
-    latest: null,
-    history: [],
-    matched: 0,
-    completed: 0,
-    rate: null,
-    model: '',
-    reasoning_effort: '',
-    interval_minutes: 0,
-    check_enabled: true,
-    inherited_from_account_id: null
-  }
-}
-
 /** 当前页按母账号去重后批量读取；不为行项目建立独立轮询。 */
 export function useAccountStatusChecks(rows: Ref<readonly AccountRow[]>, busy: () => boolean) {
   const items = shallowRef<ReadonlyMap<number, AccountStatusCheckStatusItem>>(new Map())
@@ -99,12 +81,13 @@ export function useAccountStatusChecks(rows: Ref<readonly AccountRow[]>, busy: (
       if (!moduleEnabled.value || !row || !caps) return null
       const inheritedFrom = row.parent_account_id ?? null
       const ownerId = inheritedFrom ?? accountId
+      // 只显示打开了检测的账号；没有记录或读取失败时不显示，不保留可能过期的结果。
       const item = items.value.get(ownerId)
-      const result = item ?? unknownStatus(accountId)
+      if (!item?.enabled) return null
       return {
-        ...result,
+        ...item,
         account_id: accountId,
-        inherited_from_account_id: inheritedFrom ?? result.inherited_from_account_id ?? null
+        inherited_from_account_id: inheritedFrom ?? item.inherited_from_account_id ?? null
       }
     },
     refresh
