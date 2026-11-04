@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ChannelMonitorView from '@/views/admin/ChannelMonitorView.vue'
 
-// The admin site-mode switch with the v4 option; the official switch itself is covered by
-// src/views/admin/__tests__/ChannelMonitorView.modeSwitch.spec.ts, which stays untouched.
-const mocks = vi.hoisted(() => ({ getView: vi.fn(), setView: vi.fn(), setMonitorMode: vi.fn(), fetchPublicSettings: vi.fn(), showSuccess: vi.fn(), showError: vi.fn() }))
+// v4 in the admin site-mode switch: a mode of its own, switched by the official endpoint and
+// configured in the V2 tab. The official switch is covered by
+// src/views/admin/__tests__/ChannelMonitorView.modeSwitch.spec.ts.
+const mocks = vi.hoisted(() => ({ setMonitorMode: vi.fn(), fetchPublicSettings: vi.fn(), showSuccess: vi.fn(), showError: vi.fn() }))
 const store = vi.hoisted(() => ({ settings: null as null | { channel_monitor_enabled: boolean; channel_monitor_mode: string } }))
 
 vi.mock('@/utils/featureFlags', () => ({
@@ -21,7 +22,6 @@ vi.mock('@/stores/app', () => ({
     showError: mocks.showError,
   }),
 }))
-vi.mock('../api', () => ({ getView: mocks.getView, setView: mocks.setView }))
 vi.mock('@/api/channelMonitorV3', () => ({ setMonitorMode: mocks.setMonitorMode }))
 vi.mock('@/api/admin', () => ({ adminAPI: { channelMonitor: { list: vi.fn().mockResolvedValue({ items: [], total: 0 }) } } }))
 vi.mock('@/features/channel-monitor-v2/MonitorSettingsPanel.vue', () => ({ default: { template: '<div data-testid="v2-panel" />' } }))
@@ -46,49 +46,37 @@ const mountView = async () => {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // Under v4 the public settings carry the engine mode, v2.
-  store.settings = reactive({ channel_monitor_enabled: true, channel_monitor_mode: 'v2' })
-  mocks.getView.mockResolvedValue({ view: 'v4' })
-  mocks.setView.mockImplementation(async (view: string) => ({ view }))
+  store.settings = reactive({ channel_monitor_enabled: true, channel_monitor_mode: 'v4' })
+  mocks.setMonitorMode.mockImplementation(async (mode: string) => mode)
+  mocks.fetchPublicSettings.mockImplementation(async () => {
+    store.settings!.channel_monitor_mode = mocks.setMonitorMode.mock.calls.at(-1)?.[0] ?? store.settings!.channel_monitor_mode
+    return store.settings
+  })
 })
 
-describe('channel monitor site mode switch with v4', () => {
-  it('lists v4, selects it and opens the V2 tab, where v4 is configured', async () => {
+describe('channel monitor site mode v4', () => {
+  it('lists v4 as a mode, selects it and opens the V2 tab, where v4 is configured', async () => {
     const wrapper = await mountView()
     expect(wrapper.findAll('[role="radio"]').map((button) => button.attributes('data-testid'))).toEqual([
       'monitor-mode-v1', 'monitor-mode-v2', 'monitor-mode-v3', 'monitor-mode-v4',
     ])
     expect(wrapper.get('[data-testid="monitor-mode-v4"]').attributes('aria-checked')).toBe('true')
-    expect(wrapper.get('[data-testid="monitor-mode-v2"]').attributes('aria-checked')).toBe('false')
-    expect(wrapper.text()).toContain('channelMonitorV4.modes.v4')
-    expect(wrapper.text()).toContain('channelMonitorV4.admin.description.v4')
+    expect(wrapper.text()).toContain('channelMonitorV3.modes.v4')
+    expect(wrapper.text()).toContain('channelMonitorV3.admin.description.v4')
     expect(wrapper.find('[data-testid="v2-panel"]').exists()).toBe(true)
   })
 
-  it('switches to v4 through the v4 endpoint after confirmation', async () => {
-    mocks.getView.mockResolvedValue({ view: 'v1' })
+  it('switches to v4 through the official mode endpoint after confirmation', async () => {
     store.settings!.channel_monitor_mode = 'v1'
     const wrapper = await mountView()
     await wrapper.get('[data-testid="monitor-mode-v4"]').trigger('click')
-    expect(wrapper.get('[data-testid="confirm"]').text()).toContain('channelMonitorV4.admin.switchEffect.v4')
+    expect(wrapper.get('[data-testid="confirm"]').text()).toContain('channelMonitorV3.admin.switchEffect.v4')
     await wrapper.get('[data-testid="confirm-yes"]').trigger('click')
     await flushPromises()
-    expect(mocks.setView).toHaveBeenCalledWith('v4')
-    expect(mocks.setMonitorMode).not.toHaveBeenCalled()
+    expect(mocks.setMonitorMode).toHaveBeenCalledWith('v4')
     expect(mocks.fetchPublicSettings).toHaveBeenCalledWith(true)
     expect(wrapper.get('[data-testid="monitor-mode-v4"]').attributes('aria-checked')).toBe('true')
     expect(wrapper.find('[data-testid="v2-panel"]').exists()).toBe(true)
-    expect(mocks.showSuccess).toHaveBeenCalledWith('channelMonitorV3.admin.switched:{"mode":"channelMonitorV4.modes.v4"}')
-  })
-
-  it('switches back to an official mode through the same endpoint', async () => {
-    const wrapper = await mountView()
-    await wrapper.get('[data-testid="monitor-mode-v3"]').trigger('click')
-    expect(wrapper.get('[data-testid="confirm"]').text()).toContain('channelMonitorV3.admin.switchEffect.v3')
-    await wrapper.get('[data-testid="confirm-yes"]').trigger('click')
-    await flushPromises()
-    expect(mocks.setView).toHaveBeenCalledWith('v3')
-    expect(mocks.setMonitorMode).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="v3-panel"]').exists()).toBe(true)
+    expect(mocks.showSuccess).toHaveBeenCalledWith('channelMonitorV3.admin.switched:{"mode":"channelMonitorV3.modes.v4"}')
   })
 })

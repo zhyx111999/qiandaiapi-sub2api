@@ -397,6 +397,7 @@ const systemModeLabel = computed(() => {
   }
   const mode = getChannelMonitorMode()
   if (mode === 'v3') return t('channelMonitorV3.modes.v3')
+  if (mode === 'v4') return t('channelMonitorV3.modes.v4')
   return mode === 'v1'
     ? t('channelMonitorV2.settings.modeV1')
     : t('channelMonitorV2.settings.modeV2')

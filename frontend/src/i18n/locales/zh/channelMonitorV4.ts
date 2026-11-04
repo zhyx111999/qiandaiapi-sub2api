@@ -1,13 +1,5 @@
+/** Channel Monitor V4 (the V1 card page on the V2 engine) */
 export default {
-  modes: { v4: 'v4 融合版' },
-  admin: {
-    description: {
-      v4: '本站当前使用 v4 融合版：卡片界面沿用 v1，检测用 v2 的真实请求统计和糖果题。检测配置在「V2 被动统计」页签里设置；V1 的外部端点探测与配额监控不运行，数据保留。',
-    },
-    switchEffect: {
-      v4: '切换后用户看到 v1 样式的分组卡片页，数据来自 V2 的真实请求统计和糖果题。糖果题会按 V2 配置向本站分组发真实请求并消耗上游额度；V1 的外部端点探测与配额监控停止，数据保留，切回 V1 即恢复。',
-    },
-  },
   overall: { operational: '正常', degraded: '性能下降', failed: '服务异常', unknown: '暂无数据', stale: '数据待更新' },
   card: {
     latestFirstToken: '最新真实请求首字',

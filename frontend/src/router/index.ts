@@ -538,7 +538,7 @@ const routes: RouteRecordRaw[] = [
     path: '/monitor',
     name: 'ChannelStatus',
     // The v4 card page when the site runs v4, the official page otherwise.
-    component: () => import('@/modules/channel-monitor-v4/ChannelStatusEntry.vue'),
+    component: () => import('@/views/user/ChannelStatusView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,

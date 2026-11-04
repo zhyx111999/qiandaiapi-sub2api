@@ -1194,7 +1194,7 @@ func channelMonitorAdminFeatureGuard(settingService *service.SettingService) gin
 	}
 }
 
-// channelMonitorModeV2Guard requires feature enabled and channel_monitor_mode=v2.
+// channelMonitorModeV2Guard requires feature enabled and the v2 engine (channel_monitor_mode v2, or v4 on it).
 func channelMonitorModeV2Guard(settingService *service.SettingService) gin.HandlerFunc {
 	return channelMonitorModeGuard(settingService, service.ChannelMonitorRuntime.V2Active)
 }

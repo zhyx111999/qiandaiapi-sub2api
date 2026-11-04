@@ -3757,8 +3757,8 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import AccountGroupModelLimits from '@/components/account/AccountGroupModelLimits.vue'
 import AccountAutoBPSSection from '@/components/account/AccountAutoBPSSection.vue'
-import AccountStatusCheckSection from '@/modules/account-status-check/AccountStatusCheckSection.vue'
-import { useAccountStatusCheckForm } from '@/modules/account-status-check/useAccountStatusCheckForm'
+import AccountStatusCheckSection from '@/features/account-status-check/AccountStatusCheckSection.vue'
+import { useAccountStatusCheckForm } from '@/features/account-status-check/useAccountStatusCheckForm'
 import {
   buildGroupAllowedModelsPayload,
   groupAllowedModelsFromAccount,

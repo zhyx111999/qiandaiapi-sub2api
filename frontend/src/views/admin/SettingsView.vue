@@ -7615,7 +7615,7 @@
                 </p>
               </div>
 
-              <div v-if="form.channel_monitor_mode === 'v2'" class="space-y-4">
+              <div v-if="form.channel_monitor_mode === 'v2' || form.channel_monitor_mode === 'v4'" class="space-y-4">
                 <div class="flex items-start justify-between gap-4">
                   <div class="min-w-0">
                     <p class="text-sm font-medium text-gray-900 dark:text-white">
@@ -10292,8 +10292,8 @@ const schedulingThresholdPlatforms = SCHEDULING_THRESHOLD_PLATFORMS;
 
 // The stored monitor mode; the save payload omits an unchanged mode so a switch
 // made on the monitor page is not overwritten by this page's older copy.
-let loadedChannelMonitorMode: 'v1' | 'v2' | 'v3' = 'v1'
-const channelMonitorModes = ['v1', 'v2', 'v3'] as const
+let loadedChannelMonitorMode: 'v1' | 'v2' | 'v3' | 'v4' = 'v1'
+const channelMonitorModes = ['v1', 'v2', 'v3', 'v4'] as const
 // 平台限额表格的行：平台清单顺序中、已在归一化 map 里的平台（清单晚于设置加载时
 // 不渲染尚未归一化的平台，保持模板非空绑定）。
 function platformQuotaRows(map: DefaultPlatformQuotasMap | undefined): string[] {
@@ -10592,7 +10592,7 @@ const form = reactive<SettingsForm>({
   account_quota_notify_emails: [] as NotifyEmailEntry[],
   // Channel Monitor feature switch
   channel_monitor_enabled: true,
-  channel_monitor_mode: 'v1' as 'v1' | 'v2' | 'v3',
+  channel_monitor_mode: 'v1' as 'v1' | 'v2' | 'v3' | 'v4',
   channel_monitor_default_interval_seconds: 60,
   channel_monitor_hide_throughput: false,
   channel_monitor_show_quota: false,
@@ -11654,7 +11654,7 @@ async function loadSettings() {
     form.login_agreement_mode =
       settings.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
     form.channel_monitor_mode =
-      settings.channel_monitor_mode === "v2" || settings.channel_monitor_mode === "v3"
+      settings.channel_monitor_mode === "v2" || settings.channel_monitor_mode === "v3" || settings.channel_monitor_mode === "v4"
         ? settings.channel_monitor_mode
         : "v1";
     loadedChannelMonitorMode = form.channel_monitor_mode;

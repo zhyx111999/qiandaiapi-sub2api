@@ -1,22 +1,6 @@
 import { apiClient } from '@/api/client'
 import { repeatedArrayParamsSerializer } from '@/api/channelMonitorV2'
 
-export type MonitorView = 'v1' | 'v2' | 'v3' | 'v4'
-
-export interface ChannelMonitorViewState {
-  view: MonitorView
-}
-
-export async function getView(signal?: AbortSignal): Promise<ChannelMonitorViewState> {
-  const { data } = await apiClient.get<ChannelMonitorViewState>('/channel-monitor-v4/view', { signal })
-  return data
-}
-
-export async function setView(view: MonitorView): Promise<ChannelMonitorViewState> {
-  const { data } = await apiClient.put<ChannelMonitorViewState>('/admin/channel-monitor-v4/view', { view })
-  return data
-}
-
 /** A successful real request with a recorded first token; the fields feed usageOutputTps. */
 export interface MonitorRequestSample {
   at: string

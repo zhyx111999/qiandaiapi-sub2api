@@ -18,6 +18,7 @@ export default {
       v1: 'V1 active probes',
       v2: 'V2 passive stats',
       v3: 'V3 components',
+      v4: 'V4 fusion',
       off: 'Off',
     },
     legend: {
@@ -146,6 +147,7 @@ export default {
         v1: 'This site uses V1 active probes. You can prepare V3 now; users see it after switching.',
         v2: 'This site uses V2 passive stats. V3 reads the same real-traffic statistics, so you can prepare it and switch.',
         v3: 'This site uses V3: the categories and components below are measured from real user requests.',
+        v4: 'This site uses the V4 fusion: the V1 card page, checked by the V2 real-traffic statistics and candy probes. Configure checks in the "V2 passive stats" tab; V1 external endpoint probes and quota monitors do not run, and their data is kept.',
         off: 'Channel monitor is off; no monitor is running.',
       },
       switchTitle: 'Switch display mode',
@@ -154,6 +156,7 @@ export default {
         v1: 'V1 monitors start probing (requests are sent upstream) and the real-traffic statistics stop.',
         v2: 'Users see the V2 statistics page and the V3 page is hidden from them.',
         v3: 'Users see the V3 component status page, built from real-traffic statistics; no extra requests are sent except for groups with idle probes enabled. V1 probes and the V2 page stop.',
+        v4: "Users see the V1-style group card page fed by the V2 real-traffic statistics and candy probes. Candy probes send real requests to this site's groups and use upstream quota as configured in V2; V1 endpoint probes and quota monitors stop, their data is kept and returns when you switch back to V1.",
       },
       switchAction: 'Switch',
       switched: 'Switched to "{mode}"',

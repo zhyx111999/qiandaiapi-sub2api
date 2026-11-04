@@ -4,10 +4,12 @@ import { mount } from '@vue/test-utils'
 
 const isV1 = vi.fn(() => false)
 const isV3 = vi.fn(() => false)
+const isV4 = vi.fn(() => false)
 
 vi.mock('@/utils/featureFlags', () => ({
   isChannelMonitorV1Mode: () => isV1(),
   isChannelMonitorV3Mode: () => isV3(),
+  isChannelMonitorV4Mode: () => isV4(),
 }))
 
 vi.mock('../ChannelStatusV1View.vue', () => ({
@@ -19,18 +21,23 @@ vi.mock('../ChannelStatusV2View.vue', () => ({
 vi.mock('../ChannelStatusV3View.vue', () => ({
   default: defineComponent({ name: 'ChannelStatusV3View', setup: () => () => h('div', { 'data-testid': 'v3' }) }),
 }))
+vi.mock('@/features/channel-monitor-v4/ChannelStatusV4View.vue', () => ({
+  default: defineComponent({ name: 'ChannelStatusV4View', setup: () => () => h('div', { 'data-testid': 'v4' }) }),
+}))
 
 import ChannelStatusView from '../ChannelStatusView.vue'
 
 const rendered = (wrapper: ReturnType<typeof mount>) =>
-  ['v1', 'v2', 'v3'].filter((mode) => wrapper.find(`[data-testid="${mode}"]`).exists())
+  ['v1', 'v2', 'v3', 'v4'].filter((mode) => wrapper.find(`[data-testid="${mode}"]`).exists())
 
 describe('ChannelStatusView mode switch', () => {
   beforeEach(() => {
     isV1.mockReset()
     isV3.mockReset()
+    isV4.mockReset()
     isV1.mockReturnValue(false)
     isV3.mockReturnValue(false)
+    isV4.mockReturnValue(false)
   })
 
   it('renders V2 when not in v1 or v3 mode', () => {
@@ -45,5 +52,10 @@ describe('ChannelStatusView mode switch', () => {
   it('renders V3 when in v3 mode', () => {
     isV3.mockReturnValue(true)
     expect(rendered(mount(ChannelStatusView))).toEqual(['v3'])
+  })
+
+  it('renders the V4 cards when in v4 mode', () => {
+    isV4.mockReturnValue(true)
+    expect(rendered(mount(ChannelStatusView))).toEqual(['v4'])
   })
 })

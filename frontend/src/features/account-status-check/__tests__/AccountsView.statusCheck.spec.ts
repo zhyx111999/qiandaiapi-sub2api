@@ -4,8 +4,8 @@ import { caps, statusItem } from './fixtures'
 
 // 真实账号页接入独立状态列。
 const mocks = vi.hoisted(() => ({ list: vi.fn(), statuses: vi.fn(), caps: vi.fn() }))
-vi.mock('@/modules/account-status-check/capabilities', () => ({ loadAccountStatusCheckCapabilities: mocks.caps }))
-vi.mock('@/modules/account-status-check/api', async (importOriginal) => ({
+vi.mock('@/features/account-status-check/capabilities', () => ({ loadAccountStatusCheckCapabilities: mocks.caps }))
+vi.mock('@/features/account-status-check/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api')>()),
   getAccountStatusChecks: mocks.statuses
 }))

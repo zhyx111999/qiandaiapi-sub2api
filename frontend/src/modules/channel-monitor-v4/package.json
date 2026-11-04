@@ -1,8 +1,0 @@
-{
-  "name": "@/modules/channel-monitor-v4",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "exports": {"./*": "./*"},
-  "peerDependencies": {"vue": "^3.5.0", "vue-i18n": "^9.14.0"}
-}

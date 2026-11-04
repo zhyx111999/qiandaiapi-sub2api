@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ChannelMonitorView from '@/views/admin/ChannelMonitorView.vue'
 
-const mocks = vi.hoisted(() => ({ setView: vi.fn(), fetchPublicSettings: vi.fn(), showSuccess: vi.fn(), showError: vi.fn() }))
+const mocks = vi.hoisted(() => ({ setMonitorMode: vi.fn(), fetchPublicSettings: vi.fn(), showSuccess: vi.fn(), showError: vi.fn() }))
 const store = vi.hoisted(() => ({ settings: null as null | { channel_monitor_enabled: boolean; channel_monitor_mode: string } }))
 
 vi.mock('@/utils/featureFlags', () => ({
@@ -19,10 +19,7 @@ vi.mock('@/stores/app', () => ({
     showError: mocks.showError,
   }),
 }))
-vi.mock('@/modules/channel-monitor-v4/api', () => ({
-  getView: async () => ({ view: store.settings!.channel_monitor_mode }),
-  setView: mocks.setView,
-}))
+vi.mock('@/api/channelMonitorV3', () => ({ setMonitorMode: mocks.setMonitorMode }))
 vi.mock('@/api/admin', () => ({ adminAPI: { channelMonitor: { list: vi.fn().mockResolvedValue({ items: [], total: 0 }) } } }))
 vi.mock('@/features/channel-monitor-v2/MonitorSettingsPanel.vue', () => ({ default: { template: '<div data-testid="v2-panel" />' } }))
 vi.mock('@/features/channel-monitor-v3/V3SettingsPanel.vue', () => ({ default: { template: '<div data-testid="v3-panel" />' } }))
@@ -48,9 +45,9 @@ const stubs = {
 beforeEach(() => {
   vi.clearAllMocks()
   store.settings = reactive({ channel_monitor_enabled: true, channel_monitor_mode: 'v2' })
-  mocks.setView.mockImplementation(async (view: string) => ({ view }))
+  mocks.setMonitorMode.mockImplementation(async (mode: string) => mode)
   mocks.fetchPublicSettings.mockImplementation(async () => {
-    store.settings!.channel_monitor_mode = mocks.setView.mock.calls.at(-1)?.[0] ?? store.settings!.channel_monitor_mode
+    store.settings!.channel_monitor_mode = mocks.setMonitorMode.mock.calls.at(-1)?.[0] ?? store.settings!.channel_monitor_mode
     return store.settings
   })
 })
@@ -64,11 +61,11 @@ describe('channel monitor site mode switch', () => {
 
     await wrapper.get('[data-testid="monitor-mode-v3"]').trigger('click')
     expect(wrapper.get('[data-testid="confirm"]').text()).toContain('channelMonitorV3.admin.switchEffect.v3')
-    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(mocks.setMonitorMode).not.toHaveBeenCalled()
     await wrapper.get('[data-testid="confirm-yes"]').trigger('click')
     await flushPromises()
 
-    expect(mocks.setView).toHaveBeenCalledWith('v3')
+    expect(mocks.setMonitorMode).toHaveBeenCalledWith('v3')
     expect(mocks.fetchPublicSettings).toHaveBeenCalledWith(true)
     expect(wrapper.find('[data-testid="v3-panel"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="monitor-mode-v3"]').attributes('aria-checked')).toBe('true')
@@ -83,7 +80,7 @@ describe('channel monitor site mode switch', () => {
     await wrapper.get('[data-testid="monitor-mode-v2"]').trigger('click')
     await wrapper.get('[data-testid="confirm-yes"]').trigger('click')
     await flushPromises()
-    expect(mocks.setView).not.toHaveBeenCalled()
+    expect(mocks.setMonitorMode).not.toHaveBeenCalled()
   })
 
   it('keeps the switch disabled while the feature is off', async () => {

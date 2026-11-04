@@ -1,5 +1,5 @@
 import { createI18n } from 'vue-i18n'
-import zh from '../locales/zh'
+import zh from '@/i18n/locales/zh/accountStatusCheck'
 import type { AccountStatusCheckCapabilities, AccountStatusCheckConfig, AccountStatusCheckStatusItem } from '../types'
 
 export const caps = (): AccountStatusCheckCapabilities => ({

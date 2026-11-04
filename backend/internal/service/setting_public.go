@@ -232,7 +232,6 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyExcelBPSEnabled,
 		SettingKeyPrismBrowserEnabled,
 		SettingKeyChannelMonitorMode,
-		SettingKeyChannelMonitorV4Selection,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorShowQuota,
@@ -370,7 +369,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorEnabled:                !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled]),
 		ExcelBPSEnabled:                      !isFalseSettingValue(settings[SettingKeyExcelBPSEnabled]),
 		PrismBrowserEnabled:                  settings[SettingKeyPrismBrowserEnabled] == "true",
-		ChannelMonitorMode:                   channelMonitorEngineMode(settings),
+		ChannelMonitorMode:                   normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode]),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		ChannelMonitorHideThroughput:         !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput]),
 		ChannelMonitorShowQuota:              settings[SettingKeyChannelMonitorShowQuota] == "true",
@@ -410,15 +409,11 @@ const (
 	defaultChannelMonitorMode      = ChannelMonitorModeV1
 )
 
-// normalizeChannelMonitorMode accepts only v1/v2/v3; empty/invalid → v1 (safe default).
+// normalizeChannelMonitorMode accepts only v1/v2/v3/v4; empty/invalid → v1 (safe default).
 func normalizeChannelMonitorMode(raw string) string {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case ChannelMonitorModeV1, "":
-		return ChannelMonitorModeV1
-	case ChannelMonitorModeV2:
-		return ChannelMonitorModeV2
-	case ChannelMonitorModeV3:
-		return ChannelMonitorModeV3
+	switch mode := strings.ToLower(strings.TrimSpace(raw)); mode {
+	case ChannelMonitorModeV1, ChannelMonitorModeV2, ChannelMonitorModeV3, ChannelMonitorModeV4:
+		return mode
 	default:
 		return defaultChannelMonitorMode
 	}
@@ -452,7 +447,7 @@ func clampChannelMonitorInterval(v int) int {
 // consumed by the runner, V2 aggregator, and user-facing handlers.
 type ChannelMonitorRuntime struct {
 	Enabled                bool
-	Mode                   string // ChannelMonitorModeV1, ChannelMonitorModeV2 or ChannelMonitorModeV3
+	Mode                   string // ChannelMonitorModeV1 … ChannelMonitorModeV4; v4 runs the v2 engine
 	DefaultIntervalSeconds int
 	// HideThroughput: when true, user-facing V2 APIs omit RPM/TPM scale signals.
 	HideThroughput bool
@@ -467,23 +462,25 @@ type ChannelMonitorRuntime struct {
 
 // ActiveProbesAllowed reports whether V1 active provider probes may run.
 func (r ChannelMonitorRuntime) ActiveProbesAllowed() bool {
-	return r.Enabled && r.Mode == ChannelMonitorModeV1
+	return r.Enabled && channelMonitorEngine(r.Mode) == ChannelMonitorModeV1
 }
 
 // PassiveAggregationAllowed reports whether the passive aggregation of real
-// traffic may run: V2 shows it directly and V3 builds its status page on it.
+// traffic may run: V2 (and V4 on it) shows it directly and V3 builds its status page on it.
 func (r ChannelMonitorRuntime) PassiveAggregationAllowed() bool {
-	return r.Enabled && (r.Mode == ChannelMonitorModeV2 || r.Mode == ChannelMonitorModeV3)
+	engine := channelMonitorEngine(r.Mode)
+	return r.Enabled && (engine == ChannelMonitorModeV2 || engine == ChannelMonitorModeV3)
 }
 
-// V2Active reports whether the V2 views (and its candy probes) are the site's monitor.
+// V2Active reports whether the V2 engine (its views and candy probes) runs the site's monitor:
+// the V2 page, or the V4 cards on it.
 func (r ChannelMonitorRuntime) V2Active() bool {
-	return r.Enabled && r.Mode == ChannelMonitorModeV2
+	return r.Enabled && channelMonitorEngine(r.Mode) == ChannelMonitorModeV2
 }
 
 // V3Active reports whether the V3 component status page is the site's monitor.
 func (r ChannelMonitorRuntime) V3Active() bool {
-	return r.Enabled && r.Mode == ChannelMonitorModeV3
+	return r.Enabled && channelMonitorEngine(r.Mode) == ChannelMonitorModeV3
 }
 
 // GetChannelMonitorRuntime reads the channel monitor feature flags directly from
@@ -500,7 +497,6 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 	vals, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorMode,
-		SettingKeyChannelMonitorV4Selection,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorShowQuota,
@@ -516,7 +512,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 	}
 	return ChannelMonitorRuntime{
 		Enabled:                !isFalseSettingValue(vals[SettingKeyChannelMonitorEnabled]),
-		Mode:                   channelMonitorEngineMode(vals),
+		Mode:                   normalizeChannelMonitorMode(vals[SettingKeyChannelMonitorMode]),
 		DefaultIntervalSeconds: parseChannelMonitorInterval(vals[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		HideThroughput:         !isFalseSettingValue(vals[SettingKeyChannelMonitorHideThroughput]),
 		ShowQuota:              vals[SettingKeyChannelMonitorShowQuota] == "true",
@@ -529,7 +525,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 func (s *SettingService) SetChannelMonitorMode(ctx context.Context, mode string) (string, error) {
 	normalized := strings.ToLower(strings.TrimSpace(mode))
 	switch normalized {
-	case ChannelMonitorModeV1, ChannelMonitorModeV2, ChannelMonitorModeV3:
+	case ChannelMonitorModeV1, ChannelMonitorModeV2, ChannelMonitorModeV3, ChannelMonitorModeV4:
 	default:
 		return "", ErrChannelMonitorInvalidMode
 	}
