@@ -98,9 +98,6 @@
               <p class="input-hint">{{ t('accountStatusCheck.range', { min: limits.timeout_min, max: limits.timeout_max }) }}</p>
             </div>
           </div>
-          <p v-if="!draft.model.trim()" class="input-hint" data-testid="account-status-check-no-model">
-            {{ t('accountStatusCheck.noModelHint') }}
-          </p>
           <p v-if="form?.canRunNow.value" class="input-hint">{{ t('accountStatusCheck.runSavedHint') }}</p>
           <button
             v-if="form?.canRunNow.value"

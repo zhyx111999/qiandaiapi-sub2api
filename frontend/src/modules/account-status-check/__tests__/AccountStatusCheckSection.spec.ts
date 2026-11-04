@@ -133,10 +133,9 @@ describe('状态检测独立编辑区', () => {
     expect(mocks.changed).toHaveBeenCalledTimes(2)
   })
 
-  it('没填模型时说明不会检测，不提供无效的立即检测', async () => {
+  it('没填模型时不提供无效的立即检测', async () => {
     mocks.get.mockResolvedValue(config({ model: '', plan_id: null }))
     const wrapper = await mountHost({ accountId: 42 })
-    expect(wrapper.get('[data-testid="account-status-check-no-model"]').text()).toContain('不会检测')
     expect(wrapper.find('[data-testid="account-status-check-run"]').exists()).toBe(false)
     await formOf(wrapper).runNow()
     expect(mocks.run).not.toHaveBeenCalled()

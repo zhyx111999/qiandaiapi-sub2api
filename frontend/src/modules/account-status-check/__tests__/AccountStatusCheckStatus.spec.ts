@@ -23,7 +23,7 @@ describe('账号状态检测列表', () => {
   })
 
   it.each([
-    ['dead', '号不行了', 'badge-danger'],
+    ['dead', '账号异常', 'badge-danger'],
     ['error', '检测失败', 'badge-danger'],
     ['degraded', '降智', 'bg-yellow-100'],
     ['normal', '正常', 'badge-success'],
@@ -73,7 +73,7 @@ describe('账号状态检测列表', () => {
 
   it('账号异常不改写最后一次答题事实', () => {
     const previousMatch = render(statusItem({ state: 'dead' }))
-    expect(text(previousMatch, 'state')).toBe('号不行了')
+    expect(text(previousMatch, 'state')).toBe('账号异常')
     expect(text(previousMatch, 'answer')).toBe('答题测试：匹配 21')
     const neverChecked = render(statusItem({ state: 'dead', latest: null, history: [] }))
     expect(text(neverChecked, 'answer')).toBe('答题测试：暂无结果')
