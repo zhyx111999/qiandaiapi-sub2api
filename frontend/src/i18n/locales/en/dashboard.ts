@@ -768,18 +768,36 @@ export default {
   modelPlaza: {
     title: 'Model Plaza',
     description: 'Browse available models and pricing by group',
-    loading: 'Loading...',
     empty: 'No groups to display',
     loadFailed: 'Failed to load model plaza',
     noSearchResult: 'No matching models',
     anonymousHint: 'Sign in to see your exclusive groups and personal rates',
+    pricingRules: 'Pricing rules',
     filters: {
-      platformLabel: 'Platform',
+      vendorLabel: 'Model vendor',
       groupLabel: 'Group',
       rateLabel: 'Rate',
       modelLabel: 'Model',
       searchPlaceholder: 'Search models',
       all: 'All'
+    },
+    vendors: {
+      claude: 'Claude',
+      openai: 'ChatGPT',
+      gemini: 'Gemini',
+      grok: 'Grok',
+      zhipu: 'Zhipu',
+      kimi: 'Kimi',
+      deepseek: 'DeepSeek',
+      minimax: 'MiniMax',
+      qwen: 'Qwen',
+      novelai: 'NovelAI'
+    },
+    priceMode: {
+      label: 'Price basis',
+      hint: 'Pick a group to see the USD price of each model.',
+      group: 'Group price',
+      official: 'Official price'
     },
     badges: {
       exclusive: 'Exclusive',
@@ -787,7 +805,6 @@ export default {
     },
     detail: {
       noModels: 'No models configured for this group',
-      noPricing: 'Pricing not configured',
       peakNote: 'Peak hours {window}: billing rate ×{multiplier}',
       longContextDisabledNote: 'Long-context tier pricing is disabled for this group: requests above the threshold are billed at the base tier; official tiers are for reference only'
     },
@@ -812,14 +829,17 @@ export default {
         '; prices in this row exclude the peak-hour rate — where this period overlaps the peak hours {window}, the overlapping portion is additionally multiplied by ×{multiplier}',
       timePricingWeekdays: 'Weekdays',
       timePricingRateHint: 'Effective rate {rate} × period multiplier {multiplier}',
-      paidPrice: 'Your Price (Discounted)',
       officialPrice: 'Official Price',
       rate: 'Rate',
       unitPerMillion: '$ / 1M tokens',
       perUnitRequest: '/ request',
       perUnitImage: '/ image',
-      perRequest: 'Per request',
-      perImage: 'Per image'
+      perRequestPrice: 'Per request',
+      referenceImage: 'Reference image',
+      imageModel: 'Image',
+      copyModel: 'Copy {model}',
+      copiedModel: 'Copied {model}',
+      copied: 'Copied'
     },
     nav: {
       login: 'Sign In',

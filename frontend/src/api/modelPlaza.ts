@@ -53,6 +53,21 @@ export interface PlazaModel {
   long_context_basis?: PlazaLongContextBasis
   /** 仅配置了分时倍率的模型返回。 */
   time_pricing?: PlazaTimePricing
+  /** 仅生图模型返回（价格目录标记为生图、NovelAI 或按张计费）。 */
+  image?: PlazaImageInfo
+}
+
+/** 生图计费档位及其覆盖的最大分辨率。 */
+export interface PlazaImageTier {
+  label: string
+  width: number
+  height: number
+}
+
+/** 生图模型：档位按升序；每张参考图单价（USD，未乘倍率）免费时缺省。 */
+export interface PlazaImageInfo {
+  tiers: PlazaImageTier[]
+  reference_image_price?: number
 }
 
 export interface ModelPlazaGroup {

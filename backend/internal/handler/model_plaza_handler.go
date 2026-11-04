@@ -72,6 +72,21 @@ type modelPlazaModel struct {
 	LongContextBasis string `json:"long_context_basis,omitempty"`
 	// TimePricing 分时倍率时段，落在时段内的请求整单乘倍率；无分时省略。
 	TimePricing *modelPlazaTimePricing `json:"time_pricing,omitempty"`
+	// Image 生图模型的分辨率档位与参考图单价；非生图模型省略。
+	Image *modelPlazaImage `json:"image,omitempty"`
+}
+
+// modelPlazaImageTier 生图计费档位及其覆盖的最大分辨率。
+type modelPlazaImageTier struct {
+	Label  string `json:"label"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+}
+
+// modelPlazaImage 生图模型：档位按升序；参考图单价（USD，未乘倍率）免费时省略。
+type modelPlazaImage struct {
+	Tiers               []modelPlazaImageTier `json:"tiers"`
+	ReferenceImagePrice *float64              `json:"reference_image_price,omitempty"`
 }
 
 // modelPlazaGroup 广场分组条目（白名单字段）。
@@ -221,6 +236,7 @@ func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64, de
 			OfficialPricing:  toModelPlazaOfficialPricing(m.OfficialPricing),
 			LongContextBasis: string(m.LongContextBasis),
 			TimePricing:      toModelPlazaTimePricing(m.TimePricing),
+			Image:            toModelPlazaImage(m.Image),
 		})
 	}
 	dto := modelPlazaGroup{
@@ -262,6 +278,18 @@ func toModelPlazaTimePricing(p *service.TimePricingSchedule) *modelPlazaTimePric
 		})
 	}
 	return &modelPlazaTimePricing{Timezone: p.Timezone, WeekdaysOnly: p.WeekdaysOnly, Periods: periods}
+}
+
+// toModelPlazaImage 转换生图模型信息；非生图模型为 nil。
+func toModelPlazaImage(p *service.PlazaImage) *modelPlazaImage {
+	if p == nil {
+		return nil
+	}
+	tiers := make([]modelPlazaImageTier, 0, len(p.Tiers))
+	for _, tier := range p.Tiers {
+		tiers = append(tiers, modelPlazaImageTier{Label: tier.Label, Width: tier.Width, Height: tier.Height})
+	}
+	return &modelPlazaImage{Tiers: tiers, ReferenceImagePrice: p.ReferenceImagePrice}
 }
 
 // toModelPlazaOfficialPricing 转换官方参考价；nil 透传（前端显示 "-"）。

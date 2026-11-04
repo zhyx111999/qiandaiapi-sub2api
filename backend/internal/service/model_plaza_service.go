@@ -29,6 +29,8 @@ type PlazaModel struct {
 	LongContextBasis ContextPricingBasis
 	// TimePricing 计费会生效的分时倍率时段；无分时为 nil。
 	TimePricing *TimePricingSchedule
+	// Image 生图模型的分辨率档位与参考图单价；非生图模型为 nil（见 model_plaza_image.go）。
+	Image *PlazaImage
 }
 
 // PlazaGroup 模型广场中以分组为顶层的条目。
@@ -238,8 +240,10 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 			return pg.Models[i].Platform < pg.Models[j].Platform
 		})
 		for j := range pg.Models {
-			s.fillDisplayPricing(ctx, &pg.Models[j], g)
-			pg.Models[j].OfficialPricing = s.lookupOfficialPricing(ctx, pg.Models[j].Name, officialMemo)
+			m := &pg.Models[j]
+			s.fillDisplayPricing(ctx, m, g)
+			m.Image = s.plazaImage(m, g)
+			m.OfficialPricing = s.lookupOfficialPricing(ctx, m.Name, officialMemo)
 		}
 		out = append(out, *pg)
 	}
