@@ -1835,25 +1835,11 @@ func (s *BillingService) calculatePerRequestCost(resolved *ResolvedPricing, inpu
 		units = float64(count)
 	}
 
-	var unitPrice float64
-
-	// NovelAI 按总像素定档：命中的档位即单价（含显式 0 价），不再按标签或上下文回落。
-	if tier := NovelAIPixelTier(resolved.RequestTiers, input.ImagePixels); tier != nil {
-		unitPrice = *tier.PerRequestPrice
-	} else {
-		if input.SizeTier != "" {
-			unitPrice = input.Resolver.GetRequestTierPrice(resolved, input.SizeTier)
-		}
-
-		if unitPrice == 0 {
-			totalContext := input.Tokens.InputTokens + input.Tokens.CacheCreationTokens + input.Tokens.CacheReadTokens
-			unitPrice = input.Resolver.GetRequestTierPriceByContext(resolved, totalContext)
-		}
-
-		// 回退到默认按次价格
-		if unitPrice == 0 {
-			unitPrice = resolved.DefaultPerRequestPrice
-		}
+	// 价卡档位定价（NovelAI 像素档 → 尺寸标签 → 上下文区间），没有匹配的档位时取统一按次价。
+	totalContext := input.Tokens.InputTokens + input.Tokens.CacheCreationTokens + input.Tokens.CacheReadTokens
+	unitPrice, ok := input.Resolver.RequestTierPrice(resolved, input.SizeTier, input.ImagePixels, totalContext)
+	if !ok {
+		unitPrice = resolved.DefaultPerRequestPrice
 	}
 
 	totalCost := unitPrice * units

@@ -52,6 +52,42 @@ func TestNovelAIPixelTier(t *testing.T) {
 	require.Len(t, NovelAIPixelTiers(append(ladder, labelOnly("1K", 0.05), unpriced)), 5)
 }
 
+func TestRequestTierPrice_Order(t *testing.T) {
+	r := &ModelPricingResolver{}
+	price := func(v float64) *float64 { return &v }
+
+	// NovelAI pixels pick the pixel tier; an explicit zero-price tier is free.
+	ladder := novelAITestLadder()
+	got, ok := r.RequestTierPrice(&ResolvedPricing{RequestTiers: ladder}, ImageBillingSize2K, 1216*1216, 0)
+	require.True(t, ok)
+	require.InDelta(t, 0.5, got, 1e-12)
+	*ladder[1].PerRequestPrice = 0
+	got, ok = r.RequestTierPrice(&ResolvedPricing{RequestTiers: ladder}, ImageBillingSize2K, 1216*1216, 0)
+	require.True(t, ok)
+	require.Zero(t, got)
+
+	// A card without pixel ranges is matched by label; a zero label price stays "unset" and
+	// leaves the flat price to the caller (stock semantics).
+	labelled := &ResolvedPricing{RequestTiers: []PricingInterval{
+		{TierLabel: ImageBillingSize1K, PerRequestPrice: price(0)},
+		{TierLabel: ImageBillingSize2K, PerRequestPrice: price(0.9)},
+	}}
+	got, ok = r.RequestTierPrice(labelled, ImageBillingSize2K, 1216*1216, 0)
+	require.True(t, ok)
+	require.InDelta(t, 0.9, got, 1e-12)
+	_, ok = r.RequestTierPrice(labelled, ImageBillingSize1K, 832*1216, 0)
+	require.False(t, ok)
+
+	// Without pixels (any non-NovelAI request) a context-range card keeps its token meaning.
+	contextCard := &ResolvedPricing{RequestTiers: []PricingInterval{
+		{MinTokens: 0, MaxTokens: testPtrInt(128000), PerRequestPrice: price(0.05)},
+		{MinTokens: 128000, PerRequestPrice: price(0.1)},
+	}}
+	got, ok = r.RequestTierPrice(contextCard, "", 0, 200000)
+	require.True(t, ok)
+	require.InDelta(t, 0.1, got, 1e-12)
+}
+
 func TestCalculatePerRequestCost_NovelAIPixelTiers(t *testing.T) {
 	svc := &BillingService{}
 	resolver := &ModelPricingResolver{}

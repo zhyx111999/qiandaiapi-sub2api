@@ -393,3 +393,24 @@ func (r *ModelPricingResolver) GetRequestTierPriceByContext(resolved *ResolvedPr
 	}
 	return 0
 }
+
+// RequestTierPrice 为按次/图片价卡选出给本次请求定价的档位单价，依次：
+//  1. NovelAI 图片按总像素落入的档位（档位范围以像素计，见 novelai_pixel_tiers.go；显式 0 价即免费）；
+//  2. 尺寸档位标签（1K/2K/4K 等）；
+//  3. 上下文 token 区间。
+//
+// 第 2、3 步沿用原语义：单价为 0 视为未配置，继续往下找。都没有时返回 false，由调用方取价卡统一价。
+func (r *ModelPricingResolver) RequestTierPrice(resolved *ResolvedPricing, sizeTier string, pixels int64, contextTokens int) (float64, bool) {
+	if tier := NovelAIPixelTier(resolved.RequestTiers, pixels); tier != nil {
+		return *tier.PerRequestPrice, true
+	}
+	if sizeTier != "" {
+		if price := r.GetRequestTierPrice(resolved, sizeTier); price != 0 {
+			return price, true
+		}
+	}
+	if price := r.GetRequestTierPriceByContext(resolved, contextTokens); price != 0 {
+		return price, true
+	}
+	return 0, false
+}
