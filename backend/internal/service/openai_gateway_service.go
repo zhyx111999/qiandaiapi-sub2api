@@ -314,6 +314,7 @@ type OpenAIForwardResult struct {
 	// ImageEndpoint 标记请求来自专用图片端点；分组 image_count_billing 开关
 	// 只对这类请求生效，混合 Responses/Chat/WS 请求仍按 token 计费。
 	ImageEndpoint      bool
+	ImagePixels        int64 // NovelAI 图片总像素（宽×高），按价卡像素档定档（见 novelai_pixel_tiers.go）；其他请求为 0
 	ImageSize          string
 	ImageInputSize     string
 	ImageOutputSize    string

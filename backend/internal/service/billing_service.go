@@ -1547,6 +1547,7 @@ type CostInput struct {
 	RequestCount              int     // 按次计费时使用
 	UsageUnits                float64 // 音频等连续计量单位（分钟/小时/百万字符）
 	SizeTier                  string  // 按次/图片模式的层级标签（"1K","2K","4K","HD" 等）
+	ImagePixels               int64   // NovelAI 图片总像素（宽×高），按价卡像素档定档（见 novelai_pixel_tiers.go）；其他请求为 0
 	RateMultiplier            float64
 	PricingAt                 time.Time             // 渠道分时定价使用的计费时刻
 	ServiceTier               string                // "priority","flex","" 等
@@ -1836,18 +1837,23 @@ func (s *BillingService) calculatePerRequestCost(resolved *ResolvedPricing, inpu
 
 	var unitPrice float64
 
-	if input.SizeTier != "" {
-		unitPrice = input.Resolver.GetRequestTierPrice(resolved, input.SizeTier)
-	}
+	// NovelAI 按总像素定档：命中的档位即单价（含显式 0 价），不再按标签或上下文回落。
+	if tier := NovelAIPixelTier(resolved.RequestTiers, input.ImagePixels); tier != nil {
+		unitPrice = *tier.PerRequestPrice
+	} else {
+		if input.SizeTier != "" {
+			unitPrice = input.Resolver.GetRequestTierPrice(resolved, input.SizeTier)
+		}
 
-	if unitPrice == 0 {
-		totalContext := input.Tokens.InputTokens + input.Tokens.CacheCreationTokens + input.Tokens.CacheReadTokens
-		unitPrice = input.Resolver.GetRequestTierPriceByContext(resolved, totalContext)
-	}
+		if unitPrice == 0 {
+			totalContext := input.Tokens.InputTokens + input.Tokens.CacheCreationTokens + input.Tokens.CacheReadTokens
+			unitPrice = input.Resolver.GetRequestTierPriceByContext(resolved, totalContext)
+		}
 
-	// 回退到默认按次价格
-	if unitPrice == 0 {
-		unitPrice = resolved.DefaultPerRequestPrice
+		// 回退到默认按次价格
+		if unitPrice == 0 {
+			unitPrice = resolved.DefaultPerRequestPrice
+		}
 	}
 
 	totalCost := unitPrice * units

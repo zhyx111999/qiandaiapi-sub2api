@@ -839,6 +839,7 @@ export default {
       perUnitRequest: '/ 次',
       perUnitImage: '/ 张',
       perRequestPrice: '按次价格',
+      pixelUnit: '像素',
       referenceImage: '参考图',
       imageModel: '生图',
       copyModel: '复制 {model}',

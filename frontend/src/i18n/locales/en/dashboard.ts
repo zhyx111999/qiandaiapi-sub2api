@@ -835,6 +835,7 @@ export default {
       perUnitRequest: '/ request',
       perUnitImage: '/ image',
       perRequestPrice: 'Per request',
+      pixelUnit: 'px',
       referenceImage: 'Reference image',
       imageModel: 'Image',
       copyModel: 'Copy {model}',

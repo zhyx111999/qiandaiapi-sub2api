@@ -76,11 +76,14 @@ type modelPlazaModel struct {
 	Image *modelPlazaImage `json:"image,omitempty"`
 }
 
-// modelPlazaImageTier 生图计费档位及其覆盖的最大分辨率。
+// modelPlazaImageTier 生图计费档位：覆盖的最大分辨率（width × height），
+// 或 NovelAI 像素档的总像素范围（min_pixels～max_pixels，两端都含，无上限时省略 max_pixels）。
 type modelPlazaImageTier struct {
-	Label  string `json:"label"`
-	Width  int    `json:"width"`
-	Height int    `json:"height"`
+	Label     string `json:"label"`
+	Width     int    `json:"width,omitempty"`
+	Height    int    `json:"height,omitempty"`
+	MinPixels int64  `json:"min_pixels,omitempty"`
+	MaxPixels int64  `json:"max_pixels,omitempty"`
 }
 
 // modelPlazaImage 生图模型：档位按升序；参考图单价（USD，未乘倍率）免费时省略。
@@ -287,7 +290,9 @@ func toModelPlazaImage(p *service.PlazaImage) *modelPlazaImage {
 	}
 	tiers := make([]modelPlazaImageTier, 0, len(p.Tiers))
 	for _, tier := range p.Tiers {
-		tiers = append(tiers, modelPlazaImageTier{Label: tier.Label, Width: tier.Width, Height: tier.Height})
+		tiers = append(tiers, modelPlazaImageTier{
+			Label: tier.Label, Width: tier.Width, Height: tier.Height, MinPixels: tier.MinPixels, MaxPixels: tier.MaxPixels,
+		})
 	}
 	return &modelPlazaImage{Tiers: tiers, ReferenceImagePrice: p.ReferenceImagePrice}
 }

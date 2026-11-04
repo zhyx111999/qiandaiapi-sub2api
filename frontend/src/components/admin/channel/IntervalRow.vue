@@ -64,22 +64,25 @@
       </div>
     </template>
 
-    <!-- Per-request / Image mode: tier label + context range + price -->
+    <!-- Per-request / Image mode: tier label + range (NovelAI: total pixels) + price -->
     <template v-else>
       <div class="w-24">
         <label class="text-xs text-gray-400">
-          {{ mode === 'image' ? t('admin.channels.form.resolution') : t('admin.channels.form.tierLabel') }}
+          {{ pixelTiers ? t('admin.channels.form.pixelTier') : mode === 'image' ? t('admin.channels.form.resolution') : t('admin.channels.form.tierLabel') }}
         </label>
         <input :value="interval.tier_label" @input="emitField('tier_label', ($event.target as HTMLInputElement).value)"
-          type="text" class="input mt-0.5 text-xs" :placeholder="mode === 'image' ? '1K / 2K / 4K' : ''" />
+          type="text" class="input mt-0.5 text-xs" :placeholder="pixelTiers ? '1MP / 1.5MP' : mode === 'image' ? '1K / 2K / 4K' : ''" />
       </div>
-      <div class="w-20">
-        <label class="text-xs text-gray-400">{{ t('admin.channels.form.minTokens') }}</label>
+      <div :class="pixelTiers ? 'w-28' : 'w-20'">
+        <label class="text-xs text-gray-400">
+          {{ pixelTiers ? t('admin.channels.form.minPixels') : t('admin.channels.form.minTokens') }}
+          <span v-if="pixelTiers" class="text-gray-300">{{ t('admin.channels.form.inclusive') }}</span>
+        </label>
         <input :value="interval.min_tokens" @input="emitField('min_tokens', toInt(($event.target as HTMLInputElement).value))"
           type="number" min="0" class="input mt-0.5 text-xs" />
       </div>
-      <div class="w-20">
-        <label class="text-xs text-gray-400">{{ t('admin.channels.form.maxTokens') }} <span class="text-gray-300">{{ t('admin.channels.form.inclusive') }}</span></label>
+      <div :class="pixelTiers ? 'w-28' : 'w-20'">
+        <label class="text-xs text-gray-400">{{ pixelTiers ? t('admin.channels.form.maxPixels') : t('admin.channels.form.maxTokens') }} <span class="text-gray-300">{{ t('admin.channels.form.inclusive') }}</span></label>
         <input :value="interval.max_tokens ?? ''" @input="emitField('max_tokens', toIntOrNull(($event.target as HTMLInputElement).value))"
           type="number" min="0" class="input mt-0.5 text-xs" :placeholder="'∞'" />
       </div>
@@ -109,6 +112,8 @@ const props = defineProps<{
   interval: IntervalFormEntry
   mode: BillingMode
   enableMultipliers?: boolean
+  /** NovelAI 图片 / 按次档位：最小 / 最大为单张图片的总像素（两端都含）。 */
+  pixelTiers?: boolean
 }>()
 
 const emit = defineEmits<{

@@ -2,7 +2,7 @@
  * 定价方式自动匹配：每个模型按实际计费方式归入一种展示方式，分组内同一方式的模型共用一张表、
  * 一套列。
  * - token：按 token 计费（输入 / 输出 / 缓存）；
- * - resolution：按分辨率计费——生图模型各档（1K/2K/4K，附档位分辨率）价格不同；
+ * - resolution：按分辨率计费——生图模型各档（1K/2K/4K 附档位分辨率，NovelAI 像素档附像素范围）价格不同；
  * - request：按次计费——按次 / 按视频模型，以及各档同价的生图模型。
  */
 import { BILLING_MODE_TOKEN } from '@/constants/channel'
@@ -27,15 +27,23 @@ export function requestIntervals(m: PlazaModel): UserPricingInterval[] {
   return (m.pricing?.intervals ?? []).filter((iv) => iv.per_request_price != null)
 }
 
+/** 价卡档位是否就是该展示档位：NovelAI 像素档按像素范围对应，其余按档位名对应。 */
+function sameTier(iv: UserPricingInterval, tier: PlazaImageTier): boolean {
+  if (tier.min_pixels != null || tier.max_pixels != null) {
+    return iv.min_tokens === (tier.min_pixels ?? 0) && (iv.max_tokens ?? undefined) === tier.max_pixels
+  }
+  return iv.tier_label?.toUpperCase() === tier.label.toUpperCase()
+}
+
 /**
- * 生图模型各档单价：取同名档位价，档位未单独定价时按计费回落到模型按次价；
+ * 生图模型各档单价：取对应档位的价，档位未单独定价时按计费回落到模型按次价；
  * 两者都没有的档不展示。非生图或按 token 计费的模型为空。
  */
 export function imageTierPrices(m: PlazaModel): PlazaTierPrice[] {
   if (!m.image || isTokenBilled(m)) return []
   const intervals = requestIntervals(m)
   return m.image.tiers.flatMap((tier) => {
-    const iv = intervals.find((i) => i.tier_label?.toUpperCase() === tier.label)
+    const iv = intervals.find((i) => sameTier(i, tier))
     const price = iv?.per_request_price ?? m.pricing?.per_request_price
     return price == null ? [] : [{ ...tier, price }]
   })
@@ -61,9 +69,19 @@ export function partitionByPriceKind(models: PlazaModel[]): { kind: PlazaPriceKi
   )
 }
 
-/** “1024×1024”。 */
-export function formatResolution(tier: PlazaImageTier): string {
-  return `${tier.width}×${tier.height}`
+/**
+ * 档位覆盖范围：分辨率档为“1024×1024”；NovelAI 像素档为“≤1,048,576”“1,048,577–1,572,864”
+ * “≥2,621,441”，后接像素单位。
+ */
+export function formatTierSpan(tier: PlazaImageTier, pixelUnit: string): string {
+  if (tier.min_pixels == null && tier.max_pixels == null) return `${tier.width}×${tier.height}`
+  const n = (v: number) => v.toLocaleString('en-US')
+  const span = !tier.min_pixels
+    ? `≤${n(tier.max_pixels!)}`
+    : tier.max_pixels == null
+      ? `≥${n(tier.min_pixels)}`
+      : `${n(tier.min_pixels)}–${n(tier.max_pixels)}`
+  return `${span} ${pixelUnit}`
 }
 
 /**

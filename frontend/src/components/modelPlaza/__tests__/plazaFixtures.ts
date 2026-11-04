@@ -1,4 +1,4 @@
-import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
+import type { ModelPlazaGroup, PlazaImageTier, PlazaModel } from '@/api/modelPlaza'
 import type { UserPricingInterval } from '@/api/channels'
 
 export function plazaGroup(overrides: Partial<ModelPlazaGroup> = {}): ModelPlazaGroup {
@@ -63,7 +63,7 @@ export function interval(overrides: Partial<UserPricingInterval> = {}): UserPric
   }
 }
 
-const EDGE_TIERS = [
+const EDGE_TIERS: PlazaImageTier[] = [
   { label: '1K', width: 1024, height: 1024 },
   { label: '2K', width: 2048, height: 2048 },
   { label: '4K', width: 4096, height: 4096 }
@@ -74,7 +74,7 @@ export function imageModel(
   name: string,
   prices: Record<string, number>,
   overrides: Partial<PlazaModel> = {},
-  tiers = EDGE_TIERS
+  tiers: PlazaImageTier[] = EDGE_TIERS
 ): PlazaModel {
   return {
     name,
@@ -96,7 +96,27 @@ export function imageModel(
   }
 }
 
-export const NOVELAI_TIERS = [
+export const NOVELAI_TIERS: PlazaImageTier[] = [
   { label: '1K', width: 1024, height: 1024 },
   { label: '2K', width: 1536, height: 2048 }
 ]
+
+/** NovelAI 像素档（她的渠道配置）：1MP / 1.5MP / 2MP / 2.5MP / 3MP。 */
+export const NOVELAI_PIXEL_TIERS: PlazaImageTier[] = [
+  { label: '1MP', max_pixels: 1048576 },
+  { label: '1.5MP', min_pixels: 1048577, max_pixels: 1572864 },
+  { label: '2MP', min_pixels: 1572865, max_pixels: 2097152 },
+  { label: '2.5MP', min_pixels: 2097153, max_pixels: 2621440 },
+  { label: '3MP', min_pixels: 2621441 }
+]
+
+/** 按像素档计费的 NovelAI 模型：价卡区间的范围与展示档位一致。 */
+export function novelAIPixelModel(prices: number[], name = 'nai-diffusion-5-full'): PlazaModel {
+  const m = imageModel(name, {}, { platform: 'novelai' }, NOVELAI_PIXEL_TIERS)
+  m.pricing!.per_request_price = prices[0]
+  m.pricing!.intervals = NOVELAI_PIXEL_TIERS.map((tier, i) =>
+    interval({ tier_label: tier.label, min_tokens: tier.min_pixels ?? 0, max_tokens: tier.max_pixels ?? null, per_request_price: prices[i] })
+  )
+  m.image!.reference_image_price = 0.075
+  return m
+}

@@ -215,6 +215,7 @@
               :key="idx"
               :interval="iv"
               :mode="entry.billing_mode"
+              :pixel-tiers="novelAIPixelTiers"
               @update="updateInterval(idx, $event)"
               @remove="removeInterval(idx)"
             />
@@ -245,12 +246,16 @@
               + {{ t('admin.channels.form.addTier') }}
             </button>
           </div>
+          <p v-if="novelAIPixelTiers && entry.billing_mode === 'image'" class="mt-1 text-xs text-gray-400" data-testid="novelai-pixel-tiers-hint">
+            {{ t('admin.channels.form.pixelTiersHint') }}
+          </p>
           <div v-if="entry.intervals && entry.intervals.length > 0" class="mt-2 space-y-2">
             <IntervalRow
               v-for="(iv, idx) in entry.intervals"
               :key="idx"
               :interval="iv"
               :mode="entry.billing_mode"
+              :pixel-tiers="novelAIPixelTiers"
               @update="updateInterval(idx, $event)"
               @remove="removeInterval(idx)"
             />
@@ -333,6 +338,9 @@ const emit = defineEmits<{
 
 // Collapse state: entries with existing models default to collapsed
 const collapsed = ref(props.entry.models.length > 0)
+
+// NovelAI images are tiered by total pixels: the tier range is a pixel range (novelai_pixel_tiers.go).
+const novelAIPixelTiers = computed(() => props.platform === 'novelai')
 
 const billingModeOptions = computed(() => [
   { value: 'token', label: t('admin.channels.billingMode.token') },

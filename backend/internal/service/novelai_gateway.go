@@ -357,6 +357,9 @@ func (s *OpenAIGatewayService) ForwardNovelAI(ctx context.Context, c *gin.Contex
 		result.ImageCount = req.Samples
 		result.ImageSize = req.BillingTier()
 		result.ReferenceImageCount = req.ReferenceImages
+		// Pixels only: an output size would be re-tiered by the stock longest-edge rule
+		// (ApplyOpenAIImageBillingResolution), overriding the NovelAI total-pixel tier.
+		result.ImagePixels = req.Width * req.Height
 	}
 	return result, copyErr
 }

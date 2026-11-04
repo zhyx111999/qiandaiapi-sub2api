@@ -5,9 +5,9 @@
         <tr class="text-left text-xs font-semibold text-gray-500 dark:text-dark-400">
           <th class="w-[34%] py-2.5 pl-5 pr-4">{{ t('modelPlaza.table.model') }}</th>
           <template v-if="kind === 'resolution'">
-            <th v-for="col in tierColumns" :key="col.label" class="px-3 py-2.5" :data-tier="col.label">
+            <th v-for="col in tierColumns" :key="col.key" class="px-3 py-2.5 align-bottom" :data-tier="col.key">
               {{ col.label }}
-              <span v-if="col.resolution" class="ml-1 font-mono font-normal text-gray-400 dark:text-dark-500">{{ col.resolution }}</span>
+              <span v-if="col.span" class="block whitespace-nowrap font-mono text-[11px] font-normal text-gray-400 dark:text-dark-500">{{ col.span }}</span>
             </th>
           </template>
           <th v-else class="px-3 py-2.5">{{ t('modelPlaza.table.perRequestPrice') }}</th>
@@ -32,14 +32,14 @@
             </PlazaModelName>
           </td>
 
-          <!-- 按分辨率：每档一列；档位分辨率各行不一致时写在单元格里 -->
+          <!-- 按分辨率：每档一列；档位覆盖范围各行不一致时写在单元格里 -->
           <template v-if="kind === 'resolution'">
-            <td v-for="col in tierColumns" :key="col.label" class="px-3 py-3 align-middle" :data-tier="col.label">
-              <template v-if="tierOf(m, col.label)">
-                <span class="plaza-price">{{ paid(m, tierOf(m, col.label)!.price) }}</span>
+            <td v-for="col in tierColumns" :key="col.key" class="px-3 py-3 align-middle" :data-tier="col.key">
+              <template v-if="tierOf(m, col.key)">
+                <span class="plaza-price">{{ paid(m, tierOf(m, col.key)!.price) }}</span>
                 <span class="plaza-unit">{{ unit(m) }}</span>
-                <div v-if="!col.resolution" class="font-mono text-[11px] text-gray-400 dark:text-dark-500">
-                  {{ formatResolution(tierOf(m, col.label)!) }}
+                <div v-if="!col.span" class="whitespace-nowrap font-mono text-[11px] text-gray-400 dark:text-dark-500">
+                  {{ tierSpan(tierOf(m, col.key)!) }}
                 </div>
               </template>
               <span v-else class="text-gray-400 dark:text-dark-500">-</span>
@@ -93,7 +93,7 @@ import PlazaModelName from './PlazaModelName.vue'
 import {
   contextTierLabel,
   flatRequestPrice,
-  formatResolution,
+  formatTierSpan,
   imageTierPrices,
   requestIntervals,
   type PlazaPriceKind,
@@ -111,8 +111,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const TIER_ORDER = ['1K', '2K', '4K']
-
 /** 官方没有按张 / 按次参考价：官方价格口径下价格列为空，也不展示倍率。 */
 const isOfficial = computed(() => props.priceMode === 'official')
 const showRate = computed(() => !isOfficial.value)
@@ -122,19 +120,31 @@ const sortedModels = computed(() => [...props.models].sort((a, b) => b.name.loca
 
 const tierPrices = computed(() => new Map(props.models.map((m) => [m, imageTierPrices(m)])))
 
-function tierOf(m: PlazaModel, label: string): PlazaTierPrice | undefined {
-  return tierPrices.value.get(m)?.find((tier) => tier.label === label)
+function tierSpan(tier: PlazaTierPrice): string {
+  return formatTierSpan(tier, t('modelPlaza.table.pixelUnit'))
 }
 
-/** 档位列：各行档位的并集；各行分辨率一致时写进表头，否则写在单元格里。 */
-const tierColumns = computed(() =>
-  TIER_ORDER.flatMap((label) => {
-    const tiers = props.models.flatMap((m) => tierOf(m, label) ?? [])
-    if (!tiers.length) return []
-    const resolutions = new Set(tiers.map(formatResolution))
-    return [{ label, resolution: resolutions.size === 1 ? [...resolutions][0] : '' }]
+/** 档位列以档位名区分（像素档未起名时以覆盖范围区分）。 */
+function tierKey(tier: PlazaTierPrice): string {
+  return tier.label || tierSpan(tier)
+}
+
+function tierOf(m: PlazaModel, key: string): PlazaTierPrice | undefined {
+  return tierPrices.value.get(m)?.find((tier) => tierKey(tier) === key)
+}
+
+/**
+ * 档位列：各行档位按出现顺序取并集（档位本身按从小到大排列）；
+ * 各行覆盖范围一致时写进表头，否则写在单元格里。
+ */
+const tierColumns = computed(() => {
+  const keys = [...new Set(props.models.flatMap((m) => (tierPrices.value.get(m) ?? []).map(tierKey)))]
+  return keys.map((key) => {
+    const tiers = props.models.flatMap((m) => tierOf(m, key) ?? [])
+    const spans = new Set(tiers.map(tierSpan))
+    return { key, label: tiers[0].label, span: spans.size === 1 ? [...spans][0] : '' }
   })
-)
+})
 
 /** 实付单价 = 单价 × 该行生效倍率（不换算每百万）。 */
 function paid(m: PlazaModel, value: number | null | undefined): string {

@@ -57,11 +57,16 @@ export interface PlazaModel {
   image?: PlazaImageInfo
 }
 
-/** 生图计费档位及其覆盖的最大分辨率。 */
+/**
+ * 生图计费档位：覆盖的最大分辨率（width × height），
+ * 或 NovelAI 像素档的总像素范围（min_pixels～max_pixels，两端都含；缺省即无下限 / 无上限）。
+ */
 export interface PlazaImageTier {
   label: string
-  width: number
-  height: number
+  width?: number
+  height?: number
+  min_pixels?: number
+  max_pixels?: number
 }
 
 /** 生图模型：档位按升序；每张参考图单价（USD，未乘倍率）免费时缺省。 */

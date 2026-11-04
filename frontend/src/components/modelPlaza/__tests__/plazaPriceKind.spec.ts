@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { flatRequestPrice, imageTierPrices, partitionByPriceKind, priceKind } from '../plazaPriceKind'
+import { flatRequestPrice, formatTierSpan, imageTierPrices, partitionByPriceKind, priceKind } from '../plazaPriceKind'
 import { vendorOf } from '../plazaVendors'
-import { imageModel, interval, tokenModel } from './plazaFixtures'
+import { NOVELAI_PIXEL_TIERS, imageModel, interval, novelAIPixelModel, tokenModel } from './plazaFixtures'
 
 describe('plazaPriceKind', () => {
   it('按 token 计费的模型（含按 token 计费的生图模型）归入 token', () => {
@@ -26,6 +26,26 @@ describe('plazaPriceKind', () => {
       ['4K', 0.08]
     ])
     expect(imageTierPrices(imageModel('gpt-image-2', { '2K': 0.1 })).map((t) => t.label)).toEqual(['2K'])
+  })
+
+  it('NovelAI 像素档按像素范围对应价卡档位，与档位名无关', () => {
+    const m = novelAIPixelModel([0.05, 0.5, 0.65, 0.8, 0.95])
+    expect(priceKind(m)).toBe('resolution')
+    expect(imageTierPrices(m).map((t) => [t.label, t.price])).toEqual([
+      ['1MP', 0.05],
+      ['1.5MP', 0.5],
+      ['2MP', 0.65],
+      ['2.5MP', 0.8],
+      ['3MP', 0.95]
+    ])
+    expect(NOVELAI_PIXEL_TIERS.map((t) => formatTierSpan(t, '像素'))).toEqual([
+      '≤1,048,576 像素',
+      '1,048,577–1,572,864 像素',
+      '1,572,865–2,097,152 像素',
+      '2,097,153–2,621,440 像素',
+      '≥2,621,441 像素'
+    ])
+    expect(formatTierSpan({ label: '1K', width: 1024, height: 1024 }, '像素')).toBe('1024×1024')
   })
 
   it('按次 / 按上下文分档的按次模型归入按次', () => {

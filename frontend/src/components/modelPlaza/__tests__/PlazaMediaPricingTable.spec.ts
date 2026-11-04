@@ -4,7 +4,7 @@ import PlazaMediaPricingTable from '../PlazaMediaPricingTable.vue'
 import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
 import type { PlazaPriceKind } from '../plazaPriceKind'
 import type { PlazaPriceMode } from '../plazaRates'
-import { NOVELAI_TIERS, imageModel, interval, plazaGroup, tokenModel } from './plazaFixtures'
+import { NOVELAI_TIERS, imageModel, interval, novelAIPixelModel, plazaGroup, tokenModel } from './plazaFixtures'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -49,6 +49,28 @@ describe('PlazaMediaPricingTable', () => {
     const w = mountTable([nai, imageModel('gpt-image-2', { '1K': 0.05, '2K': 0.1 })], 'resolution')
     expect(headers(w)).toContain('2K')
     expect(w.find('td[data-tier="2K"]').text()).toMatch(/×/)
+  })
+
+  it('NovelAI 像素档：按价卡档位逐列，表头写档位名与像素范围', () => {
+    const w = mountTable([novelAIPixelModel([0.05, 0.5, 0.65, 0.8, 0.95])], 'resolution')
+    expect(headers(w)).toEqual([
+      'modelPlaza.table.model',
+      '1MP ≤1,048,576 modelPlaza.table.pixelUnit',
+      '1.5MP 1,048,577–1,572,864 modelPlaza.table.pixelUnit',
+      '2MP 1,572,865–2,097,152 modelPlaza.table.pixelUnit',
+      '2.5MP 2,097,153–2,621,440 modelPlaza.table.pixelUnit',
+      '3MP ≥2,621,441 modelPlaza.table.pixelUnit',
+      'modelPlaza.table.referenceImage',
+      'modelPlaza.table.rate'
+    ])
+    expect(row(w).slice(1, 7)).toEqual([
+      '$0.05modelPlaza.table.perUnitImage',
+      '$0.50modelPlaza.table.perUnitImage',
+      '$0.65modelPlaza.table.perUnitImage',
+      '$0.80modelPlaza.table.perUnitImage',
+      '$0.95modelPlaza.table.perUnitImage',
+      '$0.075modelPlaza.table.perUnitImage'
+    ])
   })
 
   it('按次：各档同价的生图模型给单一按次价；按上下文分档的按次模型逐档列出', () => {
