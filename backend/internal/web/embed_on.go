@@ -382,6 +382,7 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		trimmed == "/v3/contents/generations/tasks" ||
 		strings.HasPrefix(trimmed, "/v3/contents/generations/tasks/") ||
 		strings.HasPrefix(trimmed, "/images/") ||
+		strings.HasPrefix(trimmed, "/ai/") || // NovelAI native image endpoints (/ai/generate-image, ...)
 		trimmed == "/videos" ||
 		strings.HasPrefix(trimmed, "/videos/")
 }
