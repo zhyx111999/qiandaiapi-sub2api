@@ -927,7 +927,7 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings).not.toHaveBeenCalled();
   });
 
-  it("keeps tab badges in the normal tab flow so dismissing one reserves no space", async () => {
+  it("keeps compact tab badges out of layout flow and independently dismissible", async () => {
     const wrapper = mountView();
     await flushPromises();
     const tabBadge = (tab: string) => wrapper.find(`#settings-tab-${tab} + [data-testid="new-feature-badge"]`);
@@ -935,13 +935,16 @@ describe("admin SettingsView payment visible method controls", () => {
 
     expect(["features", "gateway", "payment", "email"].filter((tab) => tabBadge(tab).exists())).toHaveLength(4);
     expect(tabBar.querySelector("[style]")).toBeNull();
-    expect(tabBar.querySelector(".absolute")).toBeNull();
+    for (const tab of ["features", "gateway", "payment", "email"]) {
+      expect(tabBadge(tab).classes()).toContain("absolute");
+      expect(tabBadge(tab).element.parentElement?.classList.contains("relative")).toBe(true);
+    }
 
     await tabBadge("gateway").trigger("click");
     await flushPromises();
 
-    // Gateway has independent announcements; dismissing one leaves the other
-    // in normal flow until it is dismissed as well.
+    // Gateway notices dismiss independently; the remaining compact dot does
+    // not change tab width or dismiss the email announcement.
     expect(tabBadge("gateway").exists()).toBe(true);
     await tabBadge("gateway").trigger("click");
     await flushPromises();
