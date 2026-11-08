@@ -14215,11 +14215,6 @@ h2[id^="settings-section-"]:target {
   @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap leading-none;
 }
 
-/* The badge is a normal flex item: its width follows the locale's text, and
-   dismissing it hands the space back to the tabs. */
-.settings-tab-badge {
-  @apply -ml-0.5 mr-0.5;
-}
 </style>
 
 <style>
