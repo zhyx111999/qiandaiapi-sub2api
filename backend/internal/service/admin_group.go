@@ -1445,7 +1445,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeySettings(ctx context.Context, keyID 
 	}
 
 	groupID := input.GroupID
-	fields := APIKeyUpdateFields{GroupID: groupID != nil, ModelMapping: input.ModelMapping != nil, ReasoningEffort: input.ReasoningEffort != nil, RateLimitUsage: input.ResetRateLimitUsage}
+	fields := APIKeyUpdateFields{GroupID: groupID != nil, ModelMapping: input.ModelMapping != nil, ReasoningEffort: input.ReasoningEffort != nil, AllowLongContext: input.AllowLongContext != nil, RateLimitUsage: input.ResetRateLimitUsage}
 	if fields.IsEmpty() {
 		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
 	}
@@ -1457,6 +1457,9 @@ func (s *adminServiceImpl) AdminUpdateAPIKeySettings(ctx context.Context, keyID 
 	}
 	if input.ReasoningEffort != nil {
 		apiKey.ReasoningEffort = *input.ReasoningEffort
+	}
+	if input.AllowLongContext != nil {
+		apiKey.AllowLongContext = *input.AllowLongContext
 	}
 	if input.ResetRateLimitUsage {
 		apiKey.Usage5h, apiKey.Usage1d, apiKey.Usage7d = 0, 0, 0
