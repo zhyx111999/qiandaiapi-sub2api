@@ -75,7 +75,7 @@
             </template>
           </td>
 
-          <!-- 缓存：写入（含 1h）/ 读取；有阶梯且带缓存价时每档一行 -->
+          <!-- 缓存：写入（含 1h / 12h）/ 读取；有阶梯且带缓存价时每档一行 -->
           <td class="px-3 py-3 align-middle text-xs leading-5">
             <template v-if="hasTierCache(tiers(m))">
               <div v-for="(iv, idx) in tiers(m)" :key="idx" class="whitespace-nowrap" :title="tierHint(m)">
@@ -84,6 +84,8 @@
                   <span class="plaza-price"> {{ price(iv.cache_write_price, period) }}</span>
                   <span v-if="iv.cache_write_1h_price != null" class="text-gray-400 dark:text-dark-500">
                     (1h <span class="plaza-price">{{ price(iv.cache_write_1h_price, period) }}</span>)</span>
+                  <span v-if="iv.cache_write_12h_price != null" class="text-gray-400 dark:text-dark-500">
+                    (12h <span class="plaza-price">{{ price(iv.cache_write_12h_price, period) }}</span>)</span>
                   <span class="ml-1 text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheReadShort') }}</span>
                   <span class="plaza-price"> {{ price(iv.cache_read_price, period) }}</span>
                 </template>
@@ -96,6 +98,8 @@
                 <span class="plaza-price">{{ price(source(m)!.cache_write_price, period) }}</span>
                 <span v-if="source(m)!.cache_write_1h_price != null" class="text-gray-400 dark:text-dark-500">
                   (1h <span class="plaza-price">{{ price(source(m)!.cache_write_1h_price, period) }}</span>)</span>
+                <span v-if="source(m)!.cache_write_12h_price != null" class="text-gray-400 dark:text-dark-500">
+                  (12h <span class="plaza-price">{{ price(source(m)!.cache_write_12h_price, period) }}</span>)</span>
               </div>
               <div class="whitespace-nowrap">
                 <span class="mr-1 text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheRead') }}</span>
@@ -159,7 +163,7 @@ const { t } = useI18n()
 
 const TOKEN_FIELDS = ['input_price', 'output_price'] as const
 type TokenField = (typeof TOKEN_FIELDS)[number]
-type CachePrices = Pick<UserPricingInterval, 'cache_write_price' | 'cache_write_1h_price' | 'cache_read_price'>
+type CachePrices = Pick<UserPricingInterval, 'cache_write_price' | 'cache_write_1h_price' | 'cache_write_12h_price' | 'cache_read_price'>
 
 const isOfficial = computed(() => props.priceMode === 'official')
 const showRate = computed(() => !isOfficial.value)
@@ -222,7 +226,7 @@ function showOfficialBelow(m: PlazaModel, field: TokenField, period: PlazaTimePr
 }
 
 function hasCache(p: CachePrices): boolean {
-  return p.cache_write_price != null || p.cache_write_1h_price != null || p.cache_read_price != null
+  return p.cache_write_price != null || p.cache_write_1h_price != null || p.cache_write_12h_price != null || p.cache_read_price != null
 }
 
 function hasTierCache(intervals: UserPricingInterval[]): boolean {

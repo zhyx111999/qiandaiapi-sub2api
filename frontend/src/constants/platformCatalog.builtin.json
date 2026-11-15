@@ -326,6 +326,25 @@
           }
         ]
       }
+    },
+    {
+      "id": "qwen",
+      "display_name": "Qwen",
+      "gateway": "openai",
+      "cn_provider": false,
+      "litellm_provider": "dashscope",
+      "multi_protocol": {
+        "default_mode": "payg",
+        "routing": "by_inbound",
+        "modes": [
+          {
+            "mode": "payg",
+            "base_urls": {
+              "chat_completions": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            }
+          }
+        ]
+      }
     }
   ],
   "composite_precedence": [
@@ -343,6 +362,7 @@
     "command_code",
     "cline",
     "mistral",
-    "novelai"
+    "novelai",
+    "qwen"
   ]
 }

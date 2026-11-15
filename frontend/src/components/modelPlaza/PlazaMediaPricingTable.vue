@@ -87,7 +87,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
-import { BILLING_MODE_IMAGE } from '@/constants/channel'
+import { BILLING_MODE_IMAGE, BILLING_MODE_VIDEO } from '@/constants/channel'
 import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
 import PlazaModelName from './PlazaModelName.vue'
 import {
@@ -152,12 +152,12 @@ function paid(m: PlazaModel, value: number | null | undefined): string {
   return formatPrice(value * mediaRate(props.group, m))
 }
 
-/** 按图片计费为 “/ 张”，其余（按次、按视频）为 “/ 次”。 */
+/** 按图片、视频、请求各自使用原生计费单位。 */
 function unit(m: PlazaModel): string {
   if (isOfficial.value) return ''
-  return m.pricing?.billing_mode === BILLING_MODE_IMAGE
-    ? t('modelPlaza.table.perUnitImage')
-    : t('modelPlaza.table.perUnitRequest')
+  if (m.pricing?.billing_mode === BILLING_MODE_IMAGE) return t('modelPlaza.table.perUnitImage')
+  if (m.pricing?.billing_mode === BILLING_MODE_VIDEO) return t('modelPlaza.table.perUnitSecond')
+  return t('modelPlaza.table.perUnitRequest')
 }
 </script>
 

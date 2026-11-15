@@ -55,6 +55,7 @@ const (
 	PlatformCline       = domain.PlatformCline
 	PlatformMistral     = domain.PlatformMistral
 	PlatformNovelAI     = domain.PlatformNovelAI
+	PlatformQwen        = domain.PlatformQwen
 	PlatformComposite   = domain.PlatformComposite
 	// PlatformKiro is retained for unsupported-platform threshold tests and legacy
 	// account rows. Scheduling-threshold evaluation never pauses kiro accounts.
@@ -99,6 +100,8 @@ const (
 	DefaultMistralTestModel = "mistral-small-latest"
 	// NovelAI 网关（nai-station）：OpenAI 兼容 Chat / Images 与 NovelAI 原生 /ai/* 接口。
 	DefaultNovelAIBaseURL = "http://nai-station:8300/v1"
+	DefaultQwenBaseURL      = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+	DefaultQwenTestModel    = "qwen3.8-max"
 )
 
 // 国产供应商 Anthropic 协议端点的默认 base_url（上游路径为 {base}/v1/messages）。
@@ -557,7 +560,9 @@ const (
 	// SettingKeyGrokVideoSourceURLEnabled, when true, adds the validated xAI
 	// media URL as video.source_url to Grok video status responses. video.url
 	// stays the authenticated Sub2API content proxy. Default false.
-	SettingKeyGrokVideoSourceURLEnabled = "grok_video_source_url_enabled"
+	SettingKeyGrokVideoSourceURLEnabled            = "grok_video_source_url_enabled"
+	SettingKeyOpenAI409OmitEncryptedHistoryEnabled = "openai_409_omit_encrypted_history_enabled"
+	SettingKeyOpenAI400OmitEncryptedHistoryEnabled = "openai_400_omit_encrypted_history_enabled"
 
 	// SettingKeyAvailableChannelsEnabled is a DB-backed soft switch for the "Available Channels"
 	// user-facing aggregate view. When false: user endpoint returns an empty list and the

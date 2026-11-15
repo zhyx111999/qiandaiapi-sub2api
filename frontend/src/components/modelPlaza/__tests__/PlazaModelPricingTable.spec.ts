@@ -23,6 +23,28 @@ function cells(wrapper: ReturnType<typeof mountTable>, row = 0): string[] {
 }
 
 describe('PlazaModelPricingTable', () => {
+  it.each([
+    ['group', false, '$1.00'], ['group', true, '$1.00'],
+    ['official', false, '$4.00'], ['official', true, '$4.00']
+  ] as const)('shows independent 12h cache prices (%s, intervals=%s)', (mode, intervals, expected) => {
+    const model = tokenModel({ name: 'gpt-6-luna', platform: 'openai' })
+    model.pricing!.cache_write_price = null
+    model.pricing!.cache_write_12h_price = 2e-6
+    model.pricing!.cache_read_price = null
+    model.official_pricing = { input_price: 1e-6, output_price: 5e-6, cache_write_price: null, cache_write_12h_price: 4e-6, cache_read_price: null }
+    if (intervals) {
+      model.pricing!.intervals = [interval({ cache_write_price: null, cache_write_12h_price: 2e-6, cache_read_price: null })]
+      model.official_pricing.intervals = [interval({ cache_write_price: null, cache_write_12h_price: 4e-6, cache_read_price: null })]
+    }
+    const wrapper = mountTable([model], { rate_multiplier: 0.5 }, mode)
+    try {
+      expect(cells(wrapper)[3]).toContain(`(12h ${expected})`)
+      expect(cells(wrapper)[3]).not.toContain('(1h')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('分组价格：单价 × 生效倍率（$/1M，保底 2 位小数），下方划线展示官方价', () => {
     const [, input, output, cache, rate] = cells(mountTable([tokenModel()], { rate_multiplier: 0.5 }))
     expect(input).toContain('$1.50')
