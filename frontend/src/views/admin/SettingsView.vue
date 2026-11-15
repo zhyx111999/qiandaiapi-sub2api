@@ -62,7 +62,8 @@
                   v-if="tab.key === 'gateway'"
                   :notice-id="NEW_FEATURE_NOTICES.openai409OmitEncryptedHistory"
                   :user-id="authStore.user?.id"
-                  class="settings-tab-badge"
+                  compact
+                  class="absolute right-10 top-2 z-10"
                 />
                 <NewFeatureBadge
                   v-if="tab.key === 'gateway'"

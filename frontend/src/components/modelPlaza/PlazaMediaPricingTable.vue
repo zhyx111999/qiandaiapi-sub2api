@@ -56,6 +56,7 @@
               <span v-for="(iv, idx) in requestIntervals(m)" :key="idx" class="plaza-chip">
                 <span class="text-gray-400 dark:text-dark-500">{{ contextTierLabel(iv) }}</span>
                 <span class="plaza-price">{{ paid(m, iv.per_request_price) }}</span>
+                <span class="plaza-unit">{{ unit(m) }}</span>
               </span>
             </div>
             <span v-else class="text-gray-400 dark:text-dark-500">-</span>

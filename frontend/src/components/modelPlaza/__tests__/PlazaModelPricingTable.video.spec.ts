@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
+import { createPinia } from 'pinia'
 import PlazaModelPricingTable from '../PlazaModelPricingTable.vue'
+import PlazaMediaPricingTable from '../PlazaMediaPricingTable.vue'
+import { plazaGroup } from './plazaFixtures'
 import zh from '@/i18n/locales/zh/dashboard'
 import en from '@/i18n/locales/en/dashboard'
 import type { PlazaModel } from '@/api/modelPlaza'
@@ -40,13 +43,24 @@ describe.each([
   { locale: 'zh', label: '按秒计费', suffix: '/ 秒', requestLabel: '按次计费', requestSuffix: '/ 次', imageLabel: '按图片计费', imageSuffix: '/ 张' },
   { locale: 'en', label: 'Per second', suffix: '/ second', requestLabel: 'Per request', requestSuffix: '/ request', imageLabel: 'Per image', imageSuffix: '/ image' }
 ])('PlazaModelPricingTable video units ($locale)', (language) => {
-  function render(model: PlazaModel, extraProps = {}) {
-    return mount(PlazaModelPricingTable, {
-      props: { models: [model], rateMultiplier: 0.5, ...extraProps },
-      global: {
-        plugins: [createI18n({ legacy: false, locale: language.locale, messages: { zh, en } })]
-      }
+  function render(model: PlazaModel, extraProps: { userRateMultiplier?: number; videoRateIndependent?: boolean; videoRateMultiplier?: number; imageRateIndependent?: boolean; imageRateMultiplier?: number } = {}) {
+    const group = plazaGroup({
+      rate_multiplier: 0.5,
+      user_rate_multiplier: extraProps.userRateMultiplier ?? null,
+      video_rate_independent: extraProps.videoRateIndependent ?? false,
+      video_rate_multiplier: extraProps.videoRateMultiplier ?? 1,
+      image_rate_independent: extraProps.imageRateIndependent ?? false,
+      image_rate_multiplier: extraProps.imageRateMultiplier ?? 1
     })
+    const options = {
+      props: { models: [model], group, priceMode: 'group' as const },
+      global: {
+        plugins: [createPinia(), createI18n({ legacy: false, locale: language.locale, messages: { zh, en } })]
+      }
+    }
+    return model.pricing?.billing_mode === 'token'
+      ? mount(PlazaModelPricingTable, options)
+      : mount(PlazaMediaPricingTable, { ...options, props: { ...options.props, kind: 'request' } })
   }
 
   it.each([
@@ -62,14 +76,13 @@ describe.each([
       ...props
     })
     const cells = wrapper.findAll('tbody td')
-    expect(cells[0].text()).toContain(language.label)
-    expect(cells[0].text()).not.toContain(language.requestLabel)
-    expect(cells[1].attributes('colspan')).toBe('3')
+    expect(cells[0].text()).toBe('video-demo')
+    expect(cells).toHaveLength(3)
     expect(cells[1].text()).not.toContain(language.requestSuffix)
     const units = cells[1].findAll('span').filter(span => span.text() === language.suffix)
     expect(units).toHaveLength(prices.length)
     if (tiers) {
-      const chips = cells[1].findAll('div > span')
+      const chips = cells[1].findAll('.plaza-chip')
       expect(chips).toHaveLength(2)
       chips.forEach((chip, index) => {
         expect(chip.text()).toContain(index === 0 ? '480p' : '720p')
@@ -80,13 +93,12 @@ describe.each([
       expect(cells[1].text()).toContain(prices[0])
     }
     expect(cells.at(-1)!.text()).toContain(rate)
-    expect(cells.slice(2, 5).map(cell => cell.text())).toEqual(['-', '-', '-'])
     expect(wrapper.text()).not.toContain('modelPlaza.table.')
   })
 
   it.each(['image', 'per_request'] as const)('preserves %s labels, units and prices', (mode) => {
     const cells = render(mediaModel(mode)).findAll('tbody td')
-    expect(cells[0].text()).toContain(mode === 'image' ? language.imageLabel : language.requestLabel)
+    expect(cells[0].text()).toBe(`${mode}-demo`)
     expect(cells[1].text()).toContain(mode === 'image' ? language.imageSuffix : language.requestSuffix)
     expect(cells[1].text()).toContain('$0.27')
     expect(cells[1].text()).not.toContain(language.suffix)
@@ -101,7 +113,7 @@ describe.each([
     }
     const wrapper = render(model, { userRateMultiplier: 0.25 })
     const cells = wrapper.findAll('tbody td')
-    expect(cells).toHaveLength(8)
+    expect(cells).toHaveLength(5)
     expect(cells[0].text()).toBe(model.name)
     expect(cells[1].text()).toBe('$0.50')
     expect(cells[2].text()).toBe('$2.00')
@@ -109,6 +121,6 @@ describe.each([
     expect(cells[3].text()).toContain('$0.25')
     expect(wrapper.find('thead').text()).toContain(language.locale === 'zh' ? '$ / 1M token' : '$ / 1M tokens')
     expect(wrapper.find('tbody').text()).not.toContain(language.suffix)
-    expect(cells[7].text()).toContain('0.25x')
+    expect(cells[4].text()).toContain('0.25x')
   })
 })

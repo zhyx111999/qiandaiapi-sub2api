@@ -59,6 +59,7 @@ export function priceKind(m: PlazaModel): PlazaPriceKind {
 export function flatRequestPrice(m: PlazaModel): number | null {
   const tiers = imageTierPrices(m)
   if (tiers.length) return tiers[0].price
+  if (requestIntervals(m).length) return null
   return m.pricing?.per_request_price ?? null
 }
 
