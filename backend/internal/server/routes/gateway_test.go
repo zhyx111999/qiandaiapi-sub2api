@@ -1,11 +1,15 @@
 package routes
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
@@ -121,6 +125,309 @@ func TestGatewayRoutesOpenAIImagesPathsAreRegistered(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 		require.NotEqual(t, http.StatusNotFound, w.Code, "path=%s should hit OpenAI images handler", path)
+	}
+}
+
+var novelAICompatRoutes = []struct {
+	method string
+	path   string
+	body   string
+}{
+	{http.MethodGet, "/user/subscription", ""},
+	{http.MethodGet, "/ai/generate-image/suggest-tags", ""},
+	{http.MethodPost, "/ai/upscale", `{"model":"bogus-probe","image":"image"}`},
+	{http.MethodPost, "/ai/augment-image", `{"req_type":"bg-removal","image":"image"}`},
+}
+
+type novelAIRouteAPIKeyRepo struct {
+	keyBillingRouteAPIKeyRepo
+}
+
+func (*novelAIRouteAPIKeyRepo) UpdateLastUsed(context.Context, int64, time.Time) error {
+	return nil
+}
+
+func newNovelAICompatRouteTestRouter(t *testing.T, platform string) (*gin.Engine, *service.APIKey) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	group := &service.Group{ID: 42, Status: service.StatusActive, Hydrated: true, Platform: platform}
+	user := &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive, Balance: 10}
+	key := &service.APIKey{ID: 100, UserID: user.ID, Key: "sk-novelai-route-test", Status: service.StatusActive,
+		User: user, GroupID: &group.ID, Group: group}
+	cfg := &config.Config{RunMode: config.RunModeStandard,
+		Gateway: config.GatewayConfig{MaxBodySize: 1024 * 1024, TextMaxBodySize: 1024 * 1024}}
+	keys := service.NewAPIKeyService(&novelAIRouteAPIKeyRepo{keyBillingRouteAPIKeyRepo{apiKey: key}}, nil, nil, nil, nil, nil, cfg)
+	router := gin.New()
+	RegisterGatewayRoutes(router,
+		&handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}},
+		servermiddleware.NewAPIKeyAuthMiddleware(keys, nil, cfg), keys, nil, nil, nil, nil, cfg)
+	return router, key
+}
+
+type novelAIRouteGroupRepo struct {
+	service.GroupRepository
+	groups map[int64]*service.Group
+}
+
+func (r *novelAIRouteGroupRepo) GetByIDLite(_ context.Context, id int64) (*service.Group, error) {
+	if group := r.groups[id]; group != nil {
+		return group, nil
+	}
+	return nil, service.ErrGroupNotFound
+}
+
+type novelAIRouteAccounts struct {
+	service.AccountRepository
+	groups map[int64][]service.Account
+}
+
+func (r *novelAIRouteAccounts) ListSchedulableByGroupIDAndPlatform(_ context.Context, id int64, platform string) ([]service.Account, error) {
+	var accounts []service.Account
+	for _, account := range r.groups[id] {
+		if account.Platform == platform {
+			accounts = append(accounts, account)
+		}
+	}
+	return accounts, nil
+}
+
+type novelAIRouteGroupProbe struct {
+	gateway *service.GatewayService
+	groups  []int64
+	models  []string
+	kinds   []string
+}
+
+func (p *novelAIRouteGroupProbe) ProbeAPIKeyGroup(ctx context.Context, group *service.Group, model, kind string) (service.APIKeyGroupAvailability, error) {
+	p.groups = append(p.groups, group.ID)
+	p.models = append(p.models, model)
+	p.kinds = append(p.kinds, kind)
+	return p.gateway.ProbeAPIKeyGroup(ctx, group, model, kind)
+}
+
+func TestGatewayRoutesNovelAINativeUtilityMultiGroupCapabilitySelection(t *testing.T) {
+	for _, platform := range []string{service.PlatformNovelAI, service.PlatformComposite} {
+		for _, prefix := range []string{"/v1", ""} {
+			for _, tc := range []struct{ path, body string }{
+				{"/ai/augment-image", `{"req_type":"bg-removal","image":"image"}`},
+				{"/ai/upscale", `{"model":"gpt-4o","image":"image"}`},
+				{"/ai/encode-vibe", `{"model":"gpt-4o","image":"image"}`},
+			} {
+				t.Run(platform+prefix+tc.path, func(t *testing.T) {
+					groups := &novelAIRouteGroupRepo{groups: map[int64]*service.Group{
+						1: {ID: 1, Platform: service.PlatformOpenAI, Status: service.StatusActive, Hydrated: true, RateMultiplier: 0.01, AllowImageGeneration: true},
+						2: {ID: 2, Platform: platform, Status: service.StatusActive, Hydrated: true, RateMultiplier: 1, AllowImageGeneration: true},
+					}}
+					accounts := &novelAIRouteAccounts{groups: map[int64][]service.Account{2: {{
+						ID: 20, Platform: service.PlatformNovelAI, Type: service.AccountTypeAPIKey, Status: service.StatusActive, Schedulable: true,
+						Credentials: map[string]any{"model_mapping": map[string]any{"nai-diffusion-5-curated": "nai-diffusion-5-curated"}},
+					}}}}
+					key := &service.APIKey{ID: 100, UserID: 7, Key: "sk-novelai-multigroup-test", Status: service.StatusActive,
+						GroupID: &groups.groups[1].ID, GroupIDs: []int64{1, 2}, Group: groups.groups[1],
+						User: &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive, Balance: 10}}
+					cfg := &config.Config{RunMode: config.RunModeStandard,
+						Gateway: config.GatewayConfig{MaxBodySize: 1024 * 1024, TextMaxBodySize: 1024 * 1024}}
+					keys := service.NewAPIKeyService(&novelAIRouteAPIKeyRepo{keyBillingRouteAPIKeyRepo{apiKey: key}}, nil, groups, nil, nil, nil, cfg)
+					gateway := service.NewGatewayService(accounts, groups, nil, nil, nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil,
+						nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+					probe := &novelAIRouteGroupProbe{gateway: gateway}
+					keys.SetGroupRouter(probe)
+					router := gin.New()
+					var selectedGroup int64
+					router.Use(func(c *gin.Context) {
+						c.Next()
+						if selected, ok := servermiddleware.GetAPIKeyFromContext(c); ok {
+							selectedGroup = *selected.GroupID
+						}
+					})
+					RegisterGatewayRoutes(router, &handler.Handlers{Gateway: &handler.GatewayHandler{}, OpenAIGateway: &handler.OpenAIGatewayHandler{}},
+						servermiddleware.NewAPIKeyAuthMiddleware(keys, nil, cfg), keys, nil, nil, nil, nil, cfg)
+					req := httptest.NewRequest(http.MethodPost, prefix+tc.path, strings.NewReader(tc.body))
+					req.Header.Set("Content-Type", "application/json")
+					req.Header.Set("Authorization", "Bearer "+key.Key)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+					require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+					require.Contains(t, w.Body.String(), "Service temporarily unavailable", "must reach native handler's dependency guard")
+					require.Equal(t, int64(2), selectedGroup, "must not pick the cheaper incompatible group")
+					require.Equal(t, []int64{2}, probe.groups)
+					require.Equal(t, []string{""}, probe.models, "capacity probe must not use client model catalog")
+					require.Equal(t, []string{"image"}, probe.kinds)
+				})
+			}
+		}
+	}
+}
+
+func TestGatewayRoutesNovelAINativeUtilityCompositeMalformedModelReachesHandler(t *testing.T) {
+	router, key := newNovelAICompatRouteTestRouter(t, service.PlatformComposite)
+	for _, prefix := range []string{"/v1", ""} {
+		for _, path := range []string{"/ai/upscale", "/ai/augment-image", "/ai/encode-vibe", "/ai/generate-image", "/ai/generate-image-stream"} {
+			req := httptest.NewRequest(http.MethodPost, prefix+path, strings.NewReader(`{"model":"gpt-4o","image":"image","req_type":"colorize"}`))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+key.Key)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if strings.HasPrefix(path, "/ai/generate-image") {
+				require.Equal(t, http.StatusNotFound, w.Code, "generation must retain model-based platform dispatch")
+				require.Contains(t, w.Body.String(), "NovelAI endpoints are not supported for this platform")
+			} else {
+				require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+				require.Contains(t, w.Body.String(), "Service temporarily unavailable", "must reach native handler's dependency guard")
+			}
+		}
+	}
+}
+
+func TestGatewayRoutesNovelAICompatAliasesAreRegistered(t *testing.T) {
+	router := newGatewayRoutesTestRouter(service.PlatformNovelAI)
+	registered := make(map[string]bool)
+	for _, route := range router.Routes() {
+		registered[route.Method+" "+route.Path] = true
+	}
+	for _, prefix := range []string{"/v1", ""} {
+		for _, route := range novelAICompatRoutes {
+			require.True(t, registered[route.method+" "+prefix+route.path], "%s %s%s", route.method, prefix, route.path)
+		}
+		require.False(t, registered["POST "+prefix+"/ai/annotate-image"], "annotate-image must remain unsupported")
+	}
+}
+
+func TestGatewayRoutesNovelAICompatRequireAPIKey(t *testing.T) {
+	for _, platform := range []string{service.PlatformNovelAI, service.PlatformComposite} {
+		t.Run(platform, func(t *testing.T) {
+			router, _ := newNovelAICompatRouteTestRouter(t, platform)
+			for _, prefix := range []string{"/v1", ""} {
+				for _, route := range novelAICompatRoutes {
+					for _, credential := range []string{"", "sk-invalid-route-test"} {
+						req := httptest.NewRequest(route.method, prefix+route.path, strings.NewReader(route.body))
+						req.Header.Set("Content-Type", "application/json")
+						if credential != "" {
+							req.Header.Set("Authorization", "Bearer "+credential)
+						}
+						w := httptest.NewRecorder()
+						router.ServeHTTP(w, req)
+						require.Equal(t, http.StatusUnauthorized, w.Code, "%s %s%s: %s", route.method, prefix, route.path, w.Body.String())
+						require.Contains(t, w.Header().Get("Content-Type"), "application/json")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestGatewayRoutesNovelAICompatDispatchAndPlatformGate(t *testing.T) {
+	for _, platform := range []string{service.PlatformNovelAI, service.PlatformComposite, service.PlatformOpenAI, service.PlatformGrok} {
+		t.Run(platform, func(t *testing.T) {
+			router, key := newNovelAICompatRouteTestRouter(t, platform)
+			for _, prefix := range []string{"/v1", ""} {
+				for _, route := range novelAICompatRoutes {
+					req := httptest.NewRequest(route.method, prefix+route.path, strings.NewReader(route.body))
+					req.Header.Set("Content-Type", "application/json")
+					req.Header.Set("Authorization", "Bearer "+key.Key)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+					if platform != service.PlatformNovelAI && platform != service.PlatformComposite {
+						require.Equal(t, http.StatusNotFound, w.Code, route.path)
+						require.Contains(t, w.Body.String(), "NovelAI endpoints are not supported for this platform")
+						continue
+					}
+					require.Contains(t, w.Header().Get("Content-Type"), "application/json")
+					switch route.path {
+					case "/user/subscription":
+						require.Equal(t, http.StatusOK, w.Code, prefix+route.path)
+						require.JSONEq(t, `{"tier":3,"active":true,"expiresAt":4102444800,"trainingStepsLeft":{"fixedTrainingStepsLeft":10000,"purchasedTrainingSteps":0},"usage":{"percent":100,"purchasedPercent":0,"isNegative":false,"timeUntilNextPercent":60}}`, w.Body.String())
+					case "/ai/generate-image/suggest-tags":
+						// No gateway service is injected: this exact error proves the GET
+						// method reached its own handler, not NovelAI's POST parser.
+						require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+						require.Contains(t, w.Body.String(), "Gateway service unavailable")
+					default:
+						require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+						require.Contains(t, w.Body.String(), "Service temporarily unavailable")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestGatewayRoutesNovelAIMetadataAllowsZeroBalance(t *testing.T) {
+	for _, platform := range []string{service.PlatformNovelAI, service.PlatformComposite} {
+		t.Run(platform, func(t *testing.T) {
+			router, key := newNovelAICompatRouteTestRouter(t, platform)
+			key.User.Balance = 0
+			for _, prefix := range []string{"/v1", ""} {
+				for _, route := range novelAICompatRoutes {
+					if route.method != http.MethodGet {
+						continue
+					}
+					req := httptest.NewRequest(route.method, prefix+route.path+"?prompt=1girl%2C", nil)
+					req.Header.Set("Authorization", "Bearer "+key.Key)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+					if route.path == "/user/subscription" {
+						require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+					} else {
+						require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+						require.Contains(t, w.Body.String(), "Gateway service unavailable")
+					}
+					require.NotContains(t, w.Body.String(), "INSUFFICIENT_BALANCE")
+				}
+			}
+		})
+	}
+}
+
+func TestGatewayRoutesNovelAICompatMultipartReachesNativeHandler(t *testing.T) {
+	for _, platform := range []string{service.PlatformNovelAI, service.PlatformComposite} {
+		t.Run(platform, func(t *testing.T) {
+			router, key := newNovelAICompatRouteTestRouter(t, platform)
+			for _, prefix := range []string{"/v1", ""} {
+				for _, route := range novelAICompatRoutes {
+					if route.method != http.MethodPost {
+						continue
+					}
+					var body bytes.Buffer
+					writer := multipart.NewWriter(&body)
+					require.NoError(t, writer.WriteField("request", route.body))
+					image, err := writer.CreateFormFile("image", "test.png")
+					require.NoError(t, err)
+					_, err = image.Write([]byte("test-image-bytes"))
+					require.NoError(t, err)
+					require.NoError(t, writer.Close())
+					req := httptest.NewRequest(route.method, prefix+route.path, bytes.NewReader(body.Bytes()))
+					req.Header.Set("Content-Type", writer.FormDataContentType())
+					req.Header.Set("Authorization", "Bearer "+key.Key)
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+					require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+					require.Contains(t, w.Body.String(), "Service temporarily unavailable")
+				}
+			}
+		})
+	}
+}
+
+func TestGatewayRoutesNovelAICompatRetainsExplicitModelAllowlist(t *testing.T) {
+	for _, platform := range []string{service.PlatformNovelAI, service.PlatformComposite} {
+		t.Run(platform, func(t *testing.T) {
+			router := newGatewayRoutesTestRouterWithGroup(allowlistGroup(platform, true, "nai-diffusion-5-curated"))
+			for _, prefix := range []string{"/v1", ""} {
+				for _, tc := range []struct{ method, path, body string }{
+					{http.MethodGet, "/ai/generate-image/suggest-tags?model=blocked-model", ""},
+					{http.MethodPost, "/ai/upscale", `{"model":"blocked-model","image":"image"}`},
+					{http.MethodPost, "/ai/augment-image", `{"model":"blocked-model","req_type":"colorize","image":"image"}`},
+				} {
+					req := httptest.NewRequest(tc.method, prefix+tc.path, strings.NewReader(tc.body))
+					req.Header.Set("Content-Type", "application/json")
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+					require.Equal(t, http.StatusNotFound, w.Code)
+					require.Contains(t, w.Body.String(), "is not available for this group")
+				}
+			}
+		})
 	}
 }
 

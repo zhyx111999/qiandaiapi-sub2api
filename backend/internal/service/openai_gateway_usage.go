@@ -125,6 +125,20 @@ func (s *OpenAIGatewayService) ResolveUserGroupRateMultiplier(ctx context.Contex
 	return resolver.Resolve(ctx, userID, groupID, groupDefaultMultiplier)
 }
 
+// openAIUsageBaseMultiplier is shared by settlement and native-tool admission.
+// Account-side group rates affect customer charges independently from the
+// account's statistics-only RateMultiplier; peak/image factors are applied later.
+func (s *OpenAIGatewayService) openAIUsageBaseMultiplier(ctx context.Context, apiKey *APIKey, account *Account, userID int64) float64 {
+	multiplier := 1.0
+	if s != nil && s.cfg != nil {
+		multiplier = s.cfg.Default.RateMultiplier
+	}
+	if apiKey != nil && apiKey.GroupID != nil && apiKey.Group != nil {
+		multiplier = s.ResolveUserGroupRateMultiplier(ctx, userID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
+	}
+	return multiplier * account.UserGroupRateMultiplier()
+}
+
 // openAIUsagePricingAt 返回本次用量记录使用的定价时刻：优先请求级 PricingAt
 // （与利润门 D 同源同刻），未装配时回退记录时刻（既有行为）。
 func openAIUsagePricingAt(input *OpenAIRecordUsageInput) time.Time {
@@ -217,18 +231,18 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// Keep candidate fallback, response-model selection and Free Fast on one policy snapshot.
 	ctx = withModelBillingConfig(ctx, s.settingService)
-	// Get rate multiplier
-	multiplier := 1.0
-	if s.cfg != nil {
-		multiplier = s.cfg.Default.RateMultiplier
+	var multiplier float64
+	if result.NovelAINativeCostUSD != nil {
+		// Native tools settle the rate frozen before reservation, even if the
+		// user/group rate cache expired or account settings changed in flight.
+		multiplier, err = novelAINativeRateSnapshot(result.NovelAINativeRateMultiplier)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Generation and other protocols preserve their existing rate behavior.
+		multiplier = s.openAIUsageBaseMultiplier(ctx, apiKey, account, user.ID)
 	}
-	if apiKey.GroupID != nil && apiKey.Group != nil {
-		multiplier = s.ResolveUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
-	}
-	// Account-side group multiplier is independent from RateMultiplier (which
-	// only changes account cost statistics). A value of 5 offsets a 0.2x group
-	// for this account and restores a 1.0x user charge.
-	multiplier *= account.UserGroupRateMultiplier()
 	// token 倍率叠加高峰因子（token 计费含图片 token，图片按次倍率不受影响）。
 	// 高峰因子按请求级 PricingAt 现算（与利润门 D 同源同刻，跨峰谷请求不中途
 	// 变价）；未装配 PricingAt 的路径回退记录时刻，保持既有行为。不并入上面的
@@ -497,7 +511,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		usageLog.ActualCost = cost.ActualCost
 		usageLog.LongContextBillingApplied = cost.LongContextBillingApplied
 	}
-	if isVideoUsage && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
+	if result.NovelAINativeCostUSD != nil {
+		usageLog.RateMultiplier = math.Max(0, baseMultiplier)
+	} else if isVideoUsage && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = videoMultiplier
 	} else if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier
@@ -683,6 +699,16 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	modelLongContextExempt bool,
 	pricingAt time.Time,
 ) (*CostBreakdown, error) {
+	if result != nil && result.NovelAINativeCostUSD != nil {
+		// Endpoint tariffs (including explicit zero) precede channel/model,
+		// token, image and reference prices. Only the reservation-time snapshot
+		// may determine the charge; current rate arguments can be stale/newer.
+		rate, err := novelAINativeRateSnapshot(result.NovelAINativeRateMultiplier)
+		if err != nil {
+			return nil, err
+		}
+		return calculateNovelAINativeCost(*result.NovelAINativeCostUSD, rate)
+	}
 	billingModel := firstUsageBillingModel(billingModels)
 	if result != nil && result.MiniMaxH3BaseCost != nil && result.VideoCount > 0 {
 		return s.calculateOpenAIVideoCost(ctx, billingModel, apiKey, result, videoMultiplier), nil

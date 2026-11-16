@@ -31,17 +31,33 @@ const (
 	NovelAIGenerateImage       NovelAIOperation = "generate-image"
 	NovelAIGenerateImageStream NovelAIOperation = "generate-image-stream"
 	NovelAIEncodeVibe          NovelAIOperation = "encode-vibe"
+	NovelAIUpscale             NovelAIOperation = "upscale"
+	NovelAIAugmentImage        NovelAIOperation = "augment-image"
+	NovelAISuggestTags         NovelAIOperation = "suggest-tags"
 )
 
 // NovelAIRequest is what a NovelAI image request asks for, as far as billing is concerned.
 type NovelAIRequest struct {
-	Operation   NovelAIOperation
-	Endpoint    string // upstream path
-	Model       string
-	Body        []byte
-	ContentType string
-	Stream      bool
-	// Samples is the number of images requested (0 for encode-vibe).
+	Operation NovelAIOperation
+	Endpoint  string // upstream path
+	Model     string
+	// RequestedModel is the original parsed model, before a model-less augment
+	// receives a synthetic log label. An explicitly supplied label stays here.
+	RequestedModel string
+	Body           []byte
+	ContentType    string
+	Stream         bool
+	// NativeCostUSD is the endpoint tariff in USD, before rate multipliers.
+	// nil keeps generation pricing; nonnil zero is an explicitly free utility.
+	// An unknown augment type carries a reservation only, never a settlement.
+	NativeCostUSD *float64
+	// NativeRateMultiplier is resolved once when reserving the selected
+	// account's charge. Successful forwarding copies it for stable settlement.
+	NativeRateMultiplier *float64
+	// ReqType and Defry are read only for Director tools; the body stays intact.
+	ReqType string
+	Defry   *int
+	// Samples is the number of generated images (0 for native utilities and tags).
 	Samples int
 	// Width and Height of the largest requested image (0 when not given).
 	Width, Height int64
@@ -50,6 +66,21 @@ type NovelAIRequest struct {
 	// Prompt is the positive prompt text (Images prompt; native input, v4 base and character
 	// captions), audited like an OpenAI Images prompt.
 	Prompt string
+}
+
+// IsNativeUtility distinguishes per-call tools from generation and free tag lookup.
+func (r *NovelAIRequest) IsNativeUtility() bool {
+	return r != nil && (r.Operation == NovelAIEncodeVibe || r.Operation == NovelAIUpscale || r.Operation == NovelAIAugmentImage)
+}
+
+// SchedulingModel keeps utility validation upstream. An invalid tool model must
+// receive the upstream 400, not fail the generation-model scheduler. The actual
+// request model (or a synthetic model-less operation label) remains in logs only.
+func (r *NovelAIRequest) SchedulingModel() string {
+	if r == nil || r.IsNativeUtility() || r.Operation == NovelAISuggestTags {
+		return ""
+	}
+	return r.Model
 }
 
 // ModerationBody is the prompt audit payload, in the OpenAI Images shape; nil without a prompt.
@@ -67,11 +98,14 @@ func (r *NovelAIRequest) BillingTier() string {
 }
 
 var novelAIOperations = map[string]NovelAIOperation{
-	"/images/generations":       NovelAIImagesGeneration,
-	"/images/edits":             NovelAIImagesEdit,
-	"/ai/generate-image":        NovelAIGenerateImage,
-	"/ai/generate-image-stream": NovelAIGenerateImageStream,
-	"/ai/encode-vibe":           NovelAIEncodeVibe,
+	"/images/generations":             NovelAIImagesGeneration,
+	"/images/edits":                   NovelAIImagesEdit,
+	"/ai/generate-image":              NovelAIGenerateImage,
+	"/ai/generate-image-stream":       NovelAIGenerateImageStream,
+	"/ai/encode-vibe":                 NovelAIEncodeVibe,
+	"/ai/upscale":                     NovelAIUpscale,
+	"/ai/augment-image":               NovelAIAugmentImage,
+	"/ai/generate-image/suggest-tags": NovelAISuggestTags,
 }
 
 // NovelAIOperationForPath maps an inbound path (with or without /v1) to its operation and upstream path.
@@ -87,22 +121,39 @@ func NovelAIOperationForPath(path string) (NovelAIOperation, string, bool) {
 	return op, path, true
 }
 
-// ParseNovelAIRequest reads the billing facts of a NovelAI image request. Only the model is
-// required; drawing parameters are the gateway's business and stay untouched.
+// ParseNovelAIRequest reads billing facts without rewriting the body. Generation
+// requires a model; model-less Director tools get a log-only operation label.
+// Director dimensions are validated because they determine the native quote.
 func ParseNovelAIRequest(path, contentType string, body []byte) (*NovelAIRequest, error) {
 	op, endpoint, ok := NovelAIOperationForPath(path)
 	if !ok {
 		return nil, errors.New("unsupported NovelAI endpoint")
 	}
 	req := &NovelAIRequest{Operation: op, Endpoint: endpoint, Body: body, ContentType: contentType}
+	if op == NovelAISuggestTags {
+		// GET query parameters are not parsed/re-encoded: ForwardNovelAI copies
+		// the inbound RawQuery, including repeated keys and original escaping.
+		return req, nil
+	}
 	fields, multipartRequest, err := novelAIFields(contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(fields["model"], &req.Model); err != nil || strings.TrimSpace(req.Model) == "" {
-		return nil, errors.New("model is required")
+	if raw, supplied := fields["model"]; supplied {
+		if err := json.Unmarshal(raw, &req.Model); err != nil {
+			return nil, errors.New("model must be a string")
+		}
 	}
 	req.Model = strings.TrimSpace(req.Model)
+	req.RequestedModel = req.Model
+	if req.Model == "" {
+		if op != NovelAIAugmentImage {
+			return nil, errors.New("model is required")
+		}
+		// This is an operation label for usage logs, not an advertised model or
+		// an upstream rewrite. Capability selection uses SchedulingModel().
+		req.Model = "novelai/augment-image"
+	}
 
 	switch op {
 	case NovelAIImagesGeneration, NovelAIImagesEdit:
@@ -124,8 +175,32 @@ func ParseNovelAIRequest(path, contentType string, body []byte) (*NovelAIRequest
 			texts = append(texts, character["char_caption"])
 		}
 		req.Prompt = novelAIPrompt(texts...)
-	case NovelAIEncodeVibe:
-		// Encoding a vibe produces no image; it is not an image generation.
+	case NovelAIEncodeVibe, NovelAIUpscale:
+		// Fixed per-call tariffs; generation fields (including dimensions and
+		// reference images) are irrelevant and must not affect their prices.
+	case NovelAIAugmentImage:
+		if err := json.Unmarshal(fields["req_type"], &req.ReqType); err != nil || req.ReqType == "" {
+			return nil, errors.New("augment req_type is required")
+		}
+		if req.Width, err = novelAIAugmentDimension(fields["width"], "width"); err != nil {
+			return nil, err
+		}
+		if req.Height, err = novelAIAugmentDimension(fields["height"], "height"); err != nil {
+			return nil, err
+		}
+		if req.ReqType == "emotion" || req.ReqType == "colorize" {
+			if raw, supplied := fields["defry"]; supplied {
+				var defry int
+				if err := json.Unmarshal(raw, &defry); err != nil || string(bytes.TrimSpace(raw)) == "null" || defry < 0 || defry > 5 {
+					return nil, errors.New("augment defry must be an integer from 0 to 5")
+				}
+				req.Defry = &defry
+			}
+		}
+		req.Prompt = novelAIPrompt(fields["prompt"])
+	}
+	if err := quoteNovelAINativeRequest(req); err != nil {
+		return nil, err
 	}
 	return req, nil
 }
@@ -291,14 +366,48 @@ func novelAICount(raw json.RawMessage) int {
 	return 1
 }
 
-// ForwardNovelAI relays one NovelAI image request to the account's gateway. Upstream errors take
-// the stock OpenAI paths (failover for retryable statuses, passthrough otherwise); a success is
-// streamed back as it comes, and the result carries what the stock image billing needs.
+// ForwardNovelAI relays a NovelAI request verbatim. Generation retains the stock
+// failover/partial-result paths. Native utilities and free tag lookup are single
+// attempts: errors preserve upstream status/body/content type with no billable
+// result, and only a fully relayed utility success carries its endpoint quote.
 func (s *OpenAIGatewayService) ForwardNovelAI(ctx context.Context, c *gin.Context, account *Account, req *NovelAIRequest) (*OpenAIForwardResult, error) {
 	if account == nil || account.Platform != PlatformNovelAI {
 		return nil, errors.New("NovelAI requests need a NovelAI account")
 	}
+	if req == nil {
+		return nil, errors.New("NovelAI request is required")
+	}
+	var nativeQuote, nativeRate float64
+	if req.IsNativeUtility() {
+		if req.NativeCostUSD == nil {
+			return nil, errors.New("NovelAI native utility has no endpoint quote")
+		}
+		var err error
+		if nativeRate, err = novelAINativeRateSnapshot(req.NativeRateMultiplier); err != nil {
+			return nil, err
+		}
+		nativeQuote = *req.NativeCostUSD
+		if _, err := calculateNovelAINativeCost(nativeQuote, nativeRate); err != nil {
+			return nil, err
+		}
+	}
 	start := time.Now()
+	singleAttempt := req.IsNativeUtility() || req.Operation == NovelAISuggestTags
+	if singleAttempt {
+		// A redirect can replay a charged POST (307/308), or turn a utility
+		// failure into an unrelated login-page 200 (302). Return the original
+		// response without another HTTP request; generation behavior is unchanged.
+		ctx = WithHTTPUpstreamRedirectsDisabled(ctx)
+	}
+	method := http.MethodPost
+	if req.Operation == NovelAISuggestTags {
+		method = http.MethodGet
+		// The handler starts this budget before account selection. Also bound
+		// direct service callers, without extending an earlier caller deadline.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
 	baseURL, err := s.validateUpstreamBaseURL(account.GetOpenAIBaseURL())
 	if err != nil {
 		return nil, err
@@ -307,11 +416,17 @@ func (s *OpenAIGatewayService) ForwardNovelAI(ctx context.Context, c *gin.Contex
 	if c.Request.URL.RawQuery != "" {
 		target += "?" + c.Request.URL.RawQuery
 	}
-	upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(req.Body))
+	var body io.Reader
+	if method == http.MethodPost {
+		body = bytes.NewReader(req.Body)
+	}
+	upstreamReq, err := http.NewRequestWithContext(ctx, method, target, body)
 	if err != nil {
 		return nil, fmt.Errorf("build NovelAI request: %w", err)
 	}
-	upstreamReq.Header.Set("Content-Type", req.ContentType)
+	if req.ContentType != "" {
+		upstreamReq.Header.Set("Content-Type", req.ContentType)
+	}
 	if accept := c.GetHeader("Accept"); accept != "" {
 		upstreamReq.Header.Set("Accept", accept)
 	}
@@ -335,25 +450,55 @@ func (s *OpenAIGatewayService) ForwardNovelAI(ctx context.Context, c *gin.Contex
 		})
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
+	if singleAttempt && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
+		defer func() { _ = resp.Body.Close() }()
+		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID: opsUpstreamProxyID(account), ProxyName: opsUpstreamProxyName(account),
+			Platform: account.Platform, AccountID: account.ID, AccountName: account.Name,
+			UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: resp.Header.Get("x-request-id"),
+			UpstreamURL: safeUpstreamURL(target), Kind: "http_error",
+			Message: fmt.Sprintf("NovelAI native endpoint returned HTTP %d", resp.StatusCode),
+		})
+		// No JSON error translation, body truncation or failover: utilities can
+		// spend Anlas even when an upstream attempt fails ambiguously.
+		novelAICopyResponseHeaders(c, resp)
+		c.Status(resp.StatusCode)
+		c.Writer.WriteHeaderNow()
+		if _, err := novelAICopyBody(c, resp.Body, start, false); err != nil {
+			return nil, fmt.Errorf("upstream response failed: NovelAI HTTP %d body: %w", resp.StatusCode, err)
+		}
+		return nil, fmt.Errorf("upstream response failed: NovelAI HTTP %d", resp.StatusCode)
+	}
 	if resp.StatusCode >= 400 {
 		return s.novelAIUpstreamError(ctx, c, account, req, resp, target)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	for _, header := range []string{"Content-Type", "Content-Disposition", "Cache-Control", "X-Request-Id"} {
-		if value := resp.Header.Get(header); value != "" {
-			c.Header(header, value)
+	if req.IsNativeUtility() {
+		if req.Operation == NovelAIAugmentImage {
+			if _, err := novelAIAugmentAnlas(req.ReqType, req.Width, req.Height); err != nil {
+				// Unknown types only receive a conservative admission quote. Never
+				// release unexpectedly successful output as free or invent a bill.
+				return nil, fmt.Errorf("cannot settle successful NovelAI utility: %w", err)
+			}
 		}
 	}
+	novelAICopyResponseHeaders(c, resp)
 	c.Status(resp.StatusCode)
 	firstTokenMs, copyErr := novelAICopyBody(c, resp.Body, start, req.Stream)
+	if singleAttempt && copyErr != nil {
+		return nil, fmt.Errorf("upstream response failed: relay NovelAI native response: %w", copyErr)
+	}
 
 	result := &OpenAIForwardResult{
 		RequestID: resp.Header.Get("x-request-id"), Model: req.Model, UpstreamModel: req.Model, BillingModel: req.Model,
 		UpstreamEndpoint: req.Endpoint, Stream: req.Stream, ResponseHeaders: resp.Header.Clone(),
 		Duration: time.Since(start), FirstTokenMs: firstTokenMs,
 	}
-	if req.Operation != NovelAIEncodeVibe {
+	if req.IsNativeUtility() {
+		result.NovelAINativeCostUSD = &nativeQuote
+		result.NovelAINativeRateMultiplier = &nativeRate
+	} else if req.Operation != NovelAISuggestTags {
 		result.ImageCount = req.Samples
 		result.ImageSize = req.BillingTier()
 		result.ReferenceImageCount = req.ReferenceImages
@@ -362,6 +507,17 @@ func (s *OpenAIGatewayService) ForwardNovelAI(ctx context.Context, c *gin.Contex
 		result.ImagePixels = req.Width * req.Height
 	}
 	return result, copyErr
+}
+
+func novelAICopyResponseHeaders(c *gin.Context, resp *http.Response) {
+	// An absent upstream Content-Type must stay absent rather than being
+	// synthesized by net/http from the first body bytes.
+	c.Writer.Header()["Content-Type"] = nil
+	for _, header := range []string{"Content-Type", "Content-Disposition", "Cache-Control", "X-Request-Id", "Retry-After"} {
+		if values, ok := resp.Header[http.CanonicalHeaderKey(header)]; ok {
+			c.Writer.Header()[header] = append([]string(nil), values...)
+		}
+	}
 }
 
 func (s *OpenAIGatewayService) novelAIUpstreamError(ctx context.Context, c *gin.Context, account *Account, req *NovelAIRequest, resp *http.Response, target string) (*OpenAIForwardResult, error) {

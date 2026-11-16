@@ -320,6 +320,13 @@ type OpenAIForwardResult struct {
 	// ReferenceImageCount is the number of reference images sent with an image request; each
 	// carries the group's reference surcharge (see ReferenceImageUnitPrice).
 	ReferenceImageCount int
+	// NovelAINativeCostUSD is a successful native utility's endpoint tariff.
+	// nil preserves generation pricing; nonnil zero means explicitly free.
+	// It takes precedence over all model/channel/token/image price cards.
+	NovelAINativeCostUSD *float64
+	// NovelAINativeRateMultiplier is the reservation-time native rate snapshot.
+	// It must accompany a native quote, including explicit-free requests.
+	NovelAINativeRateMultiplier *float64
 	// ImageEndpoint 标记请求来自专用图片端点；分组 image_count_billing 开关
 	// 只对这类请求生效，混合 Responses/Chat/WS 请求仍按 token 计费。
 	ImageEndpoint      bool

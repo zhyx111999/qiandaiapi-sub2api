@@ -210,14 +210,15 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		_, modelListingRequest := GetModelListingGroups(c)
-		metadataReadRequest := billingInfoRequest || pelicanReadRequest || modelListingRequest
-		// Discovery does not spend balance or quota, but expired keys must not
-		// regain access through the metadata path.
-		if modelListingRequest && (apiKey.Status == service.StatusAPIKeyExpired || apiKey.IsExpired()) {
+		discoveryRequest := modelListingRequest || isNovelAIMetadataRead(c.Request.Method, c.Request.URL.Path)
+		metadataReadRequest := billingInfoRequest || pelicanReadRequest || discoveryRequest
+		// Discovery and free NovelAI metadata do not spend balance, but must
+		// retain key expiration and quota policies even in simple mode.
+		if discoveryRequest && (apiKey.Status == service.StatusAPIKeyExpired || apiKey.IsExpired()) {
 			AbortWithError(c, http.StatusForbidden, "API_KEY_EXPIRED", "API key 已过期")
 			return
 		}
-		if modelListingRequest && (apiKey.Status == service.StatusAPIKeyQuotaExhausted || apiKey.IsQuotaExhausted()) {
+		if discoveryRequest && (apiKey.Status == service.StatusAPIKeyQuotaExhausted || apiKey.IsQuotaExhausted()) {
 			abortWithAPIKeyQuotaError(c)
 			return
 		}
@@ -400,6 +401,20 @@ func isOpenAICompatibleAPIKeyRequest(c *gin.Context) bool {
 		if path == root || strings.HasPrefix(path, root+"/") {
 			return true
 		}
+	}
+	return false
+}
+
+// isNovelAIMetadataRead deliberately matches only the two free GET endpoints
+// and their root aliases; image generation and native POST tools stay billable.
+func isNovelAIMetadataRead(method, path string) bool {
+	if method != http.MethodGet {
+		return false
+	}
+	switch path {
+	case "/v1/user/subscription", "/user/subscription",
+		"/v1/ai/generate-image/suggest-tags", "/ai/generate-image/suggest-tags":
+		return true
 	}
 	return false
 }

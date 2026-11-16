@@ -23,6 +23,25 @@ function cells(wrapper: ReturnType<typeof mountTable>, row = 0): string[] {
 }
 
 describe('PlazaModelPricingTable', () => {
+  it.each(['group', 'official'] as const)('distributes price columns across the full width with local mobile scrolling (%s)', (mode) => {
+    const wrapper = mountTable([tokenModel()], {}, mode)
+    expect(wrapper.classes()).toContain('overflow-x-auto')
+    expect(wrapper.classes()).toContain('max-w-full')
+    expect(wrapper.find('table').classes()).toEqual(expect.arrayContaining(['w-full', 'table-fixed', 'min-w-[760px]']))
+    const columns = wrapper.findAll('col')
+    expect(columns).toHaveLength(mode === 'group' ? 5 : 4)
+    expect(columns[0].classes()).toEqual(expect.arrayContaining(['w-60', 'xl:w-72', '2xl:w-80']))
+    expect(columns.slice(1, 4).every((col) => !col.attributes('width') && !col.attributes('class'))).toBe(true)
+    if (mode === 'group') expect(columns[4].classes()).toContain('w-24')
+  })
+
+  it('wraps long model names and cache details rather than overrunning fixed columns', () => {
+    const wrapper = mountTable([tokenModel({ name: 'a-model-name-with-a-very-long-unbroken-identifier' })])
+    expect(wrapper.find('tbody td span').classes()).toContain('[overflow-wrap:anywhere]')
+    expect(wrapper.find('.plaza-copy').classes()).toContain('shrink-0')
+    expect(wrapper.findAll('tbody td')[3].find('.whitespace-nowrap').exists()).toBe(false)
+  })
+
   it.each([
     ['group', false, '$1.00'], ['group', true, '$1.00'],
     ['official', false, '$4.00'], ['official', true, '$4.00']

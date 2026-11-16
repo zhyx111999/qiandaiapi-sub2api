@@ -1,13 +1,19 @@
 <template>
-  <div class="plaza-table overflow-x-auto">
-    <table class="w-full min-w-[640px] table-auto border-collapse text-sm tabular-nums">
+  <div class="plaza-table max-w-full overflow-x-auto">
+    <table class="w-full table-fixed border-collapse text-sm tabular-nums" :style="{ minWidth: `${tableMinWidth}px` }">
+      <!-- Equal price columns stay aligned even with long pixel ranges or model names. -->
+      <colgroup>
+        <col class="w-56 xl:w-60 2xl:w-[280px]" />
+        <col v-for="index in priceColumnCount" :key="index" />
+        <col v-if="showRate" class="w-24" />
+      </colgroup>
       <thead>
         <tr class="text-left text-xs font-semibold text-gray-500 dark:text-dark-400">
-          <th class="w-[34%] py-2.5 pl-5 pr-4">{{ t('modelPlaza.table.model') }}</th>
+          <th class="py-2.5 pl-5 pr-4">{{ t('modelPlaza.table.model') }}</th>
           <template v-if="kind === 'resolution'">
             <th v-for="col in tierColumns" :key="col.key" class="px-3 py-2.5 align-bottom" :data-tier="col.key">
               {{ col.label }}
-              <span v-if="col.span" class="block whitespace-nowrap font-mono text-[11px] font-normal text-gray-400 dark:text-dark-500">{{ col.span }}</span>
+              <span v-if="col.span" class="block font-mono text-[11px] font-normal text-gray-400 dark:text-dark-500"><template v-for="(part, index) in col.span.split('–')" :key="index"><template v-if="index">–<wbr /></template>{{ part }}</template></span>
             </th>
           </template>
           <th v-else class="px-3 py-2.5">{{ t('modelPlaza.table.perRequestPrice') }}</th>
@@ -38,9 +44,7 @@
               <template v-if="tierOf(m, col.key)">
                 <span class="plaza-price">{{ paid(m, tierOf(m, col.key)!.price) }}</span>
                 <span class="plaza-unit">{{ unit(m) }}</span>
-                <div v-if="!col.span" class="whitespace-nowrap font-mono text-[11px] text-gray-400 dark:text-dark-500">
-                  {{ tierSpan(tierOf(m, col.key)!) }}
-                </div>
+                <div v-if="!col.span" class="font-mono text-[11px] text-gray-400 dark:text-dark-500"><template v-for="(part, index) in tierSpan(tierOf(m, col.key)!).split('–')" :key="index"><template v-if="index">–<wbr /></template>{{ part }}</template></div>
               </template>
               <span v-else class="text-gray-400 dark:text-dark-500">-</span>
             </td>
@@ -147,6 +151,12 @@ const tierColumns = computed(() => {
   })
 })
 
+/** Price columns share the space left by the bounded model and rate columns. */
+const priceColumnCount = computed(() =>
+  (props.kind === 'resolution' ? tierColumns.value.length : 1) + (showReference.value ? 1 : 0)
+)
+const tableMinWidth = computed(() => Math.max(640, 224 + priceColumnCount.value * 100 + (showRate.value ? 96 : 0)))
+
 /** 实付单价 = 单价 × 该行生效倍率（不换算每百万）。 */
 function paid(m: PlazaModel, value: number | null | undefined): string {
   if (isOfficial.value || value == null) return '-'
@@ -164,7 +174,7 @@ function unit(m: PlazaModel): string {
 
 <style scoped>
 .plaza-price {
-  @apply font-mono text-[15px] font-semibold text-primary-700 dark:text-primary-300;
+  @apply whitespace-nowrap font-mono text-[15px] font-semibold text-primary-700 dark:text-primary-300;
 }
 
 .plaza-unit {

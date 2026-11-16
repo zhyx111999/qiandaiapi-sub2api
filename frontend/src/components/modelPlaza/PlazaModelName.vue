@@ -1,9 +1,9 @@
 <template>
   <div class="flex flex-wrap items-center gap-1.5">
-    <span class="font-semibold text-gray-900 dark:text-white">{{ name }}</span>
+    <span class="min-w-0 font-semibold text-gray-900 [overflow-wrap:anywhere] dark:text-white">{{ name }}</span>
     <button
       type="button"
-      class="plaza-copy"
+      class="plaza-copy shrink-0"
       :class="{ 'plaza-copy-done': copied }"
       :title="copied ? t('modelPlaza.table.copied') : t('modelPlaza.table.copyModel', { model: name })"
       :aria-label="copied ? t('modelPlaza.table.copied') : t('modelPlaza.table.copyModel', { model: name })"

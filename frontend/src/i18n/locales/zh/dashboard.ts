@@ -870,6 +870,24 @@ export default {
       perSecond: '按秒计费',
       perImage: '按图片计费'
     },
+    novelaiAddons: {
+      title: 'NovelAI 附加功能',
+      description: '静态价目（USD），与上方生图像素档和参考图价格分开展示。',
+      feature: '功能',
+      price: '价格（USD）',
+      notes: '说明',
+      upscale: '图片放大（upscale）',
+      upscaleNote: '按次调用计费。',
+      director: 'Director（augment-image）',
+      directorPrice: '按耗点计费 / Anlas × {price}',
+      directorNote: '价格随工具和图像尺寸变化。当前 Opus 下，除抠图外的五种工具在 ≤1MP 时免费；免费档仍为免费。',
+      directorExamples: '当前 Opus 校准示例：抠图 512×512 为 20 Anlas（{backgroundSmall}），1024×1024 为 65 Anlas（{backgroundLarge}）；其余五种工具 1536×1024 为 30 Anlas（{otherLarge}）。',
+      encodeVibe: 'Vibe 编码（encode-vibe）',
+      encodeVibeNote: '按编码图片张数计费。',
+      suggestTags: '标签建议（suggest-tags）',
+      suggestTagsNote: '标签自动补全，不计费。',
+      free: '免费'
+    },
     nav: {
       login: '登录',
       backToDashboard: '回到后台'

@@ -866,6 +866,24 @@ export default {
       perSecond: 'Per second',
       perImage: 'Per image'
     },
+    novelaiAddons: {
+      title: 'NovelAI add-ons',
+      description: 'Static prices in USD, listed separately from the image pixel tiers and reference-image prices above.',
+      feature: 'Feature',
+      price: 'Price (USD)',
+      notes: 'Notes',
+      upscale: 'Upscale (upscale)',
+      upscaleNote: 'Charged per call.',
+      director: 'Director (augment-image)',
+      directorPrice: 'Anlas × {price}',
+      directorNote: 'Price depends on the tool and image dimensions. With current Opus pricing, the five tools other than background removal are free at ≤1MP; free tiers remain free.',
+      directorExamples: 'Current Opus calibration: background removal at 512×512 costs 20 Anlas ({backgroundSmall}), and 1024×1024 costs 65 Anlas ({backgroundLarge}); the other five tools at 1536×1024 cost 30 Anlas ({otherLarge}).',
+      encodeVibe: 'Vibe encoding (encode-vibe)',
+      encodeVibeNote: 'Charged per encoded image.',
+      suggestTags: 'Tag suggestions (suggest-tags)',
+      suggestTagsNote: 'Tag autocomplete, at no charge.',
+      free: 'Free'
+    },
     nav: {
       login: 'Sign In',
       backToDashboard: 'Back to Console'

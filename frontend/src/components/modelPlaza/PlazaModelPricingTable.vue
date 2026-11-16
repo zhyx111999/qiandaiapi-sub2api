@@ -1,12 +1,13 @@
 <template>
-  <div class="plaza-table overflow-x-auto">
-    <table class="w-full min-w-[760px] table-auto border-collapse text-sm tabular-nums">
+  <div class="plaza-table max-w-full overflow-x-auto">
+    <table class="w-full min-w-[760px] table-fixed border-collapse text-sm tabular-nums">
+      <!-- Bound the name/rate columns; share the remaining width between prices. -->
       <colgroup>
-        <col class="w-[34%]" />
-        <col class="w-[17%]" />
-        <col class="w-[17%]" />
-        <col class="w-[22%]" />
-        <col v-if="showRate" class="w-[10%]" />
+        <col class="w-60 xl:w-72 2xl:w-80" />
+        <col />
+        <col />
+        <col />
+        <col v-if="showRate" class="w-24" />
       </colgroup>
       <thead>
         <tr class="text-left text-xs font-semibold text-gray-500 dark:text-dark-400">
@@ -62,7 +63,7 @@
           <!-- 输入 / 输出：有阶梯时每档一行（档位标签只放输入列）；分组价格下方划线展示官方价 -->
           <td v-for="field in TOKEN_FIELDS" :key="field" class="px-3 py-3 align-middle">
             <template v-if="tiers(m).length">
-              <div v-for="(iv, idx) in tiers(m)" :key="idx" class="whitespace-nowrap text-xs leading-5" :title="tierHint(m)">
+              <div v-for="(iv, idx) in tiers(m)" :key="idx" class="text-xs leading-5" :title="tierHint(m)">
                 <span v-if="field === 'input_price'" class="mr-1 text-gray-400 dark:text-dark-500">{{ contextTierLabel(iv) }}</span>
                 <span class="plaza-price">{{ price(iv[field], period) }}</span>
               </div>
@@ -78,7 +79,7 @@
           <!-- 缓存：写入（含 1h / 12h）/ 读取；有阶梯且带缓存价时每档一行 -->
           <td class="px-3 py-3 align-middle text-xs leading-5">
             <template v-if="hasTierCache(tiers(m))">
-              <div v-for="(iv, idx) in tiers(m)" :key="idx" class="whitespace-nowrap" :title="tierHint(m)">
+              <div v-for="(iv, idx) in tiers(m)" :key="idx" class="break-words" :title="tierHint(m)">
                 <template v-if="hasCache(iv)">
                   <span class="text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWriteShort') }}</span>
                   <span class="plaza-price"> {{ price(iv.cache_write_price, period) }}</span>
@@ -93,7 +94,7 @@
               </div>
             </template>
             <template v-else-if="source(m) && hasCache(source(m)!)">
-              <div class="whitespace-nowrap">
+              <div class="break-words">
                 <span class="mr-1 text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWrite') }}</span>
                 <span class="plaza-price">{{ price(source(m)!.cache_write_price, period) }}</span>
                 <span v-if="source(m)!.cache_write_1h_price != null" class="text-gray-400 dark:text-dark-500">
@@ -101,7 +102,7 @@
                 <span v-if="source(m)!.cache_write_12h_price != null" class="text-gray-400 dark:text-dark-500">
                   (12h <span class="plaza-price">{{ price(source(m)!.cache_write_12h_price, period) }}</span>)</span>
               </div>
-              <div class="whitespace-nowrap">
+              <div class="break-words">
                 <span class="mr-1 text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheRead') }}</span>
                 <span class="plaza-price">{{ price(source(m)!.cache_read_price, period) }}</span>
               </div>
@@ -275,7 +276,7 @@ function formatTimeWindow(p: PlazaTimePricingPeriod): string {
 
 <style scoped>
 .plaza-price {
-  @apply font-mono font-semibold text-gray-900 dark:text-gray-50;
+  @apply whitespace-nowrap font-mono font-semibold text-gray-900 dark:text-gray-50;
 }
 
 .plaza-price-main {
