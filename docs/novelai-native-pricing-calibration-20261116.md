@@ -58,7 +58,8 @@ This is a calibrated price schedule, **not** live per-request upstream balance m
 - A server-side endpoint quote takes precedence over image/token model price cards. Explicit zero is not an absent quote.
 - Freeze the user/group/account base multiplier before reserving the endpoint quote; settlement and the usage log use that same snapshot even if settings or cached rates change during the request. Existing generation/reference pricing is not involved; peak token and image-tier overrides do not change a native tool's base price.
 - Successful tool calls use the existing mandatory usage-record and balance-settlement path. Non-2xx, relay failure and rejected unpriced success do not settle.
-- Native tool requests are not automatically retried, avoiding duplicate upstream spending.
+- Native tool requests are not automatically retried and HTTP redirects are disabled, avoiding duplicate upstream spending or billing a redirected non-tool page.
+- The user confirmed during production acceptance that the existing seven-model allowlist must stay enforced. Bogus model names can therefore return a local 404; use an allowed model with malformed image input when validating upstream 400 passthrough.
 - Tag suggestions use GET, preserve raw query, response status/body/Content-Type, have a sub-5-second handler deadline, and do not acquire generation slots or create a usage bill.
 - Only the exact `/user/subscription` root path is newly exempted from the SPA fallback; unrelated unknown pages retain their prior behavior.
 
