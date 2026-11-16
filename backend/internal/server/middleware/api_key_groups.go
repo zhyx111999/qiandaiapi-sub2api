@@ -14,6 +14,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// IsNovelAINativeUtilityRequest identifies only capability-based image tools.
+// Generation and metadata keep their existing model/group routing behavior.
+func IsNovelAINativeUtilityRequest(method, path string) bool {
+	if method != http.MethodPost {
+		return false
+	}
+	switch path {
+	case "/ai/upscale", "/v1/ai/upscale", "/ai/augment-image", "/v1/ai/augment-image",
+		"/ai/encode-vibe", "/v1/ai/encode-vibe":
+		return true
+	}
+	return false
+}
+
 func isMultiGroupBillingInfoRequest(c *gin.Context, key *service.APIKey) bool {
 	return c.Request.URL.Path == "/v1/sub2api/billing" && len(key.ConfiguredGroupIDs()) > 1
 }
@@ -82,7 +96,9 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 	if target, ok := c.Get("security_penalty.original_group_id"); ok && target != nil {
 		return key, nil
 	}
-	if len(key.ConfiguredGroupIDs()) < 2 || isMultiGroupBillingInfoRequest(c, key) || c.Request.URL.Path == "/v1/usage" || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) {
+	// Native metadata uses the key's bound group without choosing a billing
+	// group or probing model capacity. Normal group authorization still follows.
+	if len(key.ConfiguredGroupIDs()) < 2 || isMultiGroupBillingInfoRequest(c, key) || isNovelAIMetadataRead(c.Request.Method, c.Request.URL.Path) || c.Request.URL.Path == "/v1/usage" || isAsyncImageTaskRead(c.Request.Method, c.Request.URL.Path) {
 		return key, nil
 	}
 	var models []string
@@ -108,7 +124,8 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 	}
 	kind := "token"
 	path := c.Request.URL.Path
-	if strings.Contains(path, "/images/") {
+	nativeUtility := IsNovelAINativeUtilityRequest(c.Request.Method, path)
+	if strings.Contains(path, "/images/") || nativeUtility {
 		kind = "image"
 	}
 	if strings.Contains(path, "/videos") {
@@ -128,6 +145,22 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 	}
 	accepts := func(candidate *service.APIKey) bool {
 		group := candidate.Group
+		if nativeUtility {
+			if group.Platform != service.PlatformNovelAI && group.Platform != service.PlatformComposite {
+				return false
+			}
+			// Native scheduling is model-less, but explicit client-model permissions
+			// still apply when choosing a group. Multipart request.model is checked
+			// by the native handler after parsing, as on single-group requests.
+			for _, model := range models {
+				if group.ModelAllowlistEnabled() && !group.ModelAllowlist.Allows(model) {
+					return false
+				}
+			}
+			if service.FirstUserGroupDeniedModel(candidate.DeniedModelsInGroup(), models) != "" {
+				return false
+			}
+		}
 		// Binding the restricted target must not make the normal cheapest-group
 		// selector send healthy conversations there. Forced penalties returned
 		// above already passed the normal target authorization checks.
@@ -199,7 +232,15 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 		SetOpsFallbackAPIKey(c, groups[0])
 		return groups[0], nil
 	}
-	selected, err := keys.SelectRequestGroup(ctx, key, models, kind, subscriptions, accepts, checkBilling)
+	schedulingModels := models
+	if nativeUtility {
+		// Probe native NovelAI capacity, not an image-generation model catalog.
+		// Keep this override local to group selection: the downstream composite
+		// routing/handler still owns explicit mapping and the original body.
+		ctx = service.WithResolvedTargetPlatform(ctx, service.PlatformNovelAI)
+		schedulingModels = nil
+	}
+	selected, err := keys.SelectRequestGroup(ctx, key, schedulingModels, kind, subscriptions, accepts, checkBilling)
 	if err != nil {
 		status := infraerrors.Code(err)
 		message, reason := infraerrors.Message(err), infraerrors.Reason(err)

@@ -41,6 +41,7 @@ func TestEveryGatewayPOSTRouteIsClassifiedForPromptAuditCoverage(t *testing.T) {
 		"/images/edits":             {"openai_images.go", "grok_media.go", "novelai_gateway.go"},
 		"/ai/generate-image":        {"novelai_gateway.go"},
 		"/ai/generate-image-stream": {"novelai_gateway.go"},
+		"/ai/augment-image":         {"novelai_gateway.go"},
 		"/images/generations/async": {"image_task_handler.go"},
 		"/images/edits/async":       {"image_task_handler.go"},
 		"/images/batches":           {"batch_image_handler.go"},
@@ -60,6 +61,7 @@ func TestEveryGatewayPOSTRouteIsClassifiedForPromptAuditCoverage(t *testing.T) {
 		"/stt":                       "speech transcription is not a text-generation prompt",
 		"/custom-voices":             "voice profile management has no model prompt",
 		"/ai/encode-vibe":            "NovelAI vibe encoding takes an image and no prompt",
+		"/ai/upscale":                "NovelAI upscaling takes an image and no prompt",
 	}
 
 	unclassified := make([]string, 0)

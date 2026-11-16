@@ -44,6 +44,7 @@
         :peak-window="peakWindow"
       />
       <PlazaMediaPricingTable v-else :models="bucket.models" :kind="bucket.kind" :group="group" :price-mode="priceMode" />
+      <PlazaNovelAIAddonPricing v-if="bucket.kind === novelAIAddonKind" />
     </template>
     <p v-if="!buckets.length" class="px-5 py-4 text-center text-sm text-gray-400 dark:text-dark-500">
       {{ t('modelPlaza.detail.noModels') }}
@@ -58,6 +59,7 @@ import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import PlazaModelPricingTable from './PlazaModelPricingTable.vue'
 import PlazaMediaPricingTable from './PlazaMediaPricingTable.vue'
+import PlazaNovelAIAddonPricing from './PlazaNovelAIAddonPricing.vue'
 import type { ModelPlazaGroup } from '@/api/modelPlaza'
 import type { GroupPlatform, SubscriptionType } from '@/types'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
@@ -74,6 +76,12 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const buckets = computed(() => partitionByPriceKind(props.group.models))
+
+// Follow the visible NovelAI image table (including composite groups), once per group.
+// Prefer the pixel/resolution table; flat-price NovelAI models use the request table instead.
+const novelAIAddonKind = computed(() => buckets.value.find((bucket) =>
+  bucket.kind !== 'token' && bucket.models.some((model) => model.platform === 'novelai')
+)?.kind)
 
 /** 高峰窗口描述(含倍率与服务器时区标注);分组未启用高峰为空串。 */
 const peakWindow = computed(() => {

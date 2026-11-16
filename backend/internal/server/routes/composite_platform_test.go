@@ -134,6 +134,48 @@ func TestCompositeTargetPlatformMiddlewareResolvesModelAndRestoresBody(t *testin
 	require.Equal(t, http.StatusNoContent, w.Code)
 }
 
+func TestCompositeTargetPlatformMiddlewarePreservesNovelAINativeUtilityBodies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, prefix := range []string{"/v1", ""} {
+		for _, tc := range []struct{ path, request string }{
+			{"/ai/upscale", `{"model":"bogus-probe","image":"image"}`},
+			{"/ai/augment-image", `{"req_type":"bg-removal","image":"image"}`},
+		} {
+			t.Run(prefix+tc.path, func(t *testing.T) {
+				var body bytes.Buffer
+				writer := multipart.NewWriter(&body)
+				require.NoError(t, writer.WriteField("request", tc.request))
+				image, err := writer.CreateFormFile("image", "test.png")
+				require.NoError(t, err)
+				_, err = image.Write([]byte("test-image-bytes"))
+				require.NoError(t, err)
+				require.NoError(t, writer.Close())
+
+				router := gin.New()
+				router.Use(func(c *gin.Context) {
+					group := &service.Group{ID: 1, Platform: service.PlatformComposite}
+					c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{GroupID: &group.ID, Group: group})
+					c.Next()
+				})
+				router.Use(compositeTargetPlatformMiddleware(nil))
+				router.POST(prefix+tc.path, func(c *gin.Context) {
+					_, resolved := service.ResolvedTargetPlatformFromContext(c.Request.Context())
+					require.False(t, resolved, "native capability selection belongs to the handler")
+					got, err := io.ReadAll(c.Request.Body)
+					require.NoError(t, err)
+					require.Equal(t, body.Bytes(), got, "multipart bytes must not be rewritten")
+					c.Status(http.StatusNoContent)
+				})
+				req := httptest.NewRequest(http.MethodPost, prefix+tc.path, bytes.NewReader(body.Bytes()))
+				req.Header.Set("Content-Type", writer.FormDataContentType())
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, req)
+				require.Equal(t, http.StatusNoContent, w.Code, w.Body.String())
+			})
+		}
+	}
+}
+
 func TestCompositeTargetPlatformMiddlewareUsesExplicitRouteAndRewritesBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

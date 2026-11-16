@@ -16,11 +16,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// NovelAI relays NovelAI image requests (OpenAI-compatible Images and the native
-// /ai/generate-image, /ai/generate-image-stream, /ai/encode-vibe) for NovelAI groups. It follows
-// the stock Images flow: the group's image permission, the prompt audit, user / image / account slots, the balance
-// hold, account failover on retryable upstream errors, and the stock image billing, priced by the
-// request's total pixels and its reference images.
+// NovelAI relays image generation and native image tools for NovelAI groups. Generation
+// keeps the stock image/reference pricing and failover flow; native tools reserve and
+// settle their endpoint quote without retrying a potentially chargeable operation.
 func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 	streamStarted := false
 	defer h.recoverResponsesPanic(c, &streamStarted)
@@ -60,7 +58,14 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 		return
 	}
-	ensureCompositeTargetPlatform(c, apiKey, req.Model)
+	if req.IsNativeUtility() {
+		if !h.allowNovelAINativeModel(c, apiKey, req) {
+			return
+		}
+		bindNovelAINativePlatform(c, apiKey)
+	} else {
+		ensureCompositeTargetPlatform(c, apiKey, req.Model)
+	}
 	if !compositeTargetPlatformAllowed(c, apiKey, req.Model, service.PlatformNovelAI) {
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "This endpoint requires a NovelAI model")
 		return
@@ -68,7 +73,7 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 	reqLog = reqLog.With(zap.String("model", req.Model), zap.String("operation", string(req.Operation)), zap.Bool("stream", req.Stream))
 
 	requireAPIKeyQueueCapability(c, service.APIKeyQueueCapabilityImageGeneration)
-	if req.Operation != service.NovelAIEncodeVibe {
+	if req.Operation != service.NovelAIEncodeVibe && req.Operation != service.NovelAIUpscale {
 		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, req.Model, req.ModerationBody()); decision != nil && !decision.AllowNextStage {
 			h.openAISecurityAuditError(c, decision)
 			return
@@ -84,7 +89,10 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 	setOpsRequestContext(c, req.Model, req.Stream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(req.Stream, false)))
 
-	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, req.Model)
+	var channelMapping service.ChannelMappingResult
+	if !req.IsNativeUtility() {
+		channelMapping, _ = h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, req.Model)
+	}
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
@@ -103,13 +111,15 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 		h.novelAIBillingError(c, err, streamStarted)
 		return
 	}
-	inflightDone, inflightErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription,
-		service.InflightEstimateRequest{Model: req.Model, BodyBytes: len(body), Kind: service.InflightEstimateImage, Units: req.Samples})
-	if inflightErr != nil {
-		h.novelAIBillingError(c, inflightErr, streamStarted)
-		return
+	if !req.IsNativeUtility() {
+		inflightDone, inflightErr := reserveInflightBalance(c, h.billingCacheService, h.gatewayService, apiKey, subscription,
+			service.InflightEstimateRequest{Model: req.Model, BodyBytes: len(body), Kind: service.InflightEstimateImage, Units: req.Samples})
+		if inflightErr != nil {
+			h.novelAIBillingError(c, inflightErr, streamStarted)
+			return
+		}
+		defer inflightDone()
 	}
-	defer inflightDone()
 
 	sessionHash := h.gatewayService.GenerateExplicitSessionHash(c, body)
 	failedAccountIDs := make(map[int64]struct{})
@@ -119,7 +129,7 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 
 	for {
 		selection, _, err := h.gatewayService.SelectAccountWithSchedulerForCapability(c.Request.Context(), apiKey.GroupID, "",
-			sessionHash, req.Model, failedAccountIDs, service.OpenAIUpstreamTransportAny,
+			sessionHash, req.SchedulingModel(), failedAccountIDs, service.OpenAIUpstreamTransportAny,
 			service.OpenAIEndpointCapabilityChatCompletions, false, false, false, service.PlatformNovelAI)
 		if err != nil || selection == nil || selection.Account == nil {
 			if failoverClientGone(c) {
@@ -129,7 +139,7 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 				h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
 				return
 			}
-			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, req.Model, req.Model, service.PlatformNovelAI)
+			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, req.SchedulingModel(), req.SchedulingModel(), service.PlatformNovelAI)
 			markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
 			h.handleStreamingAwareError(c, cls.Status, cls.ErrType, cls.Message, streamStarted)
 			return
@@ -148,6 +158,17 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 			return
 		}
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
+		if req.IsNativeUtility() {
+			inflightDone, inflightErr := h.reserveNovelAINativeCharge(c, apiKey, subscription, account, req)
+			if inflightErr != nil {
+				if accountRelease != nil {
+					accountRelease()
+				}
+				h.novelAIBillingError(c, inflightErr, streamStarted)
+				return
+			}
+			defer inflightDone()
+		}
 
 		writtenBefore := c.Writer.Size()
 		result, err := func() (*service.OpenAIForwardResult, error) {
@@ -158,7 +179,7 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 		}()
 		if err != nil && (result == nil || result.ImageCount == 0) {
 			var failoverErr *service.UpstreamFailoverError
-			if errors.As(err, &failoverErr) && c.Writer.Size() == writtenBefore {
+			if !req.IsNativeUtility() && errors.As(err, &failoverErr) && c.Writer.Size() == writtenBefore {
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account, req.Model, false, nil, err)
 				if failoverClientGone(c) {
 					return
@@ -188,7 +209,7 @@ func (h *OpenAIGatewayHandler) NovelAI(c *gin.Context) {
 				continue
 			}
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account, req.Model, false, nil, err)
-			if !openAIForwardErrorAlreadyCommunicated(c, writtenBefore, err) {
+			if (!req.IsNativeUtility() || !c.Writer.Written()) && !openAIForwardErrorAlreadyCommunicated(c, writtenBefore, err) {
 				h.ensureForwardErrorResponse(c, streamStarted)
 			}
 			reqLog.Warn("novelai.forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))

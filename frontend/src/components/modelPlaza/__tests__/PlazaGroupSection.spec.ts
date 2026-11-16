@@ -3,8 +3,9 @@ import { mount } from '@vue/test-utils'
 import PlazaGroupSection from '../PlazaGroupSection.vue'
 import PlazaModelPricingTable from '../PlazaModelPricingTable.vue'
 import PlazaMediaPricingTable from '../PlazaMediaPricingTable.vue'
+import PlazaNovelAIAddonPricing from '../PlazaNovelAIAddonPricing.vue'
 import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
-import { imageModel, interval, plazaGroup, tokenModel } from './plazaFixtures'
+import { imageModel, interval, novelAIPixelModel, plazaGroup, tokenModel } from './plazaFixtures'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -26,13 +27,57 @@ function ladderModel(tiers: number): PlazaModel {
 function mountSection(overrides: Partial<ModelPlazaGroup> = {}) {
   return mount(PlazaGroupSection, {
     props: { group: plazaGroup({ models: [ladderModel(2)], ...overrides }), priceMode: 'group' },
-    global: { stubs: { GroupBadge: true, Icon: true, PlazaModelPricingTable: true, PlazaMediaPricingTable: true } }
+    global: { stubs: { GroupBadge: true, Icon: true, PlazaModelPricingTable: true, PlazaMediaPricingTable: true, PlazaNovelAIAddonPricing: true } }
   })
 }
 
 const NOTE = 'modelPlaza.detail.longContextDisabledNote'
 
 describe('PlazaGroupSection', () => {
+  it.each(['novelai', 'composite'])('inserts one static NovelAI add-on block directly after the pixel table (%s)', async (platform) => {
+    const wrapper = mountSection({
+      platform,
+      rate_multiplier: 3,
+      image_rate_independent: true,
+      image_rate_multiplier: 2,
+      models: [
+        tokenModel(),
+        novelAIPixelModel([0.05, 0.5, 0.65, 0.8, 0.95]),
+        novelAIPixelModel([0.05, 0.05, 0.05, 0.05, 0.05], 'nai-flat')
+      ]
+    })
+    expect(wrapper.findAllComponents(PlazaNovelAIAddonPricing)).toHaveLength(1)
+    const addon = wrapper.findComponent(PlazaNovelAIAddonPricing)
+    const pixelTable = wrapper.findAllComponents(PlazaMediaPricingTable).find((table) => table.props('kind') === 'resolution')!
+    expect(addon.element.previousElementSibling).toBe(pixelTable.element)
+    expect(addon.props()).toEqual({}) // Static prices are not derived from model/group multipliers.
+    await wrapper.setProps({ priceMode: 'official' })
+    expect(wrapper.findAllComponents(PlazaNovelAIAddonPricing)).toHaveLength(1)
+  })
+
+  it('follows the NovelAI request table when its image tiers all have the same price', () => {
+    const wrapper = mountSection({
+      platform: 'novelai',
+      models: [novelAIPixelModel([0.05, 0.05, 0.05, 0.05, 0.05])]
+    })
+    const media = wrapper.findComponent(PlazaMediaPricingTable)
+    expect(media.props('kind')).toBe('request')
+    expect(wrapper.findComponent(PlazaNovelAIAddonPricing).element.previousElementSibling).toBe(media.element)
+  })
+
+  it('hides add-ons for other providers, an empty group, and NovelAI filtered out of a composite group', async () => {
+    expect(mountSection().findComponent(PlazaNovelAIAddonPricing).exists()).toBe(false)
+    expect(mountSection({ platform: 'novelai', models: [] }).findComponent(PlazaNovelAIAddonPricing).exists()).toBe(false)
+    const otherImage = imageModel('gpt-image-2', { '1K': 0.05, '2K': 0.1 })
+    const wrapper = mountSection({
+      platform: 'composite',
+      models: [otherImage, novelAIPixelModel([0.05, 0.5, 0.65, 0.8, 0.95])]
+    })
+    expect(wrapper.findComponent(PlazaNovelAIAddonPricing).exists()).toBe(true)
+    await wrapper.setProps({ group: plazaGroup({ platform: 'composite', models: [otherImage] }) })
+    expect(wrapper.findComponent(PlazaNovelAIAddonPricing).exists()).toBe(false)
+  })
+
   it('按定价方式拆成多张表：token / 按分辨率 / 按次各一张，价格口径透传', () => {
     const wrapper = mountSection({
       models: [

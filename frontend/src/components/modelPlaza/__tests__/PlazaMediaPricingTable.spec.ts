@@ -28,6 +28,30 @@ const headers = (w: ReturnType<typeof mountTable>) => w.findAll('thead th').map(
 const row = (w: ReturnType<typeof mountTable>, i = 0) => w.findAll('tbody tr')[i].findAll('td').map((td) => td.text())
 
 describe('PlazaMediaPricingTable', () => {
+  it.each(['group', 'official'] as const)('shares media price widths, caps the name column, and scrolls within the table on mobile (%s)', (mode) => {
+    const w = mountTable([novelAIPixelModel([0.05, 0.5, 0.65, 0.8, 0.95])], 'resolution', {}, mode)
+    expect(w.classes()).toEqual(expect.arrayContaining(['max-w-full', 'overflow-x-auto']))
+    expect(w.find('table').classes()).toEqual(expect.arrayContaining(['w-full', 'table-fixed']))
+    expect(w.find('table').element.style.minWidth).toBe(mode === 'group' ? '920px' : '824px')
+    const columns = w.findAll('col')
+    expect(columns).toHaveLength(mode === 'group' ? 8 : 7)
+    expect(columns[0].classes()).toEqual(expect.arrayContaining(['w-56', 'xl:w-60', '2xl:w-[280px]']))
+    expect(columns.slice(1, 7).every((col) => !col.attributes('width') && !col.attributes('class'))).toBe(true)
+    if (mode === 'group') expect(columns[7].classes()).toContain('w-24')
+    // Range boundaries may wrap without truncating or changing the pixel text.
+    expect(w.findAll('thead wbr')).toHaveLength(3)
+    expect(w.find('th[data-tier="1.5MP"]').text()).toBe('1.5MP 1,048,577–1,572,864 modelPlaza.table.pixelUnit')
+  })
+
+  it('keeps narrower request tables compact while accounting for optional columns', async () => {
+    const model = imageModel('gpt-image-2', { '1K': 0.01, '2K': 0.01 })
+    const w = mountTable([model], 'request')
+    expect(w.find('table').element.style.minWidth).toBe('640px')
+    expect(w.findAll('col')).toHaveLength(3)
+    await w.setProps({ priceMode: 'official' })
+    expect(w.findAll('col')).toHaveLength(2)
+  })
+
   it('按分辨率：每档一列，表头写档位分辨率，价格 × 生效倍率；参考图另列', () => {
     const m = imageModel('gpt-image-2', { '1K': 0.05, '2K': 0.1, '4K': 0.15 })
     m.image!.reference_image_price = 0.01

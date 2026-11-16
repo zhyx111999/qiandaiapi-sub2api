@@ -1347,6 +1347,200 @@ func TestAPIKeyAuthBillingInfoSkipsBillingAndSideEffects(t *testing.T) {
 	require.Zero(t, touchCalls)
 }
 
+func TestIsNovelAIMetadataRead(t *testing.T) {
+	for _, path := range []string{
+		"/v1/user/subscription", "/user/subscription",
+		"/v1/ai/generate-image/suggest-tags", "/ai/generate-image/suggest-tags",
+	} {
+		require.True(t, isNovelAIMetadataRead(http.MethodGet, path), path)
+		for _, method := range []string{http.MethodPost, http.MethodHead, http.MethodPut, http.MethodDelete} {
+			require.False(t, isNovelAIMetadataRead(method, path), "%s %s", method, path)
+		}
+		for _, suffix := range []string{"/", "/other", "-other"} {
+			require.False(t, isNovelAIMetadataRead(http.MethodGet, path+suffix), path+suffix)
+		}
+	}
+	for _, path := range []string{"/v1/models", "/models", "/user/profile", "/ai/upscale", "/ai/augment-image", "/ai/encode-vibe", "/ai/generate-image"} {
+		require.False(t, isNovelAIMetadataRead(http.MethodGet, path), path)
+	}
+}
+
+func TestAPIKeyAuthNovelAIMetadataSkipsBillingAndSideEffects(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, runMode := range []string{config.RunModeStandard, config.RunModeSimple} {
+		for _, subscriptionType := range []string{service.SubscriptionTypeStandard, service.SubscriptionTypeSubscription} {
+			for _, multipleGroups := range []bool{false, true} {
+				name := runMode + "/" + subscriptionType
+				if multipleGroups {
+					name += "/multiple_groups"
+				}
+				t.Run(name, func(t *testing.T) {
+					group := &service.Group{ID: 42, Status: service.StatusActive, Hydrated: true,
+						Platform: service.PlatformNovelAI, SubscriptionType: subscriptionType}
+					user := &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive, Balance: 0, Concurrency: 3}
+					key := &service.APIKey{ID: 100, UserID: user.ID, Key: "sk-novelai-metadata-test", Status: service.StatusActive,
+						User: user, GroupID: &group.ID, Group: group}
+					if multipleGroups {
+						key.GroupIDs = []int64{group.ID, 43}
+					}
+					touchCalls, subscriptionCalls := 0, 0
+					repo := &stubApiKeyRepo{
+						getByKey: func(_ context.Context, credential string) (*service.APIKey, error) {
+							if credential != key.Key {
+								return nil, service.ErrAPIKeyNotFound
+							}
+							clone := *key
+							return &clone, nil
+						},
+						updateLastUsed: func(context.Context, int64, time.Time) error {
+							touchCalls++
+							return nil
+						},
+					}
+					subs := &stubUserSubscriptionRepo{getActive: func(context.Context, int64, int64) (*service.UserSubscription, error) {
+						subscriptionCalls++
+						return nil, service.ErrSubscriptionNotFound
+					}}
+					cfg := &config.Config{RunMode: runMode}
+					keys := service.NewAPIKeyService(repo, nil, nil, subs, nil, nil, cfg)
+					subscriptions := service.NewSubscriptionService(nil, subs, nil, nil, cfg)
+					t.Cleanup(subscriptions.Stop)
+					router := gin.New()
+					router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(keys, subscriptions, cfg)))
+					paths := []string{"/v1/user/subscription", "/user/subscription", "/v1/ai/generate-image/suggest-tags", "/ai/generate-image/suggest-tags"}
+					for _, path := range paths {
+						router.GET(path, func(c *gin.Context) {
+							authKey, ok := GetAPIKeyFromContext(c)
+							require.True(t, ok)
+							require.Equal(t, key.ID, authKey.ID)
+							require.Equal(t, group.ID, authKey.Group.ID)
+							_, ok = GetSubscriptionFromContext(c)
+							require.False(t, ok)
+							c.JSON(http.StatusOK, gin.H{"ok": true})
+						})
+					}
+					for _, path := range paths {
+						w := httptest.NewRecorder()
+						req := httptest.NewRequest(http.MethodGet, path+"?prompt=1girl%2C", nil)
+						req.Header.Set("Authorization", "Bearer "+key.Key)
+						router.ServeHTTP(w, req)
+						require.Equal(t, http.StatusOK, w.Code, "%s: %s", path, w.Body.String())
+					}
+					require.Zero(t, subscriptionCalls, "free metadata must not load billing subscriptions")
+					require.Zero(t, touchCalls, "metadata reads must not update generation last-used timestamps")
+				})
+			}
+		}
+	}
+}
+
+func TestAPIKeyAuthNovelAIMetadataRetainsKeyAndIdentityPolicies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, runMode := range []string{config.RunModeStandard, config.RunModeSimple} {
+		for _, tc := range []struct {
+			name       string
+			mutate     func(*service.APIKey)
+			credential string
+			status     int
+			code       string
+		}{
+			{name: "missing", credential: "", status: http.StatusUnauthorized, code: "API_KEY_REQUIRED"},
+			{name: "invalid", credential: "sk-invalid-metadata-test", status: http.StatusUnauthorized, code: "INVALID_API_KEY"},
+			{name: "disabled", mutate: func(k *service.APIKey) { k.Status = service.StatusAPIKeyDisabled }, status: http.StatusUnauthorized, code: "API_KEY_DISABLED"},
+			{name: "expired_status", mutate: func(k *service.APIKey) { k.Status = service.StatusAPIKeyExpired }, status: http.StatusForbidden, code: "API_KEY_EXPIRED"},
+			{name: "expired_time", mutate: func(k *service.APIKey) { expired := time.Now().Add(-time.Hour); k.ExpiresAt = &expired }, status: http.StatusForbidden, code: "API_KEY_EXPIRED"},
+			{name: "quota_status", mutate: func(k *service.APIKey) { k.Status = service.StatusAPIKeyQuotaExhausted }, status: http.StatusTooManyRequests, code: "API_KEY_QUOTA_EXHAUSTED"},
+			{name: "quota_used", mutate: func(k *service.APIKey) { k.Quota, k.QuotaUsed = 1, 1 }, status: http.StatusTooManyRequests, code: "API_KEY_QUOTA_EXHAUSTED"},
+			{name: "inactive_user", mutate: func(k *service.APIKey) { k.User.Status = "disabled" }, status: http.StatusUnauthorized, code: "USER_INACTIVE"},
+			{name: "disabled_group", mutate: func(k *service.APIKey) { k.Group.Status = "disabled" }, status: http.StatusForbidden, code: "GROUP_DISABLED"},
+			{name: "deleted_group", mutate: func(k *service.APIKey) { k.Group = nil }, status: http.StatusForbidden, code: "GROUP_DELETED"},
+			{name: "exclusive_group", mutate: func(k *service.APIKey) { k.Group.IsExclusive = true }, status: http.StatusForbidden, code: "GROUP_NOT_ALLOWED"},
+			{name: "ip_restricted", mutate: func(k *service.APIKey) { k.IPWhitelist = []string{"192.0.2.1"} }, status: http.StatusForbidden, code: "ACCESS_DENIED"},
+		} {
+			t.Run(runMode+"/"+tc.name, func(t *testing.T) {
+				group := &service.Group{ID: 42, Status: service.StatusActive, Hydrated: true, Platform: service.PlatformNovelAI}
+				user := &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive, Balance: 0}
+				key := &service.APIKey{ID: 100, UserID: user.ID, Key: "sk-novelai-policy-test", Status: service.StatusActive,
+					User: user, GroupID: &group.ID, Group: group}
+				credential := tc.credential
+				if tc.mutate != nil {
+					tc.mutate(key)
+					credential = key.Key
+				}
+				repo := &stubApiKeyRepo{getByKey: func(_ context.Context, credential string) (*service.APIKey, error) {
+					if credential != key.Key {
+						return nil, service.ErrAPIKeyNotFound
+					}
+					clone := *key
+					return &clone, nil
+				}}
+				cfg := &config.Config{RunMode: runMode}
+				keys := service.NewAPIKeyService(repo, nil, nil, nil, nil, nil, cfg)
+				router := gin.New()
+				require.NoError(t, router.SetTrustedProxies(nil))
+				router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(keys, nil, cfg)))
+				paths := []string{"/v1/user/subscription", "/user/subscription", "/v1/ai/generate-image/suggest-tags", "/ai/generate-image/suggest-tags"}
+				for _, path := range paths {
+					router.GET(path, func(c *gin.Context) {
+						t.Error("rejected credentials must not reach the metadata handler")
+						c.Status(http.StatusOK)
+					})
+				}
+				for _, path := range paths {
+					req := httptest.NewRequest(http.MethodGet, path, nil)
+					req.RemoteAddr = "198.51.100.2:1234"
+					if credential != "" {
+						req.Header.Set("Authorization", "Bearer "+credential)
+					}
+					w := httptest.NewRecorder()
+					router.ServeHTTP(w, req)
+					require.Equal(t, tc.status, w.Code, "%s: %s", path, w.Body.String())
+					var response ErrorResponse
+					require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+					require.Equal(t, tc.code, response.Code, path)
+				}
+			})
+		}
+	}
+}
+
+func TestAPIKeyAuthNovelAIMetadataExemptionDoesNotCoverBillableRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	user := &service.User{ID: 7, Role: service.RoleUser, Status: service.StatusActive, Balance: 0}
+	key := &service.APIKey{ID: 100, UserID: user.ID, Key: "sk-novelai-billable-test", Status: service.StatusActive, User: user}
+	repo := &stubApiKeyRepo{getByKey: func(context.Context, string) (*service.APIKey, error) { clone := *key; return &clone, nil }}
+	cfg := &config.Config{RunMode: config.RunModeStandard}
+	keys := service.NewAPIKeyService(repo, nil, nil, nil, nil, nil, cfg)
+	for _, tc := range []struct{ method, path string }{
+		{http.MethodPost, "/user/subscription"},
+		{http.MethodPost, "/v1/user/subscription"},
+		{http.MethodPost, "/ai/generate-image/suggest-tags"},
+		{http.MethodPost, "/v1/ai/generate-image/suggest-tags"},
+		{http.MethodGet, "/user/subscription/other"},
+		{http.MethodGet, "/ai/generate-image/suggest-tags/other"},
+		{http.MethodPost, "/ai/upscale"},
+		{http.MethodPost, "/v1/ai/upscale"},
+		{http.MethodPost, "/ai/augment-image"},
+		{http.MethodPost, "/v1/ai/augment-image"},
+		{http.MethodPost, "/ai/encode-vibe"},
+		{http.MethodPost, "/v1/ai/encode-vibe"},
+		{http.MethodPost, "/ai/generate-image"},
+		{http.MethodPost, "/v1/ai/generate-image"},
+	} {
+		t.Run(tc.method+tc.path, func(t *testing.T) {
+			router := gin.New()
+			router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(keys, nil, cfg)))
+			router.Handle(tc.method, tc.path, func(c *gin.Context) { c.Status(http.StatusOK) })
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(tc.method, tc.path, nil)
+			req.Header.Set("Authorization", "Bearer "+key.Key)
+			router.ServeHTTP(w, req)
+			require.Equal(t, http.StatusForbidden, w.Code, w.Body.String())
+			requireAPIKeyAuthError(t, w, "INSUFFICIENT_BALANCE", service.InsufficientUserBalanceMessage)
+		})
+	}
+}
+
 func TestAPIKeyAuthBillingInfoSkipsLastUsedInSimpleMode(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
