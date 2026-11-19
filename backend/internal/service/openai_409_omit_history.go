@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -39,6 +40,9 @@ func (s *OpenAIGatewayService) TryOmitOpenAI409History(ctx context.Context, c *g
 }
 
 func (s *OpenAIGatewayService) TryRebuildOpenAI409History(ctx context.Context, c *gin.Context, body []byte, session, model string, cause error) (context.Context, []byte, bool, error) {
+	if s.openAILegacyCompatibility() {
+		return ctx, body, false, nil
+	}
 	var refusal *OpenAIAgentRecoveryError
 	if !errors.As(cause, &refusal) {
 		return ctx, body, false, nil
@@ -57,14 +61,41 @@ func (s *OpenAIGatewayService) TryRebuildOpenAI409History(ctx context.Context, c
 	if r.lookupErr != nil {
 		return ctx, body, false, r.lookupErr
 	}
-	if r.conflict || (r.owner != nil && (r.owner.pending != "" || r.owner.failed || r.owner.conflicted)) {
-		return ctx, body, false, openAIAgentRecoveryError("owner_conflict")
+	if r.conflict {
+		return ctx, body, false, openAIRecoveryDiagnosticError("owner_conflict", r.diagnostics.subreason, r)
+	}
+	if r.owner != nil && (r.owner.pending != "" || r.owner.failed || r.owner.conflicted) {
+		return ctx, body, false, openAIRecoveryDiagnosticError("owner_conflict", openAIRecoveryOwnerDetail(*r.owner, true), r)
+	}
+	_, websocket := ctx.Value(openAIWSAgentRecoveryRetryKey{}).(*atomic.Bool)
+	mixedWS := websocket && r.mixedOwners
+	if mixedWS && !r.hasCompletedMixedOwners() {
+		return ctx, body, false, openAIRecoveryDiagnosticError("owner_conflict", "owner_delivery_unknown", r)
+	}
+	if mixedWS {
+		for _, item := range gjson.GetBytes(body, "input").Array() {
+			kind := item.Get("type").String()
+			if (kind == "function_call_output" || kind == "custom_tool_call_output") && !openAIReadableShadowTextOnly(item.Get("output")) {
+				return ctx, body, false, openAIRecoveryDiagnosticError("readable_history_unsupported", "tool_history_unsupported", r)
+			}
+		}
 	}
 	if len(r.items) == 0 && !openAI409HasProviderState(body) {
 		return ctx, body, false, nil
 	}
 	if !openAI409HasReadableIntent(body) {
-		return ctx, body, false, openAIAgentRecoveryError("readable_intent_missing")
+		return ctx, body, false, openAIRecoveryDiagnosticError("readable_intent_missing", "readable_intent_missing", r)
+	}
+	if websocket {
+		if err := s.verifyOpenAIToolInputs(ctx, r, body); err != nil {
+			return ctx, body, false, err
+		}
+	} else {
+		// HTTP discovery recovery needs the same actually delivered call and
+		// catalog receipt. Ordinary function/custom HTTP behavior is unchanged.
+		if err := s.verifyOpenAIToolInputProofs(ctx, r, body, true); err != nil {
+			return ctx, body, false, err
+		}
 	}
 	clean, changed := omitOpenAIHistoricalCiphertext(body)
 	if ctx.Err() != nil {
@@ -81,6 +112,16 @@ func (s *OpenAIGatewayService) TryRebuildOpenAI409History(ctx context.Context, c
 	if err != nil {
 		return ctx, body, false, openAIAgentRecoveryError("readable_history_unsupported")
 	}
+	if mixedWS {
+		if _, detail := inspectOpenAIWSCompletedTools(body); detail != "" {
+			return ctx, body, false, openAIRecoveryDiagnosticError("owner_conflict", detail, r)
+		}
+		clean, err = projectOpenAIWSCompletedTools(clean)
+		if err != nil {
+			return ctx, body, false, withOpenAIRecoveryDiagnostics(err, r, "tool_history_unsupported")
+		}
+		r.requireCompletedOwners = true
+	}
 	fresh := context.WithValue(ctx, openAIGuardianParentAffinityContextKey{}, openAIGuardianParentAffinity{})
 	next := s.WithOpenAIAgentMessageRecovery(WithOpenAIEncryptedReasoningAffinity(fresh, clean), c, clean, session, model)
 	request := openAIAgentRecoveryFromContext(next)
@@ -89,14 +130,37 @@ func (s *OpenAIGatewayService) TryRebuildOpenAI409History(ctx context.Context, c
 	request.omittedHistory = true
 	request.inputDigest = openAIAgentRecoveryInputDigest(clean)
 	request.replayControlsDigest = openAI409ControlsDigest(clean)
+	request.controlFingerprints = openAI409FingerprintControls(clean)
 	request.omittedSource = r
+	request.toolProofs = r.toolProofs
 	return next, clean, true, nil
 }
 
 // Provider state and mixed completed producers cannot be forwarded as one new
 // account's conversation. Rebuild before selection, after all item fences were
 // read. A healthy single producer without pointers retains ordinary routing.
-func (s *OpenAIGatewayService) PrepareOpenAI409ReadableContinuation(ctx context.Context, c *gin.Context, body []byte, session, model string) (context.Context, []byte, bool, error) {
+func (s *OpenAIGatewayService) PrepareOpenAI409ReadableContinuation(ctx context.Context, c *gin.Context, body []byte, session, model string) (nextCtx context.Context, nextBody []byte, changed bool, resultErr error) {
+	if s.openAILegacyCompatibility() {
+		return ctx, body, false, nil
+	}
+	if next, clean, changed := s.PrepareOpenAILossyHistoryRestart(ctx, c, body, session, model); changed {
+		return next, clean, true, nil
+	}
+	defer func() {
+		if _, ws := ctx.Value(openAIWSAgentRecoveryRetryKey{}).(*atomic.Bool); ws && resultErr != nil {
+			// Some protocol counterexamples restore the pre-policy WS file.
+			// Keep that historical implementation buildable without injecting
+			// the candidate recovery algorithm into its RED baseline.
+			if restarter, available := any(s).(interface {
+				restartOpenAIWSClientReadableHistory(context.Context, *gin.Context, []byte, string, string, error) (context.Context, []byte, bool)
+			}); available {
+				if next, clean, ok := restarter.restartOpenAIWSClientReadableHistory(ctx, c, body, session, model, resultErr); ok {
+					nextCtx, nextBody, changed, resultErr = next, clean, true, nil
+				}
+			}
+		}
+	}()
+
 	r := openAIAgentRecoveryFromContext(ctx)
 	if r == nil {
 		return ctx, body, false, nil
@@ -118,6 +182,22 @@ func (s *OpenAIGatewayService) PrepareOpenAI409ReadableContinuation(ctx context.
 // It may only be discarded, under the explicit Beta policy, in favor of the
 // caller's own readable task. Existing foreign ownership/store failures deny.
 func (s *OpenAIGatewayService) CanDiscardOpenAI409ResponsePointer(ctx context.Context, body []byte, groupID int64, responseID string) bool {
+	if s.openAILegacyCompatibility() {
+		return false
+	}
+	if s != nil && s.settingService != nil {
+		policy, ok := any(s.cfg).(interface{ OpenAILossyHistoryRestartEnabled() bool })
+		if ok && policy.OpenAILossyHistoryRestartEnabled() && utf8.Valid(body) && openAIEncryptedJSONUnambiguous(body) &&
+			s.settingService.IsOpenAI409OmitEncryptedHistoryEnabled(ctx) {
+			// This grants only permission to discard the pointer. The handler
+			// requires a successful rebuild and verifies its removal from both
+			// body copies before dispatch; no foreign response is consumed.
+			_, changed := discardOpenAIProviderHistory(body)
+			if changed {
+				return true
+			}
+		}
+	}
 	if s == nil || s.settingService == nil || !openAI409HasReadableIntent(body) || !s.settingService.IsOpenAI409OmitEncryptedHistoryEnabled(ctx) {
 		return false
 	}
@@ -504,19 +584,78 @@ func openAI409ControlsDigest(raw []byte) [32]byte {
 	return sha256.Sum256(canonical)
 }
 
+type openAI409ControlFingerprints struct {
+	values   [4][32]byte
+	observed [4]bool
+}
+
+var openAI409ControlFields = [...]string{"tools", "tool_choice", "parallel_tool_calls", "instructions"}
+
+func openAI409FingerprintControls(raw []byte) openAI409ControlFingerprints {
+	var fingerprints openAI409ControlFingerprints
+	for i, field := range openAI409ControlFields {
+		value := gjson.GetBytes(raw, field)
+		var encoded []byte
+		if !value.Exists() {
+			encoded, _ = json.Marshal([]any{false})
+		} else {
+			decoder := json.NewDecoder(strings.NewReader(value.Raw))
+			decoder.UseNumber()
+			var decoded any
+			if decoder.Decode(&decoded) != nil {
+				continue
+			}
+			encoded, _ = json.Marshal([]any{true, decoded})
+		}
+		if encoded == nil {
+			continue
+		}
+		fingerprints.values[i] = sha256.Sum256(encoded)
+		fingerprints.observed[i] = true
+	}
+	return fingerprints
+}
+
+func openAI409ControlDiagnostic(raw []byte, expected openAI409ControlFingerprints, source string, digestChanged, previousResponsePresent, conversationPresent bool) OpsRecoveryControls {
+	actual := openAI409FingerprintControls(raw)
+	checks := [4]string{}
+	complete := true
+	for i := range openAI409ControlFields {
+		switch {
+		case !expected.observed[i] || !actual.observed[i]:
+			checks[i] = "unknown"
+			complete = false
+		case expected.values[i] != actual.values[i]:
+			checks[i] = "changed"
+		default:
+			checks[i] = "match"
+		}
+	}
+	observation := "complete"
+	if !complete {
+		observation = "partial"
+	}
+	return OpsRecoveryControls{
+		Observation: observation, Snapshot: source,
+		Tools: checks[0], ToolChoice: checks[1], ParallelToolCalls: checks[2], Instructions: checks[3],
+		DigestChanged: digestChanged, PreviousResponseIDPresent: previousResponsePresent, ConversationPresent: conversationPresent,
+	}
+}
+
 func prepareOpenAI409APIKeyReplay(ctx context.Context, body []byte, responsesLite bool) ([]byte, error) {
 	r := openAIAgentRecoveryFromContext(ctx)
 	if r == nil || !r.omittedHistory {
 		return body, nil
 	}
-	if openAIAgentRecoveryInputDigest(body) != r.inputDigest || openAI409ControlsDigest(body) != r.replayControlsDigest {
-		return nil, openAIRecoveryWireRefusal(ctx, "apikey_projection_source")
+	if err := checkOpenAIRecoveryProjectionSource(ctx, "apikey_projection_source", body, r); err != nil {
+		return nil, err
 	}
 	prepared, _, err := normalizeOpenAIParallelToolCallsWithoutTools(body, responsesLite)
 	if err != nil {
 		return nil, err
 	}
 	r.apiControlsDigest = openAI409ControlsDigest(prepared)
+	r.apiFingerprints = openAI409FingerprintControls(prepared)
 	r.apiInputDigest = openAIAgentRecoveryInputDigest(prepared)
 	r.apiReplayPrepared = true
 	return prepared, nil
@@ -536,8 +675,8 @@ func prepareOpenAI409OAuthReplay(ctx context.Context, c *gin.Context, body map[s
 	if err != nil {
 		return err
 	}
-	if openAIAgentRecoveryInputDigest(before) != r.inputDigest || openAI409ControlsDigest(before) != r.replayControlsDigest {
-		return openAIRecoveryWireRefusal(ctx, "oauth_projection_source")
+	if err := checkOpenAIRecoveryProjectionSource(ctx, "oauth_projection_source", before, r); err != nil {
+		return err
 	}
 	// ChatGPT rejects this output-only metadata. Normalize before freezing the
 	// OAuth representation; the later ordinary transform must be idempotent.
@@ -561,6 +700,7 @@ func prepareOpenAI409OAuthReplay(ctx context.Context, c *gin.Context, body map[s
 	// Only this narrowly derived OAuth expectation is used at its final send.
 	r.oauthInputDigest = openAIAgentRecoveryInputDigest(prepared)
 	r.oauthControlsDigest = openAI409ControlsDigest(prepared)
+	r.oauthFingerprints = openAI409FingerprintControls(prepared)
 	r.oauthReplayPrepared = true
 	return nil
 }
@@ -576,9 +716,39 @@ func openAI409UsesNativeAPIKey(ctx context.Context, account *Account) bool {
 		(r.omittedHistory || (r.ownerBindingRequired() && r.owner.accountID == account.ID))
 }
 
-func openAIRecoveryWireRefusal(ctx context.Context, stage string) error {
-	logger.FromContext(ctx).Warn("openai.encrypted_history_409_refused", zap.String("stage", stage))
-	return openAIAgentRecoveryError("wire_changed")
+func openAIRecoveryWireRefusal(ctx context.Context, stage string, details ...zap.Field) error {
+	fields := append([]zap.Field{zap.String("stage", stage)}, details...)
+	logger.FromContext(ctx).Warn("openai.encrypted_history_409_refused", fields...)
+	return openAIRecoveryDiagnosticError("wire_changed", stage, openAIAgentRecoveryFromContext(ctx))
+}
+
+func openAIRecoveryControlsWireRefusal(ctx context.Context, report OpsRecoveryControls) error {
+	logger.FromContext(ctx).Warn("openai.encrypted_history_409_refused",
+		zap.String("stage", "controls_integrity"),
+		zap.String("controls_observation", report.Observation), zap.String("controls_snapshot", report.Snapshot),
+		zap.String("tools", report.Tools), zap.String("tool_choice", report.ToolChoice),
+		zap.String("parallel_tool_calls", report.ParallelToolCalls), zap.String("instructions", report.Instructions),
+		zap.Bool("controls_digest_changed", report.DigestChanged),
+		zap.Bool("previous_response_id_present", report.PreviousResponseIDPresent),
+		zap.Bool("conversation_present", report.ConversationPresent))
+	err := openAIRecoveryDiagnosticError("wire_changed", "controls_integrity", openAIAgentRecoveryFromContext(ctx))
+	if recovery, ok := err.(*OpenAIAgentRecoveryError); ok {
+		diagnostic := *recovery.diagnostic
+		diagnostic.controls = &report
+		recovery.diagnostic = &diagnostic
+	}
+	return err
+}
+
+func checkOpenAIRecoveryProjectionSource(ctx context.Context, stage string, body []byte, r *openAIAgentRecoveryRequest) error {
+	inputChanged := openAIAgentRecoveryInputDigest(body) != r.inputDigest
+	controlsChanged := openAI409ControlsDigest(body) != r.replayControlsDigest
+	if !inputChanged && !controlsChanged {
+		return nil
+	}
+	// Fixed metadata only. Do not log the input, tools, instructions or digests.
+	return openAIRecoveryWireRefusal(ctx, stage,
+		zap.Bool("input_changed", inputChanged), zap.Bool("controls_changed", controlsChanged))
 }
 
 // Derive the HTTP representation only from the verified readable snapshot,
@@ -590,11 +760,17 @@ func (s *OpenAIGatewayService) prepareOpenAI409HTTPProjection(ctx context.Contex
 	if r == nil || !r.omittedHistory {
 		return ctx, body, nil
 	}
-	if openAIAgentRecoveryInputDigest(body) != r.inputDigest || openAI409ControlsDigest(body) != r.replayControlsDigest {
-		return ctx, body, openAIRecoveryWireRefusal(ctx, "http_projection_source")
+	if err := checkOpenAIRecoveryProjectionSource(ctx, "http_projection_source", body, r); err != nil {
+		return ctx, body, err
 	}
 	clean := s.normalizeRequestTimezone(ctx, account, body, "http")
 	var err error
+	if account.IsOpenAIOAuthLike() {
+		clean, _, err = stripOpenAICodexUnsupportedWebSearchFields(clean)
+		if err != nil {
+			return ctx, body, err
+		}
+	}
 	clean, _, err = normalizeOpenAIResponsesLegacyIngressWithConfig(s.cfg, clean)
 	if err != nil {
 		return ctx, body, err
@@ -628,9 +804,14 @@ func (s *OpenAIGatewayService) prepareOpenAI409HTTPProjection(ctx context.Contex
 			}
 		}
 	}
+	clean, err = s.projectOpenAI409ImageControls(ctx, c, account, clean)
+	if err != nil {
+		return ctx, body, err
+	}
 	snapshot := *r
 	snapshot.inputDigest = openAIAgentRecoveryInputDigest(clean)
 	snapshot.replayControlsDigest = openAI409ControlsDigest(clean)
+	snapshot.controlFingerprints = openAI409FingerprintControls(clean)
 	snapshot.apiReplayPrepared, snapshot.oauthReplayPrepared = false, false
 	return context.WithValue(ctx, openAIAgentRecoveryContextKey{}, &snapshot), clean, nil
 }

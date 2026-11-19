@@ -52,13 +52,6 @@
                   class="absolute right-2 top-2 z-10"
                 />
                 <NewFeatureBadge
-                  v-if="tab.key === 'email'"
-                  :notice-id="NEW_FEATURE_NOTICES.balanceForecast"
-                  :user-id="authStore.user?.id"
-                  compact
-                  class="absolute right-2 top-2 z-10"
-                />
-                <NewFeatureBadge
                   v-if="tab.key === 'gateway'"
                   :notice-id="NEW_FEATURE_NOTICES.openai409OmitEncryptedHistory"
                   :user-id="authStore.user?.id"
@@ -4669,9 +4662,8 @@
             <div class="p-6 space-y-4">
                 <RequestTimezoneSettings v-model="form.openai_request_timezone_enabled" v-model:auto="form.openai_request_timezone_auto" />
                 <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600" data-testid="codex-management-links">
-                  <p class="text-sm text-gray-500 dark:text-gray-400">{{ localText('自动打票、模型与票据策略在「打票全流程」管理；采票出口、订阅与节点在「IP 管理」管理。', 'Manage automatic harvesting, models and ticket policies in Harvest Flow; manage exits, subscriptions and nodes in IP Management.') }}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">{{ localText('采票出口、订阅与节点在「IP 管理」管理。', 'Manage exits, subscriptions and nodes in IP Management.') }}</p>
                   <div class="mt-3 flex flex-wrap gap-2">
-                    <router-link to="/admin/harvest-flow" class="btn btn-secondary btn-sm">{{ t('nav.harvestFlow') }}</router-link>
                     <router-link to="/admin/proxies#harvest" class="btn btn-secondary btn-sm">{{ localText('IP 管理', 'IP Management') }}</router-link>
                   </div>
                 </div>
@@ -9354,13 +9346,6 @@
 
           <EmailTemplateEditor />
 
-          <BalanceForecastSettings
-            v-model:enabled="form.balance_forecast_enabled"
-            v-model:threshold-hours="form.balance_forecast_threshold_hours"
-            v-model:max-notifications="form.balance_forecast_max_notifications"
-            :user-id="authStore.user?.id"
-          />
-
           <!-- Balance Low Notification -->
           <div class="card">
             <div
@@ -9676,7 +9661,6 @@ import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiErro
 import { useAppStore, useAuthStore } from "@/stores";
 import { formatBalanceRechargeMultiplier } from "@/utils/rechargeBonus";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
-import BalanceForecastSettings from "@/components/settings/BalanceForecastSettings.vue";
 import SmartOpsSidebarSettings from "@/components/settings/SmartOpsSidebarSettings.vue";
 import NewFeatureBadge from "@/components/common/NewFeatureBadge.vue";
 import GroupSelector from "@/components/common/GroupSelector.vue";
@@ -10689,9 +10673,6 @@ const form = reactive<SettingsForm>({
   codex_cli_only_allow_app_server_clients: false,
   codex_cli_only_engine_fingerprint_signals: "",
   // 余额、订阅到期与账号限额通知
-  balance_forecast_enabled: false,
-  balance_forecast_threshold_hours: 12,
-  balance_forecast_max_notifications: 3,
   balance_low_notify_enabled: false,
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: "",
@@ -11727,9 +11708,6 @@ async function loadSettings() {
   try {
     const settings = await adminAPI.settings.getSettings();
     savedPaymentFeeRate.value = settings.payment_recharge_fee_rate ?? 0;
-    settings.balance_forecast_enabled ??= false;
-    settings.balance_forecast_threshold_hours ??= 12;
-    settings.balance_forecast_max_notifications ??= 3;
     settings.payment_load_balance_strategy =
       settings.payment_load_balance_strategy || "round-robin";
     // Only assign non-null values from backend (null means unconfigured, keep defaults)
@@ -12009,10 +11987,6 @@ const siteBillingModeHint = computed(() =>
 );
 
 async function saveSettings() {
-  if (!Number.isFinite(form.balance_forecast_threshold_hours) || form.balance_forecast_threshold_hours <= 0 || form.balance_forecast_threshold_hours > 168 || !Number.isInteger(form.balance_forecast_max_notifications) || form.balance_forecast_max_notifications < 1 || form.balance_forecast_max_notifications > 10) {
-    appStore.showError(t('admin.settings.balanceForecast.invalid'));
-    return;
-  }
   saving.value = true;
   try {
     const imageBaseUrl = form.excel_bps_image_base_url.trim();
@@ -12521,9 +12495,6 @@ async function saveSettings() {
       openai_advanced_scheduler_weight_session_sticky:
         form.openai_advanced_scheduler_weight_session_sticky.trim(),
       // 余额、订阅到期与账号限额通知
-      balance_forecast_enabled: form.balance_forecast_enabled,
-      balance_forecast_threshold_hours: form.balance_forecast_threshold_hours,
-      balance_forecast_max_notifications: form.balance_forecast_max_notifications,
       balance_low_notify_enabled: form.balance_low_notify_enabled,
       balance_low_notify_threshold:
         Number(form.balance_low_notify_threshold) || 0,

@@ -143,6 +143,7 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 			return nil, infraerrors.ServiceUnavailable("AUTO_CREDIT_UNAVAILABLE", "Credit authorization unavailable")
 		}
 	}
+	balanceDenied := false
 	accepts := func(candidate *service.APIKey) bool {
 		group := candidate.Group
 		if nativeUtility {
@@ -165,9 +166,6 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 		// selector send healthy conversations there. Forced penalties returned
 		// above already passed the normal target authorization checks.
 		if penaltyConfig.Applies(key.UserID) && !penaltyConfig.ObserveOnly && penaltyConfig.Policy == "session_route_then_block" && penaltyConfig.TargetGroupID != nil && group.ID == *penaltyConfig.TargetGroupID {
-			return false
-		}
-		if checkBilling && !group.IsSubscriptionType() && groupBalanceNeedsRecovery(candidate.User.Balance, cfg) && !canRecoverBalance {
 			return false
 		}
 		if google && !groupAllowsGooglePlatform(path, group) {
@@ -206,6 +204,12 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 				return false
 			}
 		}
+		// Report balance only after this group passes every request policy.
+		// A forbidden model/client must not become a misleading top-up prompt.
+		if checkBilling && !group.IsSubscriptionType() && groupBalanceNeedsRecovery(candidate.User.Balance, cfg) && !canRecoverBalance {
+			balanceDenied = true
+			return false
+		}
 		return true
 	}
 	ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, key.UserID)
@@ -242,6 +246,9 @@ func selectAPIKeyRequestGroup(c *gin.Context, keys *service.APIKeyService, subsc
 	}
 	selected, err := keys.SelectRequestGroup(ctx, key, schedulingModels, kind, subscriptions, accepts, checkBilling)
 	if err != nil {
+		if balanceDenied && infraerrors.Reason(err) == "NO_ELIGIBLE_API_KEY_GROUP" {
+			err = infraerrors.Forbidden("INSUFFICIENT_BALANCE", service.InsufficientUserBalanceMessage)
+		}
 		status := infraerrors.Code(err)
 		message, reason := infraerrors.Message(err), infraerrors.Reason(err)
 		if status >= 500 {

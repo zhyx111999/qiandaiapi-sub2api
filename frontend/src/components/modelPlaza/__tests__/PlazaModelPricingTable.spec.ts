@@ -23,6 +23,24 @@ function cells(wrapper: ReturnType<typeof mountTable>, row = 0): string[] {
 }
 
 describe('PlazaModelPricingTable', () => {
+  it('displays the final image floor only for group token prices, without multiplying it by a discount', () => {
+    const model = tokenModel({ name: 'gpt-image-2', platform: 'openai' })
+    model.pricing!.image_minimum_charge = 0.01
+    const group = { rate_multiplier: 0.2, user_rate_multiplier: 0.01 }
+    const wrapper = mountTable([model], group)
+    const badge = wrapper.get('[data-image-minimum-charge]')
+    expect(badge.text()).toBe('imageUsage.minimumBadge:{"amount":0.01}')
+    expect(badge.attributes('title')).toBe('imageUsage.minimumHelp')
+    wrapper.unmount()
+    const official = mountTable([model], group, 'official')
+    expect(official.find('[data-image-minimum-charge]').exists()).toBe(false)
+    official.unmount()
+    model.pricing!.billing_mode = 'image'
+    const image = mountTable([model], group)
+    expect(image.find('[data-image-minimum-charge]').exists()).toBe(false)
+    image.unmount()
+  })
+
   it.each(['group', 'official'] as const)('distributes price columns across the full width with local mobile scrolling (%s)', (mode) => {
     const wrapper = mountTable([tokenModel()], {}, mode)
     expect(wrapper.classes()).toContain('overflow-x-auto')

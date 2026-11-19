@@ -45,6 +45,12 @@
                 {{ platformLabel(m.platform) }}
               </span>
               <span v-if="m.image" class="plaza-badge">{{ t('modelPlaza.table.imageModel') }}</span>
+              <span
+                v-if="!isOfficial && (m.pricing?.billing_mode ?? BILLING_MODE_TOKEN) === BILLING_MODE_TOKEN && (m.pricing?.image_minimum_charge ?? 0) > 0"
+                class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+                data-image-minimum-charge
+                :title="t('imageUsage.minimumHelp')"
+              >{{ t('imageUsage.minimumBadge', { amount: m.pricing?.image_minimum_charge }) }}</span>
               <span v-if="m.long_context_basis === 'marginal'" class="plaza-badge" :title="t('modelPlaza.table.tierHintMarginal')">
                 {{ t('modelPlaza.table.marginalBadge') }}
               </span>
@@ -134,7 +140,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { resolveIntervalPrices } from '@/utils/pricing'
 import { platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
-import { REASONING_EFFORT_LEVELS } from '@/constants/channel'
+import { BILLING_MODE_TOKEN, REASONING_EFFORT_LEVELS } from '@/constants/channel'
 import type { ModelPlazaGroup, PlazaModel, PlazaTimePricingPeriod } from '@/api/modelPlaza'
 import type { UserPricingInterval } from '@/api/channels'
 import PlazaModelName from './PlazaModelName.vue'

@@ -916,7 +916,7 @@ func TestAPIContracts(t *testing.T) {
 					"excel_bps_image_budget_mib": 1024,
 					"excel_bps_image_max_requests": 128,
 					"excel_bps_image_max_images": 20,
- "smart_ops_hidden_menu_items": ["/admin/lottery","/admin/channel-operations","/admin/controlled-experiments","/admin/account-ops","/admin/token-guard","/admin/group-cache-tests","/admin/request-captures","/admin/harvest-flow"],
+ "smart_ops_hidden_menu_items": ["/admin/lottery","/admin/qqbot/overview","/admin/channel-operations","/admin/controlled-experiments","/admin/account-ops","/admin/group-cache-tests","/admin/request-captures"],
  "request_capture_enabled": false,
  "request_capture_quota_mib": 1024,
  "request_capture_retention_days": 7,
@@ -1045,9 +1045,6 @@ func TestAPIContracts(t *testing.T) {
 					"payment_cancel_rate_limit_window_mode": "",
 					"payment_alipay_force_qrcode": false,
 					"payment_alipay_mobile_precreate_deep_link": false,
-					"balance_forecast_enabled": false,
-					"balance_forecast_threshold_hours": 12,
-					"balance_forecast_max_notifications": 3,
 					"balance_low_notify_enabled": false,
 					"account_quota_notify_enabled": false,
 					"account_scheduling_thresholds": {"anthropic":100,"grok":100,"openai":100},
@@ -1306,7 +1303,7 @@ func TestAPIContracts(t *testing.T) {
 					"excel_bps_image_budget_mib": 1024,
 					"excel_bps_image_max_requests": 128,
 					"excel_bps_image_max_images": 20,
- "smart_ops_hidden_menu_items": ["/admin/lottery","/admin/channel-operations","/admin/controlled-experiments","/admin/account-ops","/admin/token-guard","/admin/group-cache-tests","/admin/request-captures","/admin/harvest-flow"],
+ "smart_ops_hidden_menu_items": ["/admin/lottery","/admin/qqbot/overview","/admin/channel-operations","/admin/controlled-experiments","/admin/account-ops","/admin/group-cache-tests","/admin/request-captures"],
  "request_capture_enabled": false,
  "request_capture_quota_mib": 1024,
  "request_capture_retention_days": 7,
@@ -1424,9 +1421,6 @@ func TestAPIContracts(t *testing.T) {
 					"payment_cancel_rate_limit_window_mode": "",
 					"payment_alipay_force_qrcode": false,
 					"payment_alipay_mobile_precreate_deep_link": false,
-					"balance_forecast_enabled": false,
-					"balance_forecast_threshold_hours": 12,
-					"balance_forecast_max_notifications": 3,
 					"balance_low_notify_enabled": false,
 					"account_quota_notify_enabled": false,
 					"account_scheduling_thresholds": {"anthropic":100,"grok":100,"openai":100},
@@ -2179,6 +2173,10 @@ func (s *stubAccountRepo) ClearAntigravityQuotaScopes(ctx context.Context, id in
 }
 
 func (s *stubAccountRepo) ClearModelRateLimits(ctx context.Context, id int64) error {
+	return errors.New("not implemented")
+}
+
+func (s *stubAccountRepo) ClearModelRateLimit(ctx context.Context, id int64, scope string) error {
 	return errors.New("not implemented")
 }
 

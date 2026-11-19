@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -138,6 +139,13 @@ func newAccountRepositoryWithSQL(client *dbent.Client, sqlq sqlExecutor, schedul
 func (r *accountRepository) Create(ctx context.Context, account *service.Account) error {
 	if scoped := r.accountTransactionScope(ctx); scoped != r {
 		return scoped.Create(ctx, account)
+	}
+	if account != nil && account.InitialAPIKeyDisposition != nil {
+		groups := make([]service.AccountGroup, 0, len(account.GroupIDs))
+		for _, id := range account.GroupIDs {
+			groups = append(groups, service.AccountGroup{GroupID: id, Priority: 50})
+		}
+		return r.CreateWithAccountGroups(ctx, account, groups)
 	}
 	client := r.client
 	var tx *dbent.Tx
@@ -308,6 +316,9 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 // CreateWithAccountGroups atomically persists an account, its exact per-group priorities,
 // and the scheduler outbox event used to publish the new routing snapshot.
 func (r *accountRepository) CreateWithAccountGroups(ctx context.Context, account *service.Account, groups []service.AccountGroup) error {
+	if scoped := r.accountTransactionScope(ctx); scoped != r {
+		return scoped.CreateWithAccountGroups(ctx, account, groups)
+	}
 	if account == nil {
 		return service.ErrAccountNilInput
 	}
@@ -350,6 +361,11 @@ func (r *accountRepository) CreateWithAccountGroups(ctx context.Context, account
 			builders = append(builders, builder)
 		}
 		if _, err := txClient.AccountGroup.CreateBulk(builders...).Save(ctx); err != nil {
+			return err
+		}
+	}
+	if policy := account.InitialAPIKeyDisposition; policy != nil && policy.Enabled && account.Type == service.AccountTypeOAuth {
+		if err := accounttimer.ScheduleOAuthDisposition(ctx, txClient, account.ID, account.Platform, *policy, time.Now().UTC()); err != nil {
 			return err
 		}
 	}
@@ -619,6 +635,10 @@ func (r *accountRepository) updateAccount(
 	account.Schedulable = updated.Schedulable
 	account.Status = updated.Status
 	account.ErrorMessage = derefString(updated.ErrorMessage)
+	if account.IsGrokOAuth() && !service.AccountPlatformChanging(ctx) {
+		account.RateLimitedAt = updated.RateLimitedAt
+		account.RateLimitResetAt = updated.RateLimitResetAt
+	}
 	// 普通账号编辑（如 model_mapping / credentials）也需要立即刷新单账号快照，
 	// 否则网关在 outbox worker 延迟或异常时仍可能读到旧配置。
 	if contextTx == nil {
@@ -700,15 +720,21 @@ func (r *accountRepository) updateLockedAccount(
 	} else {
 		builder.ClearExpiresAt()
 	}
-	if account.RateLimitedAt != nil {
-		builder.SetRateLimitedAt(*account.RateLimitedAt)
-	} else {
-		builder.ClearRateLimitedAt()
-	}
-	if account.RateLimitResetAt != nil {
-		builder.SetRateLimitResetAt(*account.RateLimitResetAt)
-	} else {
-		builder.ClearRateLimitResetAt()
+	// Ordinary Grok OAuth configuration edits do not own runtime generations.
+	// The row is locked and its history was merged above; leave the matching
+	// timestamps in that row intact. Explicit runtime setters/clears and platform
+	// transitions retain their separate write paths.
+	if !account.IsGrokOAuth() || service.AccountPlatformChanging(ctx) {
+		if account.RateLimitedAt != nil {
+			builder.SetRateLimitedAt(*account.RateLimitedAt)
+		} else {
+			builder.ClearRateLimitedAt()
+		}
+		if account.RateLimitResetAt != nil {
+			builder.SetRateLimitResetAt(*account.RateLimitResetAt)
+		} else {
+			builder.ClearRateLimitResetAt()
+		}
 	}
 	if account.OverloadUntil != nil {
 		builder.SetOverloadUntil(*account.OverloadUntil)
@@ -1063,7 +1089,7 @@ func lockAndMergeAccountProbeExtra(
 	// The fork already reads the complete extra object under this row lock for
 	// ticket, quality and admission ownership. Use that same snapshot for Grok
 	// managed state, preserving the other owners and the query contract.
-	for _, key := range []string{"grok_observed_models", service.UpstreamModelMetadataExtraKey, service.UpstreamModelSyncExtraKey} {
+	for _, key := range []string{"grok_observed_models", service.GrokRateLimitHistoryExtraKey, service.UpstreamModelMetadataExtraKey, service.UpstreamModelSyncExtraKey} {
 		delete(extra, key)
 		if value, ok := currentExtra[key]; ok && value != nil {
 			if extra == nil {
@@ -1073,6 +1099,18 @@ func lockAndMergeAccountProbeExtra(
 		}
 	}
 
+	if service.AccountPlatformChanging(ctx) {
+		// Quota accounting is account-wide and uses the latest locked row. Other
+		// old-platform runtime state must not be reintroduced by owner merges.
+		portable := service.AccountPlatformPortableExtra(currentExtra)
+		maps.Copy(portable, account.Extra)
+		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start"} {
+			if value, ok := currentExtra[key]; ok {
+				portable[key] = value
+			}
+		}
+		extra = portable
+	}
 	return extra, nil
 }
 
@@ -1818,9 +1856,37 @@ func (r *accountRepository) BatchUpdateLastUsed(ctx context.Context, updates map
 	caseSQL += " END, updated_at = NOW() WHERE id = ANY($" + itoa(idx) + ") AND deleted_at IS NULL"
 	args = append(args, pq.Array(ids))
 
-	_, err := r.sql.ExecContext(ctx, caseSQL, args...)
+	// 同一事务内先按 id 升序锁定目标行再更新，与计费合并事务锁多个账号行的顺序一致；
+	// 锁强度与更新非键列相同，不阻塞引用 accounts 的外键检查。
+	exec := r.sql
+	var tx *sql.Tx
+	if db, ok := r.sql.(*sql.DB); ok {
+		var err error
+		if tx, err = db.BeginTx(ctx, nil); err != nil {
+			return err
+		}
+		defer func() {
+			if tx != nil {
+				_ = tx.Rollback()
+			}
+		}()
+		exec = tx
+	}
+	rows, err := exec.QueryContext(ctx, "SELECT id FROM accounts WHERE id = ANY($1) AND deleted_at IS NULL ORDER BY id FOR NO KEY UPDATE", pq.Array(ids))
 	if err != nil {
 		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if _, err := exec.ExecContext(ctx, caseSQL, args...); err != nil {
+		return err
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		tx = nil
 	}
 	lastUsedPayload := make(map[string]int64, len(updates))
 	for id, ts := range updates {
@@ -2789,20 +2855,44 @@ func (r *accountRepository) SetRateLimited(ctx context.Context, id int64, resetA
 
 // SetRateLimitedIfLater atomically extends an account-level rate limit. Grok
 // requests may finish concurrently, so an older response must not overwrite a
-// later reset boundary observed by another request or instance.
+// later reset boundary observed by another request or instance. Every Grok OAuth
+// negative also advances the recovery generation, even without extending reset.
 func (r *accountRepository) SetRateLimitedIfLater(ctx context.Context, id int64, resetAt time.Time) error {
+	if scoped := r.accountTransactionScope(ctx); scoped != r {
+		return scoped.SetRateLimitedIfLater(ctx, id, resetAt)
+	}
 	now := time.Now()
-	updated, err := r.client.Account.Update().
-		Where(
-			dbaccount.IDEQ(id),
-			dbaccount.Or(
-				dbaccount.RateLimitResetAtIsNil(),
-				dbaccount.RateLimitResetAtLT(resetAt),
-			),
-		).
-		SetRateLimitedAt(now).
-		SetRateLimitResetAt(resetAt).
-		Save(ctx)
+	// One row update serializes observations across replicas. Using only a Go
+	// clock could repeat a timestamp; advance at least one PostgreSQL microsecond
+	// beyond the locked generation so a deferred positive can never match it.
+	// Keep adaptive cooldown duration separate from the recovery generation.
+	// Lock before deriving either value, and bind history to the exact new pair
+	// so an external clear/re-arm cannot inherit another cooldown's evidence.
+	result, err := r.client.ExecContext(ctx, `WITH observed AS MATERIALIZED (
+ SELECT id,platform,type,rate_limited_at,rate_limit_reset_at,extra FROM accounts
+ WHERE id=$1 AND deleted_at IS NULL AND
+ (rate_limit_reset_at IS NULL OR rate_limit_reset_at<$2 OR (platform='grok' AND type='oauth')) FOR UPDATE
+ ), next AS MATERIALIZED (
+ SELECT *,CASE WHEN platform='grok' AND type='oauth'
+ THEN GREATEST(clock_timestamp(),rate_limited_at+interval '1 microsecond') ELSE $3 END AS generation,
+ GREATEST(rate_limit_reset_at,$2::timestamptz) AS boundary FROM observed
+ ) UPDATE accounts a SET rate_limited_at=n.generation,rate_limit_reset_at=n.boundary,updated_at=$3,
+ extra=CASE WHEN n.platform='grok' AND n.type='oauth' THEN
+ jsonb_set(COALESCE(n.extra,'{}'::jsonb),ARRAY[$4]::text[],jsonb_build_object(
+ 'generation_us',((extract(epoch FROM n.generation)*1000000)::bigint)::text,
+ 'reset_us',((extract(epoch FROM n.boundary)*1000000)::bigint)::text,
+ 'cooldown_us',CASE WHEN n.rate_limited_at IS NOT NULL AND n.rate_limit_reset_at>=$2 THEN
+ CASE WHEN n.extra->$4->>'generation_us'=((extract(epoch FROM n.rate_limited_at)*1000000)::bigint)::text
+ AND n.extra->$4->>'reset_us'=((extract(epoch FROM n.rate_limit_reset_at)*1000000)::bigint)::text
+ AND n.extra->$4->>'cooldown_us' ~ '^[1-9][0-9]{0,15}$'
+ THEN n.extra->$4->>'cooldown_us'
+ ELSE ((extract(epoch FROM (n.rate_limit_reset_at-n.rate_limited_at))*1000000)::bigint)::text END
+ ELSE ((extract(epoch FROM (n.boundary-n.generation))*1000000)::bigint)::text END),true)
+ ELSE n.extra END FROM next n WHERE a.id=n.id`, id, resetAt, now, service.GrokRateLimitHistoryExtraKey)
+	if err != nil {
+		return err
+	}
+	updated, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
@@ -3164,8 +3254,11 @@ func (r *accountRepository) UpdateSessionWindow(ctx context.Context, id int64, s
 }
 
 func (r *accountRepository) UpdateSessionWindowEnd(ctx context.Context, id int64, end time.Time) error {
+	// Active five-hour quota reads must advance both bounds. Keeping the old
+	// start would charge the previous window against the new window's cost limit.
 	_, err := r.client.Account.Update().
 		Where(dbaccount.IDEQ(id)).
+		SetSessionWindowStart(end.Add(-5 * time.Hour)).
 		SetSessionWindowEnd(end).
 		Save(ctx)
 	if err != nil {
