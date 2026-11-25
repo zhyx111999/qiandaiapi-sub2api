@@ -47,9 +47,11 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { formatPrice } from './plazaRates'
+import { formatPlazaPrice, type PlazaPriceDisplay } from '@/utils/plazaCurrency'
 
+const props = defineProps<{ priceDisplay?: PlazaPriceDisplay }>()
 const { t } = useI18n()
+const formatPrice = (value: number) => formatPlazaPrice(value, 1, 'credit', props.priceDisplay)
 
 // Static add-on prices, separate from the generation pixel tiers and reference-image prices.
 // Director uses the calibrated Opus Anlas charge; a zero-Anlas tier stays free.

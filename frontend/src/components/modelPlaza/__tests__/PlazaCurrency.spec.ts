@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PlazaModelPricingTable from '../PlazaModelPricingTable.vue'
 import PlazaMediaPricingTable from '../PlazaMediaPricingTable.vue'
+import PlazaNovelAIAddonPricing from '../PlazaNovelAIAddonPricing.vue'
 import { plazaGroup, tokenModel } from './plazaFixtures'
 import { defaultPlazaCurrencySettings, type PlazaPriceDisplay } from '@/utils/plazaCurrency'
 
@@ -14,6 +15,16 @@ const display: PlazaPriceDisplay = {
 }
 
 describe('Qiandai plaza upstream currency integration', () => {
+  it('converts native NovelAI utility base fees with the same wallet currency', () => {
+    const wrapper = mount(PlazaNovelAIAddonPricing, { props: { priceDisplay: {
+      usdToCny: 7, settings: { ...defaultPlazaCurrencySettings(), customer_currency: 'CNY' }
+    } } })
+    expect(wrapper.get('[data-addon="upscale"]').text()).toContain('¥0.07')
+    expect(wrapper.get('[data-addon="encode-vibe"]').text()).toContain('¥0.14')
+    expect(wrapper.get('[data-testid="novelai-director-examples"]').text()).toContain('¥1.40')
+    wrapper.unmount()
+  })
+
   it('keeps discounted wallet prices separate from official model-specific currency', () => {
     const model = tokenModel()
     model.pricing!.image_minimum_charge = 7

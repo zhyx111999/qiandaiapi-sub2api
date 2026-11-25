@@ -45,7 +45,7 @@
         :peak-window="peakWindow"
       />
       <PlazaMediaPricingTable v-else :models="bucket.models" :kind="bucket.kind" :group="group" :price-mode="priceMode" :price-display="priceDisplay" />
-      <PlazaNovelAIAddonPricing v-if="bucket.kind === novelAIAddonKind" />
+      <PlazaNovelAIAddonPricing v-if="bucket.kind === novelAIAddonKind" :price-display="priceDisplay" />
     </template>
     <p v-if="!buckets.length" class="px-5 py-4 text-center text-sm text-gray-400 dark:text-dark-500">
       {{ t('modelPlaza.detail.noModels') }}
