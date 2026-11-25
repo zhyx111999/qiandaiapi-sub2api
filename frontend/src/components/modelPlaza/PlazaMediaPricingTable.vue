@@ -104,7 +104,8 @@ import {
   type PlazaPriceKind,
   type PlazaTierPrice
 } from './plazaPriceKind'
-import { formatPrice, hasCustomRate, mediaRate, usesIndependentMediaRate, type PlazaPriceMode } from './plazaRates'
+import { hasCustomRate, mediaRate, usesIndependentMediaRate, type PlazaPriceMode } from './plazaRates'
+import { formatPlazaPrice, type PlazaPriceDisplay } from '@/utils/plazaCurrency'
 
 const props = defineProps<{
   /** 同一定价方式的非 token 模型。 */
@@ -112,6 +113,7 @@ const props = defineProps<{
   kind: Exclude<PlazaPriceKind, 'token'>
   group: ModelPlazaGroup
   priceMode: PlazaPriceMode
+  priceDisplay?: PlazaPriceDisplay
 }>()
 
 const { t } = useI18n()
@@ -160,7 +162,7 @@ const tableMinWidth = computed(() => Math.max(640, 224 + priceColumnCount.value 
 /** 实付单价 = 单价 × 该行生效倍率（不换算每百万）。 */
 function paid(m: PlazaModel, value: number | null | undefined): string {
   if (isOfficial.value || value == null) return '-'
-  return formatPrice(value * mediaRate(props.group, m))
+  return formatPlazaPrice(value * mediaRate(props.group, m), 1, 'credit', props.priceDisplay)
 }
 
 /** 按图片、视频、请求各自使用原生计费单位。 */

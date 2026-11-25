@@ -41,9 +41,10 @@
         :models="bucket.models"
         :group="group"
         :price-mode="priceMode"
+        :price-display="priceDisplay"
         :peak-window="peakWindow"
       />
-      <PlazaMediaPricingTable v-else :models="bucket.models" :kind="bucket.kind" :group="group" :price-mode="priceMode" />
+      <PlazaMediaPricingTable v-else :models="bucket.models" :kind="bucket.kind" :group="group" :price-mode="priceMode" :price-display="priceDisplay" />
       <PlazaNovelAIAddonPricing v-if="bucket.kind === novelAIAddonKind" />
     </template>
     <p v-if="!buckets.length" class="px-5 py-4 text-center text-sm text-gray-400 dark:text-dark-500">
@@ -61,6 +62,7 @@ import PlazaModelPricingTable from './PlazaModelPricingTable.vue'
 import PlazaMediaPricingTable from './PlazaMediaPricingTable.vue'
 import PlazaNovelAIAddonPricing from './PlazaNovelAIAddonPricing.vue'
 import type { ModelPlazaGroup } from '@/api/modelPlaza'
+import type { PlazaPriceDisplay } from '@/utils/plazaCurrency'
 import type { GroupPlatform, SubscriptionType } from '@/types'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { useAppStore } from '@/stores/app'
@@ -70,6 +72,7 @@ import type { PlazaPriceMode } from './plazaRates'
 const props = defineProps<{
   group: ModelPlazaGroup
   priceMode: PlazaPriceMode
+  priceDisplay?: PlazaPriceDisplay
 }>()
 
 const { t } = useI18n()

@@ -50,7 +50,7 @@
                 class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
                 data-image-minimum-charge
                 :title="t('imageUsage.minimumHelp')"
-              >{{ t('imageUsage.minimumBadge', { amount: m.pricing?.image_minimum_charge }) }}</span>
+              >{{ t('modelPlaza.currency.minimumCharge', { amount: formatPlazaPrice(m.pricing?.image_minimum_charge, 1, 'credit', priceDisplay) }) }}</span>
               <span v-if="m.long_context_basis === 'marginal'" class="plaza-badge" :title="t('modelPlaza.table.tierHintMarginal')">
                 {{ t('modelPlaza.table.marginalBadge') }}
               </span>
@@ -71,13 +71,13 @@
             <template v-if="tiers(m).length">
               <div v-for="(iv, idx) in tiers(m)" :key="idx" class="text-xs leading-5" :title="tierHint(m)">
                 <span v-if="field === 'input_price'" class="mr-1 text-gray-400 dark:text-dark-500">{{ contextTierLabel(iv) }}</span>
-                <span class="plaza-price">{{ price(iv[field], period) }}</span>
+                <span class="plaza-price">{{ price(m, iv[field], period) }}</span>
               </div>
             </template>
             <template v-else>
-              <div class="plaza-price plaza-price-main">{{ price(source(m)?.[field], period) }}</div>
+              <div class="plaza-price plaza-price-main">{{ price(m, source(m)?.[field], period) }}</div>
               <div v-if="showOfficialBelow(m, field, period)" class="plaza-official">
-                {{ t('modelPlaza.table.officialPrice') }} {{ formatPrice(m.official_pricing?.[field], PER_MILLION) }}
+                {{ t('modelPlaza.table.officialPrice') }} {{ formatPlazaPrice(m.official_pricing?.[field], PER_MILLION, 'usd', priceDisplay, plazaOfficialCurrency(m, priceDisplay)) }}
               </div>
             </template>
           </td>
@@ -88,13 +88,13 @@
               <div v-for="(iv, idx) in tiers(m)" :key="idx" class="break-words" :title="tierHint(m)">
                 <template v-if="hasCache(iv)">
                   <span class="text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWriteShort') }}</span>
-                  <span class="plaza-price"> {{ price(iv.cache_write_price, period) }}</span>
+                  <span class="plaza-price"> {{ price(m, iv.cache_write_price, period) }}</span>
                   <span v-if="iv.cache_write_1h_price != null" class="text-gray-400 dark:text-dark-500">
-                    (1h <span class="plaza-price">{{ price(iv.cache_write_1h_price, period) }}</span>)</span>
+                    (1h <span class="plaza-price">{{ price(m, iv.cache_write_1h_price, period) }}</span>)</span>
                   <span v-if="iv.cache_write_12h_price != null" class="text-gray-400 dark:text-dark-500">
-                    (12h <span class="plaza-price">{{ price(iv.cache_write_12h_price, period) }}</span>)</span>
+                    (12h <span class="plaza-price">{{ price(m, iv.cache_write_12h_price, period) }}</span>)</span>
                   <span class="ml-1 text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheReadShort') }}</span>
-                  <span class="plaza-price"> {{ price(iv.cache_read_price, period) }}</span>
+                  <span class="plaza-price"> {{ price(m, iv.cache_read_price, period) }}</span>
                 </template>
                 <span v-else class="text-gray-400 dark:text-dark-500">-</span>
               </div>
@@ -102,15 +102,15 @@
             <template v-else-if="source(m) && hasCache(source(m)!)">
               <div class="break-words">
                 <span class="mr-1 text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheWrite') }}</span>
-                <span class="plaza-price">{{ price(source(m)!.cache_write_price, period) }}</span>
+                <span class="plaza-price">{{ price(m, source(m)!.cache_write_price, period) }}</span>
                 <span v-if="source(m)!.cache_write_1h_price != null" class="text-gray-400 dark:text-dark-500">
-                  (1h <span class="plaza-price">{{ price(source(m)!.cache_write_1h_price, period) }}</span>)</span>
+                  (1h <span class="plaza-price">{{ price(m, source(m)!.cache_write_1h_price, period) }}</span>)</span>
                 <span v-if="source(m)!.cache_write_12h_price != null" class="text-gray-400 dark:text-dark-500">
-                  (12h <span class="plaza-price">{{ price(source(m)!.cache_write_12h_price, period) }}</span>)</span>
+                  (12h <span class="plaza-price">{{ price(m, source(m)!.cache_write_12h_price, period) }}</span>)</span>
               </div>
               <div class="break-words">
                 <span class="mr-1 text-gray-400 dark:text-dark-500">{{ t('modelPlaza.table.cacheRead') }}</span>
-                <span class="plaza-price">{{ price(source(m)!.cache_read_price, period) }}</span>
+                <span class="plaza-price">{{ price(m, source(m)!.cache_read_price, period) }}</span>
               </div>
             </template>
             <span v-else class="text-gray-400 dark:text-dark-500">-</span>
@@ -139,6 +139,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { resolveIntervalPrices } from '@/utils/pricing'
+import { formatPlazaPrice, plazaOfficialCurrency, type PlazaPriceDisplay } from '@/utils/plazaCurrency'
 import { platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
 import { BILLING_MODE_TOKEN, REASONING_EFFORT_LEVELS } from '@/constants/channel'
 import type { ModelPlazaGroup, PlazaModel, PlazaTimePricingPeriod } from '@/api/modelPlaza'
@@ -148,7 +149,6 @@ import { contextTierLabel } from './plazaPriceKind'
 import {
   PER_MILLION,
   effectiveRate,
-  formatPrice,
   hasCustomRate,
   multiplyRate,
   type PlazaPriceMode
@@ -159,6 +159,7 @@ const props = defineProps<{
   models: PlazaModel[]
   group: ModelPlazaGroup
   priceMode: PlazaPriceMode
+  priceDisplay?: PlazaPriceDisplay
   /**
    * 高峰窗口描述(含倍率与服务器时区标注),空串/缺省 = 分组未启用高峰。
    * 表格价格均不含高峰因子,该窗口仅用于分时时段行的 tooltip 披露。
@@ -221,10 +222,10 @@ function tiers(m: PlazaModel): UserPricingInterval[] {
 }
 
 /** 每百万 token 价：分组价格乘生效倍率（时段行再乘时段倍率），官方价格不乘。 */
-function price(value: number | null | undefined, period: PlazaTimePricingPeriod | null): string {
+function price(model: PlazaModel, value: number | null | undefined, period: PlazaTimePricingPeriod | null): string {
   if (value == null) return '-'
-  if (isOfficial.value) return formatPrice(value, PER_MILLION)
-  return formatPrice(value * (period ? multiplyRate(rate.value, period.multiplier) : rate.value), PER_MILLION)
+  if (isOfficial.value) return formatPlazaPrice(value, PER_MILLION, 'usd', props.priceDisplay, plazaOfficialCurrency(model, props.priceDisplay))
+  return formatPlazaPrice(value * (period ? multiplyRate(rate.value, period.multiplier) : rate.value), PER_MILLION, 'credit', props.priceDisplay)
 }
 
 /** 分组价格的标准行下方划线展示官方价（Fair 看板口径）。 */

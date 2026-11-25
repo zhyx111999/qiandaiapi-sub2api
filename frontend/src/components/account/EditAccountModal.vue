@@ -31,7 +31,21 @@
           {{ t('admin.accounts.platformSwitch.resetHint') }}
         </p>
       </div>
+      <GatewayAccountFields v-if="editingAccount.type === 'gateway'" v-model:kind="gatewayKind" v-model:base-url="editBaseUrl"
+        v-model:api-key="editApiKey" v-model:probe="upstreamBillingAutoProbeEnabled" editing />
+      <GatewayModelSettings v-if="editingAccount.type === 'gateway'" v-model:models="allowedModels" v-model:mappings="modelMappings"
+        :sync-credentials="gatewaySyncCredentials" />
       <QwenPlatformNotice v-if="editingAccount?.platform === 'qwen'" :user-id="authStore.user?.id" />
+      <div v-if="supportsDomesticRouteProbe" class="rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="domesticRouteAutoSchedule" type="checkbox" data-testid="domestic-route-auto-schedule" />
+            {{ t('admin.accounts.domesticRouteAutoSchedule') }}
+          </label>
+          <NewFeatureBadge :notice-id="NEW_FEATURE_NOTICES.domesticRouteAutoSchedule" :user-id="authStore.user?.id" />
+        </div>
+        <p class="input-hint">{{ t('admin.accounts.domesticRouteAutoScheduleHint') }}</p>
+      </div>
       <QwenCacheSettings v-if="editingAccount.platform === 'qwen' && editingAccount.type === 'apikey'" v-model:session-cache="qwenSessionCache" v-model:strict-affinity="qwenStrictAffinity" :user-id="authStore.user?.id" @base-url="setQwenBaseUrl" />
       <div v-if="editingAccount.credentials?.oauth_initial_selected_models != null" data-testid="initial-model-scope-snapshot" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
         <div class="flex items-start gap-2"><p>{{ t('autoConfig.selection.accountHint') }}</p><NewFeatureBadge :notice-id="NEW_FEATURE_NOTICES.oauthInitialModelSelection" :user-id="authStore.user?.id" /></div>
@@ -39,8 +53,23 @@
       </div>
       <AccountUpstreamChannelBinding v-if="show" :account-ids="[editingAccount.id]" />
       <div>
-        <label class="input-label">{{ t('common.name') }}</label>
+        <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <label class="input-label mb-0">{{ t('common.name') }}</label>
+          <UpstreamGroupSyncButton
+            :user-id="authStore.user?.id"
+            v-if="editingAccount.type === 'apikey' || (editingAccount.platform === 'antigravity' && editingAccount.type === 'upstream')"
+            v-model:name="form.name"
+            v-model:notes="form.notes"
+            :source="upstreamGroupSource"
+            :allow-auto="editingAccount.type === 'apikey'"
+            :auto="upstreamGroupSyncEnabled"
+            @update:auto="setUpstreamGroupSync"
+          />
+        </div>
         <input v-model="form.name" type="text" required class="input" data-tour="edit-account-form-name" />
+        <p v-if="editingAccount.type === 'apikey' && upstreamGroupSyncEnabled" class="input-hint">
+          {{ t('admin.accounts.upstreamBilling.autoSyncGroupHint') }}
+        </p>
       </div>
       <div>
         <label class="input-label">{{ t('admin.accounts.notes') }}</label>
@@ -951,7 +980,10 @@
           </div>
 
           <HeaderOverrideEditor
+
+            :user-id="authStore.user?.id"
             :rows="headerOverrideRows"
+            :allow-variables="headerOverrideAllowVariables"
             @update:rows="headerOverrideRows = $event"
           />
         </div>
@@ -2178,6 +2210,14 @@
             :disabled="isNewAPIUpstream && costMultiplierAutoSync"
           />
           <p class="input-hint">{{ t('admin.accounts.costMultiplierHint') }}</p>
+          <fieldset v-if="editingAccount?.type !== 'gateway'" class="mt-3">
+            <legend class="input-label">{{ t('profitOps.imagePurchasePrices') }}</legend>
+            <div class="grid grid-cols-3 gap-2">
+              <label v-for="tier in purchaseTiers" :key="tier">{{ tier }}
+                <input v-model="imagePurchasePrices[tier]" class="input" type="number" min="0" max="1000000" step="any" />
+              </label>
+            </div>
+          </fieldset>
           <p v-if="isNewAPIUpstream" class="input-hint">{{ t('admin.accounts.upstreamBilling.newAPI.costManagedHint') }}</p>
         </div>
         <div>
@@ -2193,6 +2233,7 @@
           <p class="input-hint">{{ t('admin.accounts.groupBillingRateMultiplierHint') }}</p>
         </div>
       </div>
+      <ProbePenaltySettings v-if="editingAccount?.platform === 'anthropic'" v-model:enabled="probePenaltyEnabled" v-model:minimum="probePenaltyMinimum" />
       <!-- OpenAI OAuth RPM limit -->
       <div
         v-if="editingAccount?.platform === 'openai' && editingAccount?.type === 'oauth'"
@@ -3879,7 +3920,9 @@ import { useExcelBPSDefaults } from '@/composables/useExcelBPSDefaults'
 import { DEFAULT_BPS_RECOVERY_INTERVAL_MINUTES, MAX_BPS_RECOVERY_INTERVAL_MINUTES, isValidBPSRecoveryInterval, bpsRecoveryIntervalOrDefault } from '@/utils/excelBPSRecovery'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import GatewayAccountFields from './GatewayAccountFields.vue'
 import NewFeatureBadge from '@/components/common/NewFeatureBadge.vue'
+import ProbePenaltySettings from './ProbePenaltySettings.vue'
 import OpenAIProxySettings from '@/components/account/OpenAIProxySettings.vue'
 import { NEW_FEATURE_NOTICES } from '@/constants/newFeatureNotices'
 
@@ -3910,6 +3953,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
+import UpstreamGroupSyncButton from '@/components/account/UpstreamGroupSyncButton.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import AccountRpmSettings from '@/components/account/AccountRpmSettings.vue'
 import { applyAccountRPMSettings } from '@/components/account/accountRpm'
@@ -3918,6 +3962,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
+import GatewayModelSettings from '@/components/account/GatewayModelSettings.vue'
 import AccountGroupModelLimits from '@/components/account/AccountGroupModelLimits.vue'
 import AccountAutoBPSSection from '@/components/account/AccountAutoBPSSection.vue'
 import AccountStatusCheckSection from '@/features/account-status-check/AccountStatusCheckSection.vue'
@@ -4020,6 +4065,11 @@ const props = defineProps<Props>()
 // Keep the persisted prop intact while all platform-specific form sections use
 // the same draft. Cancel/reopen restores the source account.
 const editingAccount = shallowRef<Account | null>(props.account)
+const domesticRouteAutoSchedule = ref(false)
+const supportsDomesticRouteProbe = computed(() => {
+  const a = editingAccount.value
+  return a?.type === 'apikey' && (a.platform === 'qwen' || isCNProviderPlatform(a.platform))
+})
 const platformChanged = computed(() => editingAccount.value?.platform !== props.account?.platform)
 const platformOptions = computed(() => {
   const source = props.account
@@ -4046,6 +4096,7 @@ const { t } = useI18n()
 const siwcEnabled = ref(false)
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const gatewayKind = ref<'sub2api' | 'new_api'>('sub2api')
 const globalBpsEnabled = computed(() => appStore.cachedPublicSettings?.excel_bps_enabled !== false)
 const globalPrismEnabled = computed(() => appStore.cachedPublicSettings?.prism_browser_enabled === true)
 const browserTimeZone = getBrowserTimeZone()
@@ -4469,6 +4520,8 @@ const setQwenBaseUrl = (value: string) => {
 }
 const headerOverrideRows = ref<HeaderOverrideRow[]>([])
 
+// 身份上报变量仅 api_key 账号可用：OAuth 订阅上游不能收到网关用户身份
+const headerOverrideAllowVariables = computed(() => props.account?.type === 'apikey')
 const headerOverrideCapable = computed(
   () => !!editingAccount.value && isHeaderOverrideCapable(editingAccount.value.platform, editingAccount.value.type)
 )
@@ -4676,6 +4729,11 @@ const autoPause7dDisabled = ref(false)
 const autoResetCreditEnabled = ref(false)
 const autoResetCredit5hThreshold = ref(100)
 const autoResetCredit7dThreshold = ref(100)
+const upstreamGroupSyncEnabled = ref(false)
+function setUpstreamGroupSync(enabled: boolean) {
+  upstreamGroupSyncEnabled.value = enabled
+  if (enabled) upstreamBillingAutoProbeEnabled.value = true
+}
 const upstreamBillingAutoProbeEnabled = ref(false)
 const upstreamBillingRateSyncEnabled = ref(false)
 const isNewAPIUpstream = computed(() => editingAccount.value?.extra?.upstream_billing_provider === 'new_api')
@@ -5173,6 +5231,14 @@ const mixedChannelWarningMessageText = computed(() => {
   return mixedChannelWarningRawMessage.value
 })
 
+const probePenaltyEnabled = ref(false)
+const probePenaltyMinimum = ref(0.001)
+const purchaseTiers = ['1K', '2K', '4K'] as const
+function readImagePrices(extra: Record<string, unknown> | undefined | null) {
+  const prices = extra?.image_purchase_prices as Record<string, number> | undefined
+  return Object.fromEntries(purchaseTiers.map(tier => [tier, prices?.[tier] ?? '']))
+}
+const imagePurchasePrices = ref(readImagePrices(undefined))
 const costMultiplier = ref(DEFAULT_ACCOUNT_COST_MULTIPLIER)
 const costMultiplierAutoSync = ref(true)
 
@@ -5201,10 +5267,30 @@ const handleUpstreamBillingRateSyncChange = (enabled: boolean) => {
   }
 }
 
+const billingBaseUrl = computed(() => (
+  isCNApiKeyAccount.value && editApiProtocol.value === 'adaptive'
+    ? editAdaptiveBaseUrls.value.chat_completions
+    : editBaseUrl.value
+).trim())
+const savedBillingBaseUrl = ref('')
+const upstreamGroupSource = computed(() => {
+  const account = editingAccount.value
+  if (!account) return null
+  const apiKey = editApiKey.value.trim()
+  if (apiKey && billingBaseUrl.value) {
+    return { platform: account.platform, base_url: billingBaseUrl.value, api_key: apiKey, proxy_id: form.proxy_id }
+  }
+  if (!platformChanged.value && billingBaseUrl.value === savedBillingBaseUrl.value && form.proxy_id === account.proxy_id && !apiKey) {
+    return { account_id: account.id }
+  }
+  return null
+})
+
 const handleUpstreamBillingAutoProbeChange = (enabled: boolean) => {
   upstreamBillingAutoProbeEnabled.value = enabled
   if (!enabled) {
     upstreamBillingRateSyncEnabled.value = false
+    upstreamGroupSyncEnabled.value = false
   }
 }
 
@@ -5254,6 +5340,12 @@ const loadModelRestrictionFromMapping = (rawMapping?: Record<string, unknown>) =
 const buildModelRestrictionMapping = () =>
   buildModelMappingObject('combined', allowedModels.value, modelMappings.value)
 
+const gatewaySyncCredentials = computed(() => editingAccount.value?.type === 'gateway' ? {
+  platform: 'gateway', type: 'gateway', upstream_kind: gatewayKind.value,
+  account_id: editingAccount.value.id, base_url: editBaseUrl.value.trim(), api_key: editApiKey.value.trim(),
+  proxy_id: authStore.isObserver ? undefined : form.proxy_id ?? undefined
+} : undefined)
+
 const applyOpenAIModelMappingCredentials = (credentials: Record<string, unknown>) => {
   if (editingAccount.value?.type === 'oauth' && !isSparkShadow.value) {
     credentials.model_mapping_mode = openaiModelAliases.value ? 'aliases' : 'whitelist'
@@ -5301,6 +5393,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   form.concurrency = newAccount.concurrency
   form.load_factor = newAccount.load_factor ?? null
   form.priority = newAccount.priority
+  const penalty = newAccount.extra?.probe_penalty as { enabled?: boolean; minimum_charge?: number } | undefined
+  probePenaltyEnabled.value = penalty?.enabled === true
+  probePenaltyMinimum.value = penalty?.minimum_charge ?? 0.001
+  imagePurchasePrices.value = readImagePrices(newAccount.extra)
   costMultiplier.value = readAccountCostMultiplier(newAccount.extra)
   costMultiplierAutoSync.value = newAccount.extra?.cost_multiplier_auto_sync !== false
   form.rate_multiplier = newAccount.rate_multiplier ?? 1
@@ -5331,6 +5427,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   mixedScheduling.value = false
   allowOverages.value = false
 	const extra = newAccount.extra as Record<string, unknown> | undefined
+	domesticRouteAutoSchedule.value = extra?.domestic_route_auto_schedule === true
 	mixedScheduling.value = extra?.mixed_scheduling === true
 	allowOverages.value = extra?.allow_overages === true
 	upstreamRequestIdHeader.value = readUpstreamRequestIdHeader(extra)
@@ -5345,6 +5442,8 @@ const syncFormFromAccount = (newAccount: Account | null) => {
 	autoResetCredit7dThreshold.value =
 		typeof extra?.auto_reset_credit_7d_threshold === 'number' ? extra.auto_reset_credit_7d_threshold * 100 : 100
 	upstreamBillingAutoProbeEnabled.value = extra?.upstream_billing_probe_enabled === true
+  upstreamGroupSyncEnabled.value =
+    upstreamBillingAutoProbeEnabled.value && extra?.upstream_billing_group_sync_enabled === true
   upstreamBillingRateSyncEnabled.value =
     extra?.upstream_billing_provider !== 'new_api' && upstreamBillingAutoProbeEnabled.value && extra?.upstream_billing_rate_sync_enabled === true
 
@@ -5770,6 +5869,10 @@ const syncFormFromAccount = (newAccount: Account | null) => {
 
     // Load model mappings for bedrock
     loadModelRestrictionFromMapping(bedrockCreds.model_mapping as Record<string, unknown> | undefined)
+  } else if (newAccount.type === 'gateway') {
+    gatewayKind.value = newAccount.credentials?.upstream_kind === 'new_api' ? 'new_api' : 'sub2api'
+    editBaseUrl.value = String(newAccount.credentials?.base_url || '')
+    loadModelRestrictionFromMapping(newAccount.credentials?.model_mapping as Record<string, unknown> | undefined)
   } else if (newAccount.type === 'upstream' && newAccount.credentials) {
     const credentials = newAccount.credentials as Record<string, unknown>
     editBaseUrl.value = (credentials.base_url as string) || ''
@@ -5811,6 +5914,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     selectedErrorCodes.value = []
   }
   editApiKey.value = ''
+  savedBillingBaseUrl.value = billingBaseUrl.value
 }
 
 const changePlatform = (platform: unknown) => {
@@ -6604,6 +6708,9 @@ const handleSubmit = async () => {
     // 整体覆盖：只带仍勾选的分组，没有列出的分组由后端恢复为不限制
     updatePayload.group_allowed_models = buildGroupAllowedModelsPayload(form.group_ids, groupAllowedModels.value)
     if (editingAccount.value.type === 'apikey') {
+      if (form.name === editingAccount.value.name) delete updatePayload.name
+      if (form.notes === (editingAccount.value.notes || '')) delete updatePayload.notes
+      updatePayload.upstream_billing_group_sync_enabled = upstreamGroupSyncEnabled.value
       updatePayload.upstream_billing_probe_enabled = upstreamBillingAutoProbeEnabled.value
       updatePayload.upstream_billing_rate_sync_enabled = upstreamBillingRateSyncEnabled.value
       if (upstreamBillingRateSyncEnabled.value) {
@@ -6729,7 +6836,9 @@ const handleSubmit = async () => {
       // Add header override if enabled for this API-key platform
       if (isHeaderOverrideCapable(editingAccount.value.platform, 'apikey')) {
         if (headerOverrideEnabled.value) {
-          const headerError = validateHeaderOverrideRows(headerOverrideRows.value)
+          const headerError = validateHeaderOverrideRows(headerOverrideRows.value, {
+            allowVariables: headerOverrideAllowVariables.value
+          })
           if (headerError) {
             appStore.showError(t(`admin.accounts.headerOverride.${headerError}`))
             return
@@ -6746,6 +6855,14 @@ const handleSubmit = async () => {
       }
 
       updatePayload.credentials = newCredentials
+    } else if (editingAccount.value.type === 'gateway') {
+      updatePayload.credentials = {
+        upstream_kind: gatewayKind.value,
+        base_url: editBaseUrl.value.trim(),
+        model_mapping: buildModelRestrictionMapping() ?? {},
+        ...(editApiKey.value.trim() ? { api_key: editApiKey.value.trim() } : {})
+      }
+      if (gatewayKind.value === 'sub2api') updatePayload.upstream_billing_probe_enabled = upstreamBillingAutoProbeEnabled.value
     } else if (editingAccount.value.type === 'upstream') {
       const currentCredentials = (editingAccount.value.credentials as Record<string, unknown>) || {}
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
@@ -6957,7 +7074,9 @@ const handleSubmit = async () => {
       }
 
       if (headerOverrideEnabled.value) {
-        const headerError = validateHeaderOverrideRows(headerOverrideRows.value)
+        const headerError = validateHeaderOverrideRows(headerOverrideRows.value, {
+            allowVariables: headerOverrideAllowVariables.value
+          })
         if (headerError) {
           appStore.showError(t(`admin.accounts.headerOverride.${headerError}`))
           return
@@ -7421,6 +7540,7 @@ const handleSubmit = async () => {
       if (editingAccount.value.type === 'apikey') {
         delete newExtra.upstream_billing_probe_enabled
         delete newExtra.upstream_billing_rate_sync_enabled
+        delete newExtra.upstream_billing_group_sync_enabled
       }
       // Total quota
       if (editQuotaLimit.value != null && editQuotaLimit.value > 0) {
@@ -7491,6 +7611,26 @@ const handleSubmit = async () => {
     const costExtra: Record<string, unknown> = {
       ...((updatePayload.extra as Record<string, unknown>) || editingAccount.value.extra || {})
     }
+    // This API-only setting has no editor control. Omit the loaded value so
+    // the repository keeps the latest basis, including a concurrent clear.
+    delete costExtra.token_procurement_basis
+    const originalPrices = readImagePrices(editingAccount.value.extra)
+    if (purchaseTiers.some(tier => String(imagePurchasePrices.value[tier]) !== String(originalPrices[tier]))) {
+      const prices: Record<string, number> = {}
+      for (const tier of purchaseTiers) {
+        const value = imagePurchasePrices.value[tier]
+        if (value === '') continue
+        const price = Number(value)
+        if (!isValidAccountCostMultiplier(price)) {
+          appStore.showError(t('admin.accounts.costMultiplierInvalid'))
+          return
+        }
+        prices[tier] = price
+      }
+      costExtra.image_purchase_prices = prices
+    } else {
+      delete costExtra.image_purchase_prices
+    }
     // An unrelated edit must not restore a cost loaded before a probe updated it.
     if (costMultiplier.value !== readAccountCostMultiplier(editingAccount.value.extra)) {
       costExtra.cost_multiplier = costMultiplier.value
@@ -7502,7 +7642,25 @@ const handleSubmit = async () => {
     } else {
       delete costExtra.cost_multiplier_auto_sync
     }
+    if (editingAccount.value.platform === 'anthropic') {
+      const minimum = probePenaltyMinimum.value
+      if (!Number.isFinite(minimum) || minimum < 0 || minimum > 1000 || (probePenaltyEnabled.value && minimum <= 0) || Math.abs(minimum * 1e8 - Math.round(minimum * 1e8)) > 0.00001) {
+        appStore.showError(t('admin.accounts.probePenalty.invalid'))
+        return
+      }
+      const original = editingAccount.value.extra?.probe_penalty as { enabled?: boolean; minimum_charge?: number } | undefined
+      if (probePenaltyEnabled.value !== (original?.enabled === true) || minimum !== (original?.minimum_charge ?? 0.001)) {
+        costExtra.probe_penalty = { enabled: probePenaltyEnabled.value, minimum_charge: minimum }
+      } else {
+        delete costExtra.probe_penalty
+      }
+    }
     delete costExtra.new_api_apply_usd_rate
+    if (supportsDomesticRouteProbe.value && domesticRouteAutoSchedule.value) {
+      costExtra.domestic_route_auto_schedule = true
+    } else {
+      delete costExtra.domestic_route_auto_schedule
+    }
     updatePayload.extra = costExtra
 
     const canContinue = await ensureAntigravityMixedChannelConfirmed(async () => {

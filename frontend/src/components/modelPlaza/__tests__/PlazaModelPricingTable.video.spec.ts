@@ -119,7 +119,7 @@ describe.each([
     expect(cells[2].text()).toBe('$2.00')
     expect(cells[3].text()).toContain('$1.00')
     expect(cells[3].text()).toContain('$0.25')
-    expect(wrapper.find('thead').text()).toContain(language.locale === 'zh' ? '$ / 1M token' : '$ / 1M tokens')
+    expect(wrapper.find('thead').text()).toContain(language.locale === 'zh' ? '/ 1M token' : '/ 1M tokens')
     expect(wrapper.find('tbody').text()).not.toContain(language.suffix)
     expect(cells[4].text()).toContain('0.25x')
   })

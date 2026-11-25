@@ -1,5 +1,7 @@
 export default {
     accounts: {
+      domesticRouteAutoSchedule: 'Automatic scheduling by domestic model route latency',
+      domesticRouteAutoScheduleHint: 'Sends a short streaming request over this account’s route every hour. Upstream charges may apply. A first text under 3 seconds enables scheduling. A slower response, timeout or upstream failure pauses scheduling. Paused accounts are tested again.',
       platformSwitch: {
         hint: 'Choose a platform compatible with this credential type. The API key and custom URL are retained; verify that the target supports this upstream.',
         resetHint: 'Switching resets model mappings, platform-specific settings and incompatible groups. Review and save the target settings before synchronizing models or refreshing usage.',
@@ -454,6 +456,14 @@ export default {
         }
       },
       upstreamBilling: {
+        autoSyncGroup: 'Auto-sync upstream group name and notes',
+        autoSyncGroupHint: 'A successful probe replaces the local name and notes with any text the upstream provides. Account rate sync is controlled separately.',
+        syncGroup: 'Sync upstream group name and notes',
+        saveGroup: 'Sync and save upstream group name and notes',
+        groupCredentials: 'Enter the upstream URL and API key. Re-enter the key after changing the URL or proxy.',
+        groupUnavailable: 'The upstream returned no group name or description to sync.',
+        groupFailed: 'Failed to sync upstream group details',
+        groupSynced: 'Account name and notes synced',
         newAPI: {
           upstreamVerificationFailed: "The upstream query could not be completed. Check site connectivity, the user ID, and the access token, including permission to read the wallet and complete token inventory.",
           keyNotOwned: "This account API key was not found in this user token inventory.",
@@ -480,10 +490,12 @@ export default {
           group: "Group: {name}",
           groupRatio: "Group ratio",
           ratio: "Group ratio: {value}x",
+          convertedDeclaration: 'Converted upstream rate: {rate} × 7 = {value}x',
           groupRatioHint: 'The upstream group ratio excludes model prices. Purchase cost follows the account’s USD conversion and auto-sync settings; customer prices are unchanged.',
         costConversion: 'Purchase cost conversion',
         costConversionHint: 'USD conversion is enabled by default: CN platforms ×1, other platforms ×7. Uncheck to use the upstream ratio ×1 as purchase cost. Customer prices are unchanged.',
         applyUSDRate: 'Apply USD conversion',
+        requestPlatformFactor: 'Procurement cost is converted for each request’s target platform',
         costPlatformFactor: 'Platform conversion ×{factor}',
         costPreview: 'Purchase cost multiplier: {rate} × {scale} = {cost}',
         costSyncPaused: 'Cost sync is disabled for this account; manual cost is preserved. Enable it in the account editor.',
@@ -719,6 +731,8 @@ export default {
       testConnection: 'Test Connection',
       reAuthorize: 'Re-Authorize',
       refreshToken: 'Refresh Token',
+      refreshTokenHint: 'Tokens are refreshed automatically in the background. Frequent manual refreshes can race the automatic refresh and invalidate the token, pausing the account.',
+      refreshTokenFrequentWarning: 'Less than a minute since the last manual refresh: frequent refreshes can race the background auto-refresh and invalidate the token. Only retry when necessary.',
       noAccountsYet: 'No accounts yet',
       createFirstAccount: 'Create your first account to start using AI services.',
       tokenRefreshed: 'Token refreshed successfully',
@@ -820,6 +834,7 @@ export default {
       deleteConfirm: "Are you sure you want to delete '{name}'? This action cannot be undone.",
       // Create/Edit Account Modal
       platform: 'Platform',
+      gatewayProvider: 'Upstream provider',
       accountName: 'Account Name',
       enterAccountName: 'Enter account name',
       accountType: 'Account Type',
@@ -1295,7 +1310,25 @@ export default {
         blockedName: 'This header cannot be overridden (auth and connection-control headers are managed by the system)',
         duplicateName: 'Duplicate header name (matching is case-insensitive)',
         invalidValue: 'Invalid header value (control characters are not allowed; max length 8192)',
-        tooManyEntries: 'Too many header override entries (max 64)'
+        tooManyEntries: 'Too many header override entries (max 64)',
+        invalidVariable: 'Invalid variable: pick one from "Identity variables" below; other variable names are not supported',
+        variableNotAllowed: 'OAuth accounts do not support identity variables. Remove this row or use a fixed value',
+        removeRow: 'Remove this header',
+        previewLabel: 'Sent as',
+        variablesTitle: 'Identity variables',
+        variablesHint: 'Report the gateway user behind each request to the upstream, so a request can be traced back layer by layer. Click a variable while editing a value to insert it at the cursor; otherwise a new row is added.',
+        variablesUnavailable: 'OAuth accounts do not support identity variables: subscription upstreams never receive gateway user identity. Only fixed values can be used here.',
+        variables: {
+          user_id: { label: 'User ID', desc: 'The gateway user who sent the request' },
+          api_key_id: { label: 'API Key ID', desc: 'The key used for this request; tells apart multiple keys of one user' },
+          group_id: { label: 'Group ID', desc: 'The group bound to the key; the header is not sent when no group is bound' },
+          request_id: { label: 'Request ID', desc: 'Same as the "Request ID" in error records, for direct cross-checking; characters other than letters, digits and . _ - become underscores' }
+        },
+        variableNotes: {
+          unresolved: 'When a value is unavailable (connection tests, model sync and other background requests without a user), the whole header is not sent, and a same-named header from the client is not passed through either.',
+          apiKeyOnly: 'Only applies to API key accounts. OAuth accounts never report identity.',
+          websocket: 'In OpenAI WebSocket mode handshake headers are per connection: headers containing the request ID are not sent, and requests with different reported identities never share an upstream connection.'
+        }
       },
       grokModelDiagnostics: {
         title: 'Model catalog diagnostics',
@@ -1510,6 +1543,14 @@ export default {
       priorityHint: 'Lower value accounts are used first',
       billingRateMultiplier: 'Billing Rate Multiplier',
       costMultiplier: 'Cost multiplier',
+      probePenalty: {
+        title: 'Probe penalty',
+        hint: 'Set a minimum charge for completed token-billed requests through this Claude account. Ordinary short requests are also affected. Disabled by default.',
+        minimum: 'Minimum charge per request ($ credit)',
+        downstream: 'Below the minimum, charge the difference and return billing-equivalent tokens while retaining original usage. Downstream gateways apply their own prices; matching prices and multipliers differ by less than one output token price due to rounding.',
+        invalid: 'Enter an amount from 0 to 1000 with up to 8 decimal places. A positive amount is required when enabled.',
+        adjustment: 'Probe penalty adjustment',
+      },
       costMultiplierHint: 'Defaults to 0.1; follow upstream updates or turn off to enter your actual cost, without changing billing.',
       costMultiplierAutoSync: 'Follow upstream',
       costMultiplierInvalid: 'Cost multiplier must be a finite number between 0 and 1000000.',
@@ -2041,9 +2082,9 @@ export default {
         question: 'Question',
         candyQuestion: 'Candy logic test',
         pelicanQuestion: 'Pelican riding a bicycle (HTML)',
-        stateProbeQuestion: 'Quality check (full capability or degraded in seconds)',
-        stateProbeHint: 'No question is sent: each run fires one turn-quality check and records Full capability / Degraded / Inconclusive. OpenAI subscription (OAuth) accounts only; one check per account at a time, so parallel runs are fixed at 1.',
-        stateProbeBadge: 'Quality check',
+        stateProbeQuestion: 'Probe test (full capability or degraded in seconds)',
+        stateProbeHint: 'No question is sent: each run performs one probe test and records Full capability / Degraded / Inconclusive. OpenAI subscription (OAuth) accounts only; one probe per account at a time, so parallel runs are fixed at 1.',
+        stateProbeBadge: 'Probe test',
         candyHint: 'The original question has a reference answer of 21. Compare this response without treating it as a permanent account capability rating.',
 
         recordCount: '{count} records',
@@ -2104,16 +2145,16 @@ export default {
         emptyResponse: 'The model returned an empty response',
         invalidHtml: 'The model did not return standalone HTML that can be displayed',
         modeQuestion: 'Question test',
-        modeProbe: 'Quality check',
+        modeProbe: 'Probe test',
         probe: {
           intro: 'Sends two tiny requests and answers in seconds: mint a turn-state ticket, then continue with it. A new ticket on the continuation means the account is degraded.',
-          scheduleHint: 'To run it on a schedule: switch to "Question test" → "Scheduled tests" → "Add plan" and pick "Quality check" as the question.',
+          scheduleHint: 'To run it on a schedule: switch to "Question test" → "Scheduled tests" → "Add plan" and pick "Probe test" as the question.',
           unsupported: 'The probe only works for OpenAI subscription (OAuth) accounts. Use the question test for this account.',
           modelHint: 'Defaults to gpt-6-astra and follows the account model mapping. Free plans that do not support the model report "Model not supported".',
-          start: 'Start check',
+          start: 'Start probe test',
           probing: 'Probing...',
           running: 'Probing, usually a few seconds and at most about 90 seconds',
-          empty: 'Click "Start check" and the result will appear here.',
+          empty: 'Click "Start probe test" and the result will appear here.',
           verdictHealthy: 'Full capability',
           verdictDegraded: 'Degraded',
           verdictInconclusive: 'Inconclusive',
@@ -2126,12 +2167,12 @@ export default {
           newTicket: 'New ticket on continue',
           yes: 'Yes',
           no: 'No',
-          model: 'Check model',
+          model: 'Probe model',
           reportedModel: 'Reported model',
           latency: 'Duration',
           finishedAt: 'Finished at',
           limitation: 'The verdict only uses the turn-state header (x-codex-turn-state), not the reported model name, which still says astra after a downgrade to luna. A single result can be affected by upstream noise; compare several runs or the question test.',
-          requestFailed: 'Quality check request failed',
+          requestFailed: 'Probe test request failed',
           failures: {
             unsupported: 'Account not supported',
             account_error: 'Account authentication error',

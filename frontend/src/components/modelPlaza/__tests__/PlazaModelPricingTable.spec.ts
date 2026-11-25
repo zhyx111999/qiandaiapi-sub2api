@@ -29,7 +29,7 @@ describe('PlazaModelPricingTable', () => {
     const group = { rate_multiplier: 0.2, user_rate_multiplier: 0.01 }
     const wrapper = mountTable([model], group)
     const badge = wrapper.get('[data-image-minimum-charge]')
-    expect(badge.text()).toBe('imageUsage.minimumBadge:{"amount":0.01}')
+    expect(badge.text()).toBe('modelPlaza.currency.minimumCharge:{"amount":"$0.01"}')
     expect(badge.attributes('title')).toBe('imageUsage.minimumHelp')
     wrapper.unmount()
     const official = mountTable([model], group, 'official')

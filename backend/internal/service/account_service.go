@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	ErrAccountNotFound      = infraerrors.NotFound("ACCOUNT_NOT_FOUND", "account not found")
-	ErrAccountNilInput      = infraerrors.BadRequest("ACCOUNT_NIL_INPUT", "account input cannot be nil")
-	ErrAccountNotInFallback = infraerrors.BadRequest("ACCOUNT_NOT_IN_FALLBACK", "account is not in proxy fallback state")
+	ErrAccountUpdateConflict = infraerrors.Conflict("ACCOUNT_UPDATE_CONFLICT", "account changed during group sync; retry the sync")
+	ErrAccountNotFound       = infraerrors.NotFound("ACCOUNT_NOT_FOUND", "account not found")
+	ErrAccountNilInput       = infraerrors.BadRequest("ACCOUNT_NIL_INPUT", "account input cannot be nil")
+	ErrAccountNotInFallback  = infraerrors.BadRequest("ACCOUNT_NOT_IN_FALLBACK", "account is not in proxy fallback state")
 )
 
 const AccountListGroupUngrouped int64 = -1
@@ -149,17 +150,27 @@ type AccountDuplicateRepository interface {
 	CreateWithAccountGroups(ctx context.Context, account *Account, groups []AccountGroup) error
 }
 
+// GatewayAccountTransactionRepository keeps the new gateway's settings, exact
+// memberships and outbox writes in one transaction. Legacy accounts retain
+// their existing write paths. The callback receives the repository's tx context.
+type GatewayAccountTransactionRepository interface {
+	WithinGatewayAccountTransaction(ctx context.Context, accountID int64, groupIDs []int64, run func(context.Context) error) error
+}
+
+// AccountBillingSettingsUpdate carries explicit edits to fields shared with the billing probe.
+// Omitted fields retain the values in the locked row.
+type AccountBillingSettingsUpdate struct {
+	ExpectedUpdatedAt                               *time.Time
+	ProbeEnabled, RateSyncEnabled, GroupSyncEnabled *bool
+	RateMultiplier                                  *float64
+	SetName, SetNotes                               bool
+}
+
 // AccountBillingSettingsRepository applies an admin edit without overwriting a
 // rate_multiplier that a successful upstream probe synchronized after the edit
 // form was loaded. A nil rateMultiplier means the request did not edit it.
 type AccountBillingSettingsRepository interface {
-	UpdateWithAccountBillingSettings(
-		ctx context.Context,
-		account *Account,
-		probeEnabled *bool,
-		rateSyncEnabled *bool,
-		rateMultiplier *float64,
-	) error
+	UpdateWithAccountBillingSettings(context.Context, *Account, AccountBillingSettingsUpdate) error
 }
 
 // AdminAccountRepository makes the account-duplication write capability an explicit
@@ -243,6 +254,12 @@ func NewAccountService(accountRepo AccountRepository, groupRepo GroupRepository)
 
 // Create 创建账号
 func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (*Account, error) {
+	if err := ValidateGatewayAccountIdentity(req.Platform, req.Type, req.Credentials); err != nil {
+		return nil, err
+	}
+	if err := validateGatewayAccountGroups(ctx, &Account{Platform: req.Platform, Type: req.Type}, s.groupRepo, req.GroupIDs); err != nil {
+		return nil, err
+	}
 	if err := ValidateModelMappingMode(req.Credentials); err != nil {
 		return nil, err
 	}
@@ -276,6 +293,18 @@ func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (
 		account.AutoPauseOnExpired = true
 	}
 
+	if account.IsGateway() {
+		if creator, ok := s.accountRepo.(AccountDuplicateRepository); ok {
+			groups := make([]AccountGroup, 0, len(req.GroupIDs))
+			for i, id := range req.GroupIDs {
+				groups = append(groups, AccountGroup{GroupID: id, Priority: i + 1})
+			}
+			if err := creator.CreateWithAccountGroups(ctx, account, groups); err != nil {
+				return nil, err
+			}
+			return account, nil
+		}
+	}
 	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, fmt.Errorf("create account: %w", err)
 	}
@@ -342,12 +371,46 @@ func (s *AccountService) ListByGroup(ctx context.Context, groupID int64) ([]Acco
 // Update 更新账号
 func (s *AccountService) Update(ctx context.Context, id int64, req UpdateAccountRequest) (*Account, error) {
 	ctx = withAccountStatusPreservation(ctx, req.Status == nil)
+	var requestedExtra map[string]any
+	if req.Extra != nil {
+		requestedExtra = *req.Extra
+	}
+	ctx = withAccountExtraUpdateFields(ctx, requestedExtra)
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get account: %w", err)
 	}
 
 	// 更新字段
+	if account.IsGateway() || account.Platform == PlatformGateway {
+		credentials := account.Credentials
+		if req.Credentials != nil {
+			credentials = mergeGatewayCredentials(account.Credentials, *req.Credentials)
+			req.Credentials = &credentials
+		}
+		if err := ValidateGatewayAccountIdentity(account.Platform, account.Type, credentials); err != nil {
+			return nil, err
+		}
+		ids := account.GroupIDs
+		if req.GroupIDs != nil {
+			ids = *req.GroupIDs
+		}
+		if err := validateGatewayAccountGroups(ctx, account, s.groupRepo, ids); err != nil {
+			return nil, err
+		}
+		if !gatewayAccountTransactionActive(ctx) {
+			var updated *Account
+			err := withinGatewayAccountTransaction(ctx, s.accountRepo, id, ids, func(txctx context.Context) error {
+				var err error
+				updated, err = s.Update(txctx, id, req)
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			return updated, err
+		}
+	}
 	if req.Name != nil {
 		account.Name = *req.Name
 	}

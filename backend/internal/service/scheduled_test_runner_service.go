@@ -14,6 +14,11 @@ const scheduledTestDefaultMaxWorkers = 10
 
 // ScheduledTestRunnerService periodically scans due test plans and executes them.
 type ScheduledTestRunnerService struct {
+	oauth429Repo   OAuth429Repository
+	oauth429Slots  qualityJudgeSlots
+	oauth429Cancel context.CancelFunc
+	oauth429WG     sync.WaitGroup
+	oauth429Start  sync.Once
 	planRepo       ScheduledTestPlanRepository
 	scheduledSvc   *ScheduledTestService
 	accountTestSvc *AccountTestService
@@ -64,6 +69,7 @@ func (s *ScheduledTestRunnerService) Start() {
 	}
 	s.startOnce.Do(func() {
 		s.startQualityTriggers()
+		s.StartOAuth429Worker()
 		loc := time.Local
 		if s.cfg != nil {
 			if parsed, err := time.LoadLocation(s.cfg.Timezone); err == nil && parsed != nil {
@@ -89,6 +95,10 @@ func (s *ScheduledTestRunnerService) Stop() {
 		return
 	}
 	s.stopOnce.Do(func() {
+		if s.oauth429Cancel != nil {
+			s.oauth429Cancel()
+			s.oauth429WG.Wait()
+		}
 		if s.qualityTrigger != nil && s.qualityTrigger.queue != nil {
 			defer func() { _ = s.qualityTrigger.queue.Close() }()
 		}
@@ -122,7 +132,8 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 	s.groupTests.Cleanup(ctx, now)
 	// Group tests run beside the account plans rather than after them.
 	var groupRuns sync.WaitGroup
-	groupRuns.Add(2)
+	groupRuns.Add(3)
+	go func() { defer groupRuns.Done(); s.runDomesticRouteProbes(ctx) }()
 	go func() { defer groupRuns.Done(); s.candyMonitor.RunDue(ctx, now) }()
 	go func() {
 		defer groupRuns.Done()

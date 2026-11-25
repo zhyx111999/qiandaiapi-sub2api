@@ -7,6 +7,7 @@ import (
 
 // PelicanTestConfig stores intelligence test inputs; a missing kind preserves legacy HTML plans.
 type PelicanTestConfig struct {
+	Ciallo *CialloEvidence `json:"ciallo,omitempty"`
 	// Optional display name stored in the existing configuration JSON.
 	RuleName string `json:"rule_name,omitempty"`
 	// Request timeout of an account status check plan (account_status_check.go); other plans keep the runner's limit.
@@ -39,6 +40,7 @@ type PelicanTestConfig struct {
 
 // ScheduledTestPlan represents a scheduled test plan domain model.
 type ScheduledTestPlan struct {
+	degradationRetest bool
 	// Populated only from the repository's one-shot manual trigger marker.
 	ManualQualityRun      bool              `json:"-"`
 	ManualQualityRunID    string            `json:"-"`

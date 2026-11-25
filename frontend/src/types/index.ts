@@ -1011,7 +1011,7 @@ export type KnownAccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigrav
  * `string & {}` 保留内置平台的字面量补全。
  */
 export type AccountPlatform = KnownAccountPlatform | (string & {})
-export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
+export type AccountType = 'gateway' | 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
 
@@ -1478,6 +1478,7 @@ export interface Account {
     upstream_billing_provider?: 'new_api'
     new_api_apply_usd_rate?: boolean
     upstream_billing_probe_enabled?: boolean
+    upstream_billing_group_sync_enabled?: boolean
     upstream_billing_rate_sync_enabled?: boolean
     upstream_billing_probe?: UpstreamBillingProbeSnapshot
     codex_reset_credit_snapshot?: {
@@ -1824,6 +1825,7 @@ export interface CreateAccountRequest {
   expires_at?: number | null
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
+  upstream_billing_group_sync_enabled?: boolean
   confirm_mixed_channel_risk?: boolean
 }
 
@@ -1837,7 +1839,14 @@ export interface AccountGroupBinding {
   created_at: string
 }
 
+export interface UpstreamGroupSyncGuard {
+  source: string
+  name: string
+  notes: string | null
+}
+
 export interface UpdateAccountRequest {
+  upstream_group_guard?: UpstreamGroupSyncGuard
 	platform?: AccountPlatform
   name?: string
   notes?: string | null
@@ -1857,6 +1866,7 @@ export interface UpdateAccountRequest {
   expires_at?: number | null
   auto_pause_on_expired?: boolean
   upstream_billing_probe_enabled?: boolean
+  upstream_billing_group_sync_enabled?: boolean
   upstream_billing_rate_sync_enabled?: boolean
   confirm_mixed_channel_risk?: boolean
 }
@@ -2054,6 +2064,7 @@ export interface CustomerCostDetails {
   cache_cost_details?: CustomerCacheCostDetail[]
   image_minimum_charge?: number
   image_minimum_charge_adjustment?: number
+  probe_penalty?: { minimum_charge: number; adjustment: number; actual_cost: number; original_output_tokens: number; billing_output_tokens: number; output_token_price: number }
   version: number
   free_fast: boolean
   free_ultrafast?: boolean
@@ -2805,7 +2816,7 @@ export interface QualityJudgeConfig {
   prompt: string
 }
 export interface QualityJudgment {
-  kind?: 'llm' | 'jev'
+  kind?: 'llm' | 'jev' | 'ciallo'
   rules_version?: string
   latency_ms?: number
   verdict: 'correct' | 'incorrect' | 'unknown'
@@ -2889,7 +2900,8 @@ export interface PelicanTestConfig {
   quality_model_actions?: Record<string, string>
   trigger_source?: string
   quality?: QualityPolicy
-  question_kind?: 'candy' | 'pelican' | 'state_probe' | 'random_reasoning'
+  question_kind?: 'candy' | 'pelican' | 'state_probe' | 'random_reasoning' | 'ciallo'
+  ciallo?: { template_version: string; judge_version: string; protocol?: string }
   // Result-only identity of a runtime-generated question.
   random_question?: { id: string; family: 'paths' | 'weighted_xor'; version: string }
   quality_batch?: {

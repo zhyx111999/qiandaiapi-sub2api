@@ -297,6 +297,9 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletionsWithStartTime(
 	if result != nil {
 		addOpenAIUsage(&result.Usage, bridgeUsage)
 		result.UpstreamEndpoint = grokChatRawEndpoint
+		if account.Platform == PlatformNovelAI && result.ImageCount > 0 {
+			result.ReferenceImageCount = novelAIChatReferenceCount(upstreamBody)
+		}
 	}
 	return result, forwardErr
 }
@@ -349,9 +352,12 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 		}
 		flushPending = false
 	}
-	scanner := s.newUpstreamSSEScanner(&flushBeforeUpstreamRead{r: resp.Body, flush: flushToClient})
+	scanner := newDeepSeekChatSSEPrefixScanner(
+		s.newUpstreamSSEScanner(&flushBeforeUpstreamRead{r: resp.Body, flush: flushToClient}), account, upstreamModel,
+	)
 	pendingLines := make([]string, 0, 8)
 	refusalDetector := newOpenAIChatSilentRefusalDetector(requestBodyLen)
+	novelAIImages := newNovelAIChatImages(account)
 	var terminal openAIRawStreamTerminalState
 	var regionalUsagePayload []byte
 	var normalizationErr error
@@ -447,6 +453,7 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 		}
 
 		if payload, ok := extractOpenAISSEDataLine(line); ok {
+			novelAIImages.Observe(payload)
 			if u := extractCCStreamUsage(payload); u != nil {
 				regionalUsagePayload = []byte(payload)
 				mergeOpenAIProtectionUsageEvidence(usage, u)
@@ -484,7 +491,7 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 	flushToClient()
 
 	resultWithUsage := func() *OpenAIForwardResult {
-		return &OpenAIForwardResult{
+		result := &OpenAIForwardResult{
 			RequestID:                     requestID,
 			UpstreamHeaders:               resp.Header,
 			Usage:                         usage,
@@ -501,6 +508,8 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 			Duration:                      requesttiming.Now(c.Request.Context()).Sub(startTime),
 			FirstTokenMs:                  firstTokenMs,
 		}
+		novelAIImages.Apply(result)
+		return result
 	}
 
 	if normalizationErr != nil {
@@ -686,7 +695,7 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 	c.Writer.WriteHeader(http.StatusOK)
 	_, _ = c.Writer.Write(respBody)
 
-	return &OpenAIForwardResult{
+	result := &OpenAIForwardResult{
 		RequestID:                     requestID,
 		UpstreamHeaders:               resp.Header,
 		Usage:                         usage,
@@ -700,7 +709,11 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 		ServiceTier:                   resolvedOpenAIUpstreamServiceTier(c, serviceTier),
 		Stream:                        false,
 		Duration:                      requesttiming.Now(c.Request.Context()).Sub(startTime),
-	}, nil
+	}
+	novelAIImages := newNovelAIChatImages(account)
+	novelAIImages.Observe(string(respBody))
+	novelAIImages.Apply(result)
+	return result, nil
 }
 
 // buildOpenAIChatCompletionsURL 拼接上游 Chat Completions 端点 URL。

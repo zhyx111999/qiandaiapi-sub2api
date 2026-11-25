@@ -38,8 +38,8 @@ func IsOpenAIVideoTaskID(id string) bool {
 	return err == nil
 }
 
-func (s *OpenAIGatewayService) HasOpenAIVideoAccount(ctx context.Context, groupID *int64) (bool, error) {
-	accounts, err := s.listSchedulableAccounts(ctx, groupID, PlatformOpenAI)
+func (s *OpenAIGatewayService) HasOpenAIVideoAccount(ctx context.Context, groupID *int64, platform string) (bool, error) {
+	accounts, err := s.listSchedulableAccounts(ctx, groupID, platform)
 	if err != nil {
 		return false, err
 	}
@@ -288,6 +288,9 @@ func (s *OpenAIGatewayService) ForwardOpenAIVideo(
 	if !endpoint.IsOpenAIVideo() || !account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityVideos) {
 		return nil, nil, fmt.Errorf("OpenAI Videos requires an enabled API Key account")
 	}
+	if account.Platform == PlatformQwen {
+		return s.forwardWanVideo(ctx, c, account, endpoint, taskID, upstreamTaskID, body, info)
+	}
 	base, err := s.validateUpstreamBaseURL(account.GetCredential("base_url"))
 	if err != nil {
 		return nil, nil, err
@@ -328,7 +331,7 @@ func (s *OpenAIGatewayService) ForwardOpenAIVideo(
 	if err != nil {
 		return nil, nil, err
 	}
-	account.ApplyHeaderOverrides(req.Header)
+	account.ApplyHeaderOverridesWithContext(req.Context(), req.Header)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
 	if method == http.MethodPost {
