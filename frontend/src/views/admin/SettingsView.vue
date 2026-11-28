@@ -48,7 +48,8 @@
                   v-if="tab.key === 'features'"
                   data-notice="api-key-multi-group" :notice-id="NEW_FEATURE_NOTICES.apiKeyMultiGroupPolicy"
                   :user-id="authStore.user?.id"
-                  class="settings-tab-badge"
+                  compact
+                  class="absolute right-6 top-2 z-10"
                 />
                 <NewFeatureBadge
                   v-if="tab.key === 'features'"
@@ -75,7 +76,8 @@
                   v-if="tab.key === 'gateway'"
                   :notice-id="NEW_FEATURE_NOTICES.exaSearch"
                   :user-id="authStore.user?.id"
-                  class="settings-tab-badge"
+                  compact
+                  class="absolute right-14 top-2 z-10"
                 />
                 <NewFeatureBadge
                   v-if="tab.key === 'gateway'"

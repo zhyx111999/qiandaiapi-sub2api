@@ -908,28 +908,30 @@ describe("admin SettingsView payment visible method controls", () => {
   it("keeps compact tab badges out of layout flow and independently dismissible", async () => {
     const wrapper = mountView();
     await flushPromises();
-    const tabBadge = (tab: string) => wrapper.find(`#settings-tab-${tab} + [data-testid="new-feature-badge"]`);
+    const tabBadges = (tab: string) => wrapper.findAll(`#settings-tab-${tab} ~ [data-testid="new-feature-badge"]`);
     const tabBar = wrapper.get(".settings-tabs").element;
 
-    expect(["features", "gateway", "payment"].filter((tab) => tabBadge(tab).exists())).toHaveLength(3);
-    expect(tabBadge("email").exists()).toBe(false);
+    expect(tabBadges("features")).toHaveLength(2);
+    expect(tabBadges("gateway")).toHaveLength(4);
+    expect(tabBadges("payment")).toHaveLength(1);
+    expect(tabBadges("email")).toHaveLength(0);
     expect(tabBar.querySelector("[style]")).toBeNull();
     for (const tab of ["features", "gateway", "payment"]) {
-      expect(tabBadge(tab).classes()).toContain("absolute");
-      expect(tabBadge(tab).element.parentElement?.classList.contains("relative")).toBe(true);
+      for (const badge of tabBadges(tab)) {
+        expect(badge.classes()).toContain("absolute");
+        expect(badge.element.parentElement?.classList.contains("relative")).toBe(true);
+      }
     }
-
-    await tabBadge("gateway").trigger("click");
-    await flushPromises();
 
     // Each notice is dismissed independently without changing the tab width.
-    for (let remaining = 3; remaining > 0; remaining--) {
-      expect(tabBadge("gateway").exists()).toBe(true);
-      await tabBadge("gateway").trigger("click");
+    for (let remaining = 4; remaining > 0; remaining--) {
+      expect(tabBadges("gateway")).toHaveLength(remaining);
+      await tabBadges("gateway")[0]!.trigger("click");
       await flushPromises();
     }
-    expect(tabBadge("gateway").exists()).toBe(false);
-    expect(tabBadge("payment").exists()).toBe(true);
+    expect(tabBadges("gateway")).toHaveLength(0);
+    expect(tabBadges("features")).toHaveLength(2);
+    expect(tabBadges("payment")).toHaveLength(1);
     expect(tabBar.querySelector("[style]")).toBeNull();
   });
 
