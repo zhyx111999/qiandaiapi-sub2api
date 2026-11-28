@@ -7,7 +7,10 @@ import (
 
 // PelicanTestConfig stores intelligence test inputs; a missing kind preserves legacy HTML plans.
 type PelicanTestConfig struct {
-	Ciallo *CialloEvidence `json:"ciallo,omitempty"`
+	// Result-only evidence from the terminal answer request and the round classifier.
+	QualityHTTPStatus int             `json:"quality_http_status,omitempty"`
+	Quality429Streak  int             `json:"quality_429_streak,omitempty"`
+	Ciallo            *CialloEvidence `json:"ciallo,omitempty"`
 	// Optional display name stored in the existing configuration JSON.
 	RuleName string `json:"rule_name,omitempty"`
 	// Request timeout of an account status check plan (account_status_check.go); other plans keep the runner's limit.
@@ -135,6 +138,7 @@ type ScheduledTestResultRepository interface {
 }
 
 type QualityHistoryResult struct {
+	Quality429Streak int `json:"quality_429_streak,omitempty"`
 	PelicanHistoryResult
 	PassedCount  int     `json:"passed_count"`
 	SkippedCount int     `json:"skipped_count"`

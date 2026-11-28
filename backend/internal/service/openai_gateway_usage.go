@@ -409,6 +409,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		s.excelOAuthReauth.recordConnectionUsage(ctx, account.ID, apiKey.ID, result.AuthConnectionID, requestID)
 	}
 	usageLog := &UsageLog{
+		SLAExcluded:              result.SLAExcluded,
 		CustomerCostDetails:      customerCostDetails,
 		Platform:                 usagePlatformForRequest(ctx, account, apiKey, input.QuotaPlatform),
 		UserID:                   user.ID,
@@ -542,11 +543,19 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）
 	if apiKey.GroupID != nil {
+		statsBase := cost.TotalCost
+		freeTier := customerCostDetails != nil && (customerCostDetails.FreeFast || customerCostDetails.FreeUltrafast)
+		if freeTier {
+			statsBase = customerCostDetails.TotalCost * float64(1+result.HeaderTimeoutRetries)
+		}
 		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
 			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
-			tokens, cost.TotalCost, pricingAt,
+			tokens, statsBase, pricingAt,
 			accountStatsLongContextPricingEnabled(longContextBillingGate) && !modelLongContextExempt, 1,
 		)
+		if freeTier && usageLog.AccountStatsCost == nil {
+			usageLog.AccountStatsCost = &statsBase
+		}
 	}
 
 	captureGatewayProcurementCost(usageLog, account)
@@ -586,8 +595,6 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	if !s.DurableUsageBillingEnabled() {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
-	} else {
-		recordDurableUsageTiming(ctx, s.usageLogRepo, usageLog)
 	}
 
 	return nil
